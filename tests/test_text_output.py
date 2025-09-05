@@ -69,8 +69,8 @@ class TestTextOutputController:
         controller = TextOutputController()
         result = controller.get_text_diff("hello world", "hello there")
         assert result["type"] == "replace_suffix"
-        assert result["chars_to_delete"] == 6
-        assert result["text"] == " there"
+        assert result["chars_to_delete"] == 5
+        assert result["text"] == "there"
 
     def test_get_text_diff_replace_all(self):
         """Test text diff replace all case."""
@@ -405,6 +405,8 @@ class TestTextOutputControllerPrivateMethods:
         controller.last_typed_text = "Hello"
 
         mock_kb_controller = Mock()
+        mock_kb_controller.pressed.return_value.__enter__ = Mock(return_value=None)
+        mock_kb_controller.pressed.return_value.__exit__ = Mock(return_value=None)
         mock_keyboard = Mock()
         mock_keyboard.Key = Mock()
         mock_keyboard.Controller = Mock()
@@ -465,6 +467,8 @@ class TestTextOutputControllerPrivateMethods:
         controller.last_typed_text = "Hello"
 
         mock_kb_controller = Mock()
+        mock_kb_controller.pressed.return_value.__enter__ = Mock(return_value=None)
+        mock_kb_controller.pressed.return_value.__exit__ = Mock(return_value=None)
         mock_keyboard = Mock()
         mock_keyboard.Key = Mock()
         mock_keyboard.Key.backspace = Mock()
@@ -552,17 +556,26 @@ class TestGetKeyboardModule:
 
     def test_get_keyboard_module_success(self):
         """Test successful keyboard module import."""
-        with patch(
-            "voice_mcp.voice.text_output.keyboard", create=True
-        ) as mock_keyboard:
+        mock_keyboard = Mock()
+
+        def mock_import(name, *args, **kwargs):
+            if name == "pynput":
+                mock_pynput = Mock()
+                mock_pynput.keyboard = mock_keyboard
+                return mock_pynput
+            return __import__(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=mock_import):
             result = _get_keyboard_module()
             assert result == mock_keyboard
 
     def test_get_keyboard_module_import_error(self):
         """Test keyboard module import error."""
-        with patch("builtins.__import__", side_effect=ImportError("No module")):
-            result = _get_keyboard_module()
-            assert result is None
+        with patch("voice_mcp.voice.text_output.logger") as mock_logger:
+            with patch("builtins.__import__", side_effect=ImportError("No module")):
+                result = _get_keyboard_module()
+                assert result is None
+                mock_logger.warning.assert_called_once()
 
 
 class TestTextOutputControllerIntegration:

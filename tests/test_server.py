@@ -134,10 +134,12 @@ class TestServerTools:
         """Test that server tools are properly registered with FastMCP."""
         from voice_mcp.server import mcp
 
-        # Check that mcp instance has tools registered
-        assert hasattr(mcp, "_tools")
+        # Check that mcp instance has tools registered via tool manager
+        assert hasattr(mcp, "_tool_manager")
+        assert hasattr(mcp._tool_manager, "_tools")
+
         # Check that our tools are in the tools list
-        tool_names = [tool.name for tool in mcp._tools]
+        tool_names = list(mcp._tool_manager._tools.keys())
         assert "speak" in tool_names
         assert "start_hotkey_monitoring" in tool_names
         assert "stop_hotkey_monitoring" in tool_names
@@ -147,10 +149,12 @@ class TestServerTools:
         """Test that server prompts are properly registered with FastMCP."""
         from voice_mcp.server import mcp
 
-        # Check that mcp instance has prompts registered
-        assert hasattr(mcp, "_prompts")
+        # Check that mcp instance has prompts registered via prompt manager
+        assert hasattr(mcp, "_prompt_manager")
+        assert hasattr(mcp._prompt_manager, "_prompts")
+
         # Check that our prompt is in the prompts list
-        prompt_names = [prompt.name for prompt in mcp._prompts]
+        prompt_names = list(mcp._prompt_manager._prompts.keys())
         assert "speak_guide" in prompt_names
 
 

@@ -380,18 +380,34 @@ class TestTranscriptionHandler:
         """Test timeout context manager when timeout is triggered."""
         handler = TranscriptionHandler()
 
+        # Mock the signal handling
         with patch("signal.alarm") as mock_alarm:
             with patch("signal.signal") as mock_signal:
                 original_handler = Mock()
                 mock_signal.return_value = original_handler
 
-                def mock_timeout_handler():
-                    raise Exception("Timeout")
+                timeout_occurred = False
 
-                with patch("time.sleep", side_effect=mock_timeout_handler):
+                try:
                     with handler._timeout_context(1.0):
-                        # Simulate timeout by raising the exception
-                        raise Exception("Timeout")
+                        # Simulate what the signal handler would do by accessing
+                        # the timeout handler from the patched signal call
+                        signal_calls = mock_signal.call_args_list
+                        if signal_calls:
+                            # Get the timeout handler that was registered
+                            timeout_handler = signal_calls[0][0][
+                                1
+                            ]  # Second argument to signal.signal
+                            # Simulate the signal being triggered
+                            timeout_handler(14, None)  # SIGALRM = 14
+                except Exception:
+                    # The TimeoutError should be caught by the context manager
+                    # so we shouldn't reach here, but if we do, that means
+                    # the context manager didn't catch it properly
+                    timeout_occurred = True
+
+                # The test should complete without exception (timeout should be caught)
+                assert timeout_occurred is False
 
                 # Verify alarm was set and cleared
                 mock_alarm.assert_any_call(1)
@@ -423,12 +439,18 @@ class TestTranscriptionHandler:
         handler._recorder = None
 
         with patch("voice_mcp.voice.stt.REALTIMESTT_AVAILABLE", True):
-            with patch.object(handler, "preload", return_value=True) as mock_preload:
-                mock_recorder = Mock()
-                mock_recorder.set_on_recording_stop = Mock()
-                mock_recorder.set_on_realtime_transcription_stabilized = Mock()
-                mock_recorder.listen = Mock()
+            mock_recorder = Mock()
+            mock_recorder.set_on_recording_stop = Mock()
+            mock_recorder.set_on_realtime_transcription_stabilized = Mock()
+            mock_recorder.listen = Mock()
 
+            def mock_preload():
+                handler._recorder = mock_recorder
+                return True
+
+            with patch.object(
+                handler, "preload", side_effect=mock_preload
+            ) as mock_preload_patch:
                 with patch(
                     "voice_mcp.voice.stt.AudioToTextRecorder",
                     return_value=mock_recorder,
@@ -440,7 +462,7 @@ class TestTranscriptionHandler:
                         with patch("time.time", side_effect=[0.0, 2.0]):
                             result = handler.transcribe_once()
 
-                            mock_preload.assert_called_once()
+                            mock_preload_patch.assert_called_once()
                             assert result["success"] is True
 
     def test_transcribe_once_preload_failure(self):
@@ -454,7 +476,7 @@ class TestTranscriptionHandler:
                 result = handler.transcribe_once()
 
                 assert result["success"] is False
-                assert "Failed to preload STT model" in result["error"]
+                assert "STT not available - failed to load model" in result["error"]
 
     def test_transcribe_once_callback_updates(self):
         """Test that transcription callbacks properly update text."""
@@ -476,12 +498,20 @@ class TestTranscriptionHandler:
                 nonlocal recording_stop_callback
                 recording_stop_callback = callback
 
+            def mock_listen():
+                # Simulate callbacks being called during listen
+                if transcription_callback:
+                    transcription_callback("partial text")
+                if recording_stop_callback:
+                    recording_stop_callback("final transcribed text")
+
             handler._recorder.set_on_realtime_transcription_stabilized.side_effect = (
                 capture_transcription_callback
             )
             handler._recorder.set_on_recording_stop.side_effect = (
                 capture_recording_stop_callback
             )
+            handler._recorder.listen.side_effect = mock_listen
 
             with patch("voice_mcp.voice.stt.config") as mock_config:
                 mock_config.stt_model = "base"
@@ -489,12 +519,6 @@ class TestTranscriptionHandler:
 
                 with patch("time.time", side_effect=[0.0, 2.0]):
                     result = handler.transcribe_once()
-
-                    # Simulate callbacks being called
-                    if transcription_callback:
-                        transcription_callback("partial text")
-                    if recording_stop_callback:
-                        recording_stop_callback("final transcribed text")
 
                     assert result["success"] is True
                     assert result["transcription"] == "final transcribed text"

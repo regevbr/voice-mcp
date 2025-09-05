@@ -200,12 +200,6 @@ class TranscriptionHandler:
             logger.info("Recording stopped", final_text=text)
 
         try:
-            # Use preloaded recorder - if none exists, preload first
-            if self._recorder is None:
-                logger.info("No recorder available, preloading STT model first")
-                if not self.preload():
-                    raise Exception("Failed to preload STT model")
-
             logger.info("Using preloaded STT model for transcription")
             recorder_to_use = self._recorder
 
@@ -320,12 +314,6 @@ class TranscriptionHandler:
                 logger.warning("Final typing error", error=str(e))
 
         try:
-            # Use preloaded recorder - if none exists, preload first
-            if self._recorder is None:
-                logger.info("No recorder available, preloading STT model first")
-                if not self.preload():
-                    raise Exception("Failed to preload STT model")
-
             logger.info("Using preloaded STT model for real-time transcription")
             recorder_to_use = self._recorder
 
@@ -415,7 +403,9 @@ class TranscriptionHandler:
                 logger.warning("Error during cleanup", error=str(e))
             finally:
                 self._recorder = None
-                self._is_initialized = False
+
+        # Always reset initialization state
+        self._is_initialized = False
 
     def __enter__(self):
         """Context manager entry."""
