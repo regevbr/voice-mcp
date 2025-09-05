@@ -204,14 +204,7 @@ jobs:
       run: |
         echo "🧪 Running tests..."
         # Run fast tests without hardware dependencies
-        uv run pytest -v \
-          -m "not slow and not voice" \
-          --tb=short \
-          --cov=src/voice_mcp \
-          --cov-report=xml \
-          --cov-report=term-missing \
-          --cov-report=html \
-          --junit-xml=pytest-results-${{ matrix.os }}-${{ matrix.python-version }}.xml
+        uv run pytest -v -m "not slow and not voice" --tb=short --cov=src/voice_mcp --cov-report=xml --cov-report=term-missing --cov-report=html --junit-xml=pytest-results-${{ matrix.os }}-${{ matrix.python-version }}.xml
 
     - name: Run tests (Windows)
       if: matrix.os == 'windows-latest'

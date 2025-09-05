@@ -399,19 +399,8 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 
 ## 🙏 Acknowledgments
 
-- [Model Context Protocol](https://github.com/modelcontextprotocol) - MCP specification and tools
 - [whisper-typer-tool](https://github.com/dynamiccreator/whisper-typer-tool) - Inspiration for STT integration
-- [pyttsx3](https://github.com/nateshmbhat/pyttsx3) - Cross-platform TTS library
-- [gTTS](https://github.com/pndurette/gTTS) - Google Text-to-Speech
-- [FastMCP](https://github.com/modelcontextprotocol/python-sdk) - Fast MCP server framework
-
-## 🗺️ Roadmap
-
-- [x] **Phase 1**: MCP server foundation with FastMCP
-- [x] **Phase 2**: Text-to-Speech implementation
-- [x] **Phase 3**: Hotkey monitoring and core functionality
-- [x] **Phase 4**: Streamlined tool set and focused architecture
-- [ ] **Phase 5**: Enhanced voice features and production optimization
+- [mcp-voice-hooks](https://github.com/johnmatthewtennant/mcp-voice-hooks) - Inspiration for TTS integration
 
 ---
 
