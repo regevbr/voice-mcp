@@ -64,6 +64,9 @@ jobs:
           libespeak-dev \
           ffmpeg
 
+    - name: Create virtual environment
+      run: uv venv --python ${{ matrix.python-version }}
+
     - name: Install dependencies
       run: |
         uv sync --dev --no-install-workspace
@@ -132,9 +135,6 @@ jobs:
     - name: Set up Python ${{ matrix.python-version }}
       run: uv python install ${{ matrix.python-version }}
 
-    - name: Create virtual environment
-      run: uv venv --python ${{ matrix.python-version }}
-
     - name: Install system dependencies (Ubuntu)
       if: matrix.os == 'ubuntu-latest'
       run: |
@@ -176,6 +176,9 @@ jobs:
         key: ${{ runner.os }}-uv-${{ matrix.python-version }}-${{ hashFiles('**/pyproject.toml', '**/uv.lock') }}
         restore-keys: |
           ${{ runner.os }}-uv-${{ matrix.python-version }}-
+
+    - name: Create virtual environment
+      run: uv venv --python ${{ matrix.python-version }}
 
     - name: Install dependencies
       run: |
@@ -276,6 +279,9 @@ jobs:
           ffmpeg \
           pulseaudio \
           xvfb
+
+    - name: Create virtual environment
+      run: uv venv --python 3.12
 
     - name: Install dependencies
       run: |
