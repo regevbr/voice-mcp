@@ -4,10 +4,8 @@ Enhanced text output functionality with multiple output modes and error handling
 
 import time
 import difflib
-from typing import Optional, Dict, Any, Literal, TYPE_CHECKING
+from typing import Optional, Dict, Any, Literal
 
-if TYPE_CHECKING:
-    from pynput import keyboard as KeyboardType
 import structlog
 
 import pyperclip
@@ -66,7 +64,7 @@ class TextOutputController:
         """Check if clipboard functionality is available."""
         try:
             # Test clipboard access
-            test_text = pyperclip.paste()
+            pyperclip.paste()
             logger.debug("Clipboard access confirmed")
             return True
         except Exception as e:
@@ -359,14 +357,3 @@ class TextOutputController:
         self.last_typed_text = ""
         self.last_update_time = 0
         logger.debug("TextOutputController state reset")
-    
-    def get_status(self) -> Dict[str, Any]:
-        """Get current status and capabilities."""
-        return {
-            "typing_available": self._check_typing_availability(),
-            "clipboard_available": self._check_clipboard_availability(),
-            "debounce_delay": self.debounce_delay,
-            "last_text_length": len(self.last_typed_text),
-            "pynput_available": True,
-            "pyperclip_available": True
-        }

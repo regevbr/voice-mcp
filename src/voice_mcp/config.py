@@ -29,7 +29,7 @@ class ServerConfig:
     stt_model: str = "base"  # tiny, base, small, medium, large
     stt_language: str = "en"  # Default language for STT
     stt_silence_threshold: float = 4.0
-    stt_server_mode: bool = False  # Enable persistent model server mode
+    stt_server_mode: bool = True  # Enable persistent model server mode
     stt_preload_models: List[str] = None  # Which models to preload (None means use default ["base"])
     stt_model_cache_size: int = 2  # Maximum number of models to keep in memory
     stt_model_timeout: int = 300  # Timeout for unused models (in seconds)

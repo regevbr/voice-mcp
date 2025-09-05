@@ -21,11 +21,10 @@ class TestAudioManager:
     
     def test_init_without_pyaudio(self):
         """Test AudioManager initialization when PyAudio is not available."""
-        with patch('voice_mcp.voice.audio.PYAUDIO_AVAILABLE', False):
+        with patch('voice_mcp.voice.audio.PYAUDIO_AVAILABLE', False), \
+             patch('voice_mcp.voice.audio.pyaudio.PyAudio', side_effect=Exception("No PyAudio")):
             audio_manager = AudioManager()
             assert not audio_manager.is_available
-            assert audio_manager.get_status()["available"] is False
-            assert audio_manager.get_status()["pyaudio_available"] is False
     
     @patch('voice_mcp.voice.audio.pyaudio')
     def test_init_with_pyaudio_success(self, mock_pyaudio):
@@ -108,10 +107,10 @@ class TestAudioManager:
             
             assert len(audio_manager.audio_data) == 0
     
-    @patch('voice_mcp.voice.audio.pyaudio')
-    def test_play_audio_file_not_available(self, mock_pyaudio):
+    def test_play_audio_file_not_available(self):
         """Test audio playback when system is not available."""
-        with patch('voice_mcp.voice.audio.PYAUDIO_AVAILABLE', False):
+        with patch('voice_mcp.voice.audio.PYAUDIO_AVAILABLE', False), \
+             patch('voice_mcp.voice.audio.pyaudio.PyAudio', side_effect=Exception("No PyAudio")):
             audio_manager = AudioManager()
             
             result = audio_manager.play_audio_file("on.wav")
@@ -245,23 +244,6 @@ class TestAudioManager:
                 assert result is True
                 mock_play.assert_called_once_with("off.wav")
     
-    @patch('voice_mcp.voice.audio.pyaudio')
-    def test_get_status(self, mock_pyaudio, tmp_path):
-        """Test get_status method."""
-        mock_audio_instance = Mock()
-        mock_pyaudio.PyAudio.return_value = mock_audio_instance
-        
-        with patch('voice_mcp.voice.audio.PYAUDIO_AVAILABLE', True):
-            audio_manager = AudioManager(assets_path=tmp_path)
-            
-            status = audio_manager.get_status()
-            
-            assert isinstance(status, dict)
-            assert status["available"] is True
-            assert status["pyaudio_available"] is True
-            assert status["assets_path"] == str(tmp_path)
-            assert status["preloaded_files"] == []
-            assert status["audio_system"] == "PyAudio"
     
     @patch('voice_mcp.voice.audio.pyaudio')
     def test_cleanup(self, mock_pyaudio):

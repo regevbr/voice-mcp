@@ -51,8 +51,7 @@ def mock_pynput():
     mock_keyboard.Key = mock_key
     mock_keyboard.KeyCode = mock_keycode
     
-    with patch('voice_mcp.voice.hotkey.PYNPUT_AVAILABLE', True), \
-         patch('voice_mcp.voice.hotkey.keyboard', mock_keyboard), \
+    with patch('voice_mcp.voice.hotkey.keyboard', mock_keyboard), \
          patch('voice_mcp.voice.hotkey.Key', mock_key), \
          patch('voice_mcp.voice.hotkey.KeyCode', mock_keycode):
         yield mock_keyboard
@@ -168,7 +167,6 @@ class TestHotkeyManager:
         status = hotkey_manager.get_status()
         assert status["active"] is False
         assert status["hotkey"] is None
-        assert status["pynput_available"] is True
         
         # Start monitoring
         hotkey_manager.start_monitoring("menu")
@@ -235,26 +233,6 @@ class TestHotkeyManager:
         assert not hotkey_manager.is_monitoring()
 
 
-class TestHotkeyManagerWithoutPynput:
-    """Test HotkeyManager behavior when pynput is not available."""
-    
-    @patch('voice_mcp.voice.hotkey.PYNPUT_AVAILABLE', False)
-    def test_start_without_pynput(self):
-        """Test starting monitoring without pynput available."""
-        manager = HotkeyManager()
-        result = manager.start_monitoring("f12")
-        
-        assert result["success"] is False
-        assert "pynput not available" in result["error"]
-    
-    @patch('voice_mcp.voice.hotkey.PYNPUT_AVAILABLE', False)
-    def test_parse_without_pynput(self):
-        """Test key parsing without pynput available."""
-        manager = HotkeyManager()
-        result = manager._parse_hotkey("f12")
-        
-        assert result["success"] is False
-        assert "pynput not available" in result["error"]
 
 
 class TestVoiceToolsHotkeyIntegration:
@@ -484,7 +462,6 @@ class TestErrorHandling:
 class TestHotkeyIntegration:
     """Integration tests for hotkey functionality."""
     
-    @patch('voice_mcp.voice.hotkey.PYNPUT_AVAILABLE', True)
     def test_manager_lifecycle(self):
         """Test complete manager lifecycle."""
         manager = get_hotkey_manager()
