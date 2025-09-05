@@ -309,20 +309,63 @@ class TestVoiceToolsHotkeyIntegration:
 class TestHotkeyCallback:
     """Test the hotkey callback functionality."""
 
-    @patch("voice_mcp.tools.VoiceTools.listen")
+    @patch("voice_mcp.tools.get_audio_manager")
+    @patch("voice_mcp.tools.get_text_output_controller")
+    @patch("voice_mcp.tools.get_transcription_handler")
     @patch("voice_mcp.tools.config")
-    def test_on_hotkey_pressed_success(self, mock_config, mock_listen):
-        """Test successful hotkey callback execution."""
+    def test_on_hotkey_pressed_success(self, mock_config, mock_handler_getter, mock_text_controller_getter, mock_audio_manager_getter):
+        """Test successful hotkey callback execution with typing mode (real-time)."""
         from voice_mcp.tools import _on_hotkey_pressed
 
         mock_config.stt_language = "en"
         mock_config.hotkey_output_mode = "typing"
 
+        # Mock the transcription handler
+        mock_handler = Mock()
+        mock_handler.transcribe_with_realtime_output.return_value = {
+            "success": True,
+            "transcription": "Hello world",
+            "duration": 2.5,
+        }
+        mock_handler_getter.return_value = mock_handler
+
+        # Mock text controller
+        mock_text_controller = Mock()
+        mock_text_controller_getter.return_value = mock_text_controller
+
+        # Mock audio manager
+        mock_audio_manager = Mock()
+        mock_audio_manager.is_available = True
+        mock_audio_manager_getter.return_value = mock_audio_manager
+
+        # Execute callback
+        _on_hotkey_pressed()
+
+        # Verify real-time transcription was called
+        mock_handler.transcribe_with_realtime_output.assert_called_once_with(
+            text_output_controller=mock_text_controller,
+            duration=None,
+            language="en"
+        )
+
+        # Verify audio feedback
+        mock_audio_manager.play_on_sound.assert_called_once()
+        mock_audio_manager.play_off_sound.assert_called_once()
+
+    @patch("voice_mcp.tools.VoiceTools.listen")
+    @patch("voice_mcp.tools.config")
+    def test_on_hotkey_pressed_non_typing_mode(self, mock_config, mock_listen):
+        """Test hotkey callback with non-typing mode (fallback to standard listen)."""
+        from voice_mcp.tools import _on_hotkey_pressed
+
+        mock_config.stt_language = "en"
+        mock_config.hotkey_output_mode = "clipboard"
+
         mock_listen.return_value = {
             "status": "success",
             "transcription": "Hello world",
             "duration": 2.5,
-            "output_mode": "typing",
+            "output_mode": "clipboard",
         }
 
         # Execute callback
@@ -330,7 +373,7 @@ class TestHotkeyCallback:
 
         # Verify listen was called with correct parameters
         mock_listen.assert_called_once_with(
-            duration=None, language="en", output_mode="typing"
+            duration=None, language="en", output_mode="clipboard"
         )
 
     @patch("voice_mcp.tools.VoiceTools.listen")
@@ -356,23 +399,36 @@ class TestHotkeyCallback:
             duration=None, language="en", output_mode="clipboard"
         )
 
-    @patch("voice_mcp.tools.VoiceTools.listen")
+    @patch("voice_mcp.tools.get_audio_manager")
+    @patch("voice_mcp.tools.get_text_output_controller")
+    @patch("voice_mcp.tools.get_transcription_handler")
     @patch("voice_mcp.tools.config")
-    def test_on_hotkey_pressed_exception(self, mock_config, mock_listen):
+    def test_on_hotkey_pressed_exception(self, mock_config, mock_handler_getter, mock_text_controller_getter, mock_audio_manager_getter):
         """Test hotkey callback with exception handling."""
         from voice_mcp.tools import _on_hotkey_pressed
 
         mock_config.stt_language = "en"
         mock_config.hotkey_output_mode = "typing"
 
-        # Make listen raise an exception
-        mock_listen.side_effect = Exception("Test exception")
+        # Mock the transcription handler to raise exception
+        mock_handler = Mock()
+        mock_handler.transcribe_with_realtime_output.side_effect = Exception("Test exception")
+        mock_handler_getter.return_value = mock_handler
+
+        # Mock text controller
+        mock_text_controller = Mock()
+        mock_text_controller_getter.return_value = mock_text_controller
+
+        # Mock audio manager
+        mock_audio_manager = Mock()
+        mock_audio_manager.is_available = True
+        mock_audio_manager_getter.return_value = mock_audio_manager
 
         # Execute callback (should not raise exception)
         _on_hotkey_pressed()
 
-        # Verify listen was called
-        mock_listen.assert_called_once()
+        # Verify real-time transcription was attempted
+        mock_handler.transcribe_with_realtime_output.assert_called_once()
 
 
 class TestHotkeyKeyParsing:

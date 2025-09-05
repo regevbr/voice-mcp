@@ -5,25 +5,19 @@ MCP tools for voice functionality.
 from typing import Any
 
 import structlog
-from RealtimeSTT import AudioToTextRecorder
 
 from .config import config
 from .voice.audio import AudioManager
 from .voice.hotkey import HotkeyManager
-from .voice.stt import TranscriptionHandler
-from .voice.stt_server import get_stt_server
+from .voice.stt import get_transcription_handler
 from .voice.text_output import OutputMode, TextOutputController
 from .voice.tts import TTSManager
 
 logger = structlog.get_logger(__name__)
 
-# STT server is always available since all dependencies are now installed
-STT_SERVER_AVAILABLE = True
-
 # Initialize managers
 _tts_manager = None
 _audio_manager = None
-_stt_handler = None
 _text_output_controller = None
 _hotkey_manager = None
 
@@ -44,18 +38,6 @@ def get_audio_manager() -> AudioManager:
     return _audio_manager
 
 
-def get_stt_handler() -> TranscriptionHandler:
-    """Get or create STT handler instance."""
-    global _stt_handler
-    if _stt_handler is None:
-        _stt_handler = TranscriptionHandler(
-            model_name=config.stt_model,
-            silence_threshold=config.stt_silence_threshold,
-            language=config.stt_language,
-        )
-    return _stt_handler
-
-
 def get_text_output_controller() -> TextOutputController:
     """Get or create text output controller instance."""
     global _text_output_controller
@@ -74,169 +56,68 @@ def get_hotkey_manager() -> HotkeyManager:
     return _hotkey_manager
 
 
-def _server_transcribe_once(
-    recorder: AudioToTextRecorder, duration: float | None = None, language: str = "en"
-) -> dict[str, Any]:
-    """
-    Perform server-based transcription using a persistent model recorder.
-
-    Args:
-        recorder: AudioToTextRecorder instance from STT server
-        duration: Maximum duration to listen (seconds, None for silence-based stopping)
-        language: Language for speech recognition
-
-    Returns:
-        Dictionary with transcription results (same format as TranscriptionHandler.transcribe_once)
-    """
-    import time
-    from threading import Event, Thread
-
-    logger.debug(
-        "Starting server-based transcription", duration=duration, language=language
-    )
-    transcription_start = time.time()
-
-    try:
-        # Store transcription result
-        result_text = ""
-        transcription_complete = Event()
-        transcription_error = None
-
-        def on_realtime_transcription(text):
-            """Callback for realtime transcription updates."""
-            nonlocal result_text
-            result_text = text
-            logger.debug("Realtime transcription update", text_length=len(text))
-
-        def on_transcription_finished():
-            """Callback when transcription is finished."""
-            logger.debug("Server transcription finished")
-            transcription_complete.set()
-
-        def on_error(error):
-            """Callback for transcription errors."""
-            nonlocal transcription_error
-            transcription_error = error
-            logger.error("Server transcription error", error=str(error))
-            transcription_complete.set()
-
-        # Configure recorder callbacks
-        recorder.set_on_realtime_transcription_callback(on_realtime_transcription)
-        recorder.set_on_recording_start_callback(
-            lambda: logger.debug("Recording started")
-        )
-        recorder.set_on_recording_stop_callback(on_transcription_finished)
-        recorder.set_on_error_callback(on_error)
-
-        # Start transcription
-        recorder.start()
-
-        # Handle duration-based or silence-based stopping
-        if duration is not None:
-            # Duration-based: wait for specified duration then stop
-            logger.debug("Using duration-based recording", duration=duration)
-
-            def duration_stopper():
-                time.sleep(duration)
-                if not transcription_complete.is_set():
-                    logger.debug("Duration reached, stopping recording")
-                    recorder.stop()
-
-            stopper_thread = Thread(target=duration_stopper, daemon=True)
-            stopper_thread.start()
-        else:
-            # Silence-based: let the recorder handle stopping based on silence detection
-            logger.debug("Using silence-based recording")
-
-        # Wait for transcription to complete (with timeout)
-        timeout = duration + 5.0 if duration else 30.0  # Add some buffer time
-        completed = transcription_complete.wait(timeout=timeout)
-
-        # Ensure recorder is stopped
-        try:
-            recorder.stop()
-        except Exception as e:
-            logger.warning("Error stopping recorder", error=str(e))
-
-        # Calculate final duration
-        actual_duration = time.time() - transcription_start
-
-        # Check for errors
-        if transcription_error:
-            return {
-                "success": False,
-                "transcription": result_text,
-                "error": str(transcription_error),
-                "duration": actual_duration,
-                "language": language,
-                "model": config.stt_model,
-            }
-
-        if not completed:
-            return {
-                "success": False,
-                "transcription": result_text,
-                "error": f"Transcription timed out after {timeout}s",
-                "duration": actual_duration,
-                "language": language,
-                "model": config.stt_model,
-            }
-
-        # Success
-        logger.info(
-            "Server-based transcription completed",
-            text_length=len(result_text),
-            duration=actual_duration,
-        )
-
-        return {
-            "success": True,
-            "transcription": result_text,
-            "duration": actual_duration,
-            "language": language,
-            "model": config.stt_model,
-        }
-
-    except Exception as e:
-        actual_duration = time.time() - transcription_start
-        logger.error("Server transcription failed", error=str(e), exc_info=True)
-        return {
-            "success": False,
-            "transcription": "",
-            "error": f"Server transcription error: {str(e)}",
-            "duration": actual_duration,
-            "language": language,
-            "model": config.stt_model,
-        }
-
-
 def _on_hotkey_pressed() -> None:
     """Callback function when hotkey is pressed."""
     try:
-        logger.info("Hotkey activated, starting STT")
+        logger.info("Hotkey activated, starting real-time STT")
 
-        # Use configured output mode and language
-        result = VoiceTools.listen(
-            duration=None,  # Use silence-based stopping
-            language=config.stt_language,
-            output_mode=config.hotkey_output_mode,  # type: ignore
-        )
-
-        # Log the result for debugging
-        if result.get("status") == "success":
-            text = result.get("transcription", "")
-            logger.info(
-                "Hotkey STT completed successfully",
-                text_length=len(text),
-                duration=result.get("duration", 0),
-                output_mode=result.get("output_mode"),
+        # Use typing mode for real-time display during hotkey usage
+        if config.hotkey_output_mode == "typing":
+            # Use real-time transcription with live typing
+            stt_handler = get_transcription_handler()
+            text_controller = get_text_output_controller()
+            
+            # Play "on" sound to indicate recording start
+            audio_manager = get_audio_manager()
+            if audio_manager.is_available:
+                audio_manager.play_on_sound()
+            
+            # Perform real-time transcription with live typing
+            result = stt_handler.transcribe_with_realtime_output(
+                text_output_controller=text_controller,
+                duration=None,  # Use silence-based stopping
+                language=config.stt_language,
             )
+            
+            # Play "off" sound to indicate recording stop
+            if audio_manager.is_available:
+                audio_manager.play_off_sound()
+            
+            # Log the result
+            if result.get("success"):
+                logger.info(
+                    "Hotkey real-time STT completed successfully",
+                    text_length=len(result.get("transcription", "")),
+                    duration=result.get("duration", 0),
+                )
+            else:
+                logger.warning(
+                    "Hotkey real-time STT failed",
+                    error=result.get("error"),
+                )
         else:
-            logger.warning(
-                "Hotkey STT failed",
-                error=result.get("error"),
-                status=result.get("status"),
+            # Fallback to standard listen mode for non-typing output modes
+            result = VoiceTools.listen(
+                duration=None,  # Use silence-based stopping
+                language=config.stt_language,
+                output_mode=config.hotkey_output_mode,  # type: ignore
             )
+
+            # Log the result for debugging
+            if result.get("status") == "success":
+                text = result.get("transcription", "")
+                logger.info(
+                    "Hotkey STT completed successfully",
+                    text_length=len(text),
+                    duration=result.get("duration", 0),
+                    output_mode=result.get("output_mode"),
+                )
+            else:
+                logger.warning(
+                    "Hotkey STT failed",
+                    error=result.get("error"),
+                    status=result.get("status"),
+                )
 
     except Exception as e:
         logger.error("Hotkey callback error", error=str(e), exc_info=True)
@@ -314,41 +195,16 @@ class VoiceTools:
         )
 
         try:
-            # Check if STT server is running for better performance
-            use_server = False
-            server = get_stt_server()
-            if server is not None and server._is_running:
-                use_server = True
-                logger.debug("Using persistent STT server for transcription")
-                # Use persistent STT server
-                recorder = server.get_model_recorder(config.stt_model)
-                if recorder is None:
-                    logger.warning(
-                        "STT server recorder not available, falling back to one-off transcription"
-                    )
-                    use_server = False
-
-            if not use_server:
-                # Fall back to one-off STT handler
-                stt_handler = get_stt_handler()
+            # Get the singleton transcription handler
+            stt_handler = get_transcription_handler()
 
             # Play "on" sound to indicate recording start
             audio_manager = get_audio_manager()
             if audio_manager.is_available:
                 audio_manager.play_on_sound()
 
-            # Perform transcription using appropriate method
-            if use_server:
-                # Use server-based transcription with persistent model
-                logger.debug("Using server-based transcription", model=config.stt_model)
-                result = _server_transcribe_once(
-                    recorder, duration=duration, language=language
-                )
-            else:
-                # Use regular one-off transcription
-                result = stt_handler.transcribe_once(
-                    duration=duration, language=language
-                )
+            # Perform transcription using the simplified handler
+            result = stt_handler.transcribe_once(duration=duration, language=language)
 
             # Play "off" sound to indicate recording stop
             if audio_manager.is_available:
@@ -370,9 +226,7 @@ class VoiceTools:
             # Handle output mode
             if output_mode != "return" and transcribed_text:
                 text_controller = get_text_output_controller()
-                output_result = text_controller.output_text(
-                    transcribed_text, output_mode
-                )
+                output_result = text_controller.output_text(transcribed_text, output_mode)
 
                 if not output_result["success"]:
                     logger.warning(

@@ -24,15 +24,11 @@ class ServerConfig:
     tts_volume: float = 0.9  # Volume level (not implemented yet)
 
     # STT settings
+    stt_enabled: bool = True  # Enable STT preloading on startup
     stt_model: str = "base"  # tiny, base, small, medium, large
+    stt_device: str = "auto"  # auto, cuda, cpu
     stt_language: str = "en"  # Default language for STT
     stt_silence_threshold: float = 4.0
-    stt_server_mode: bool = True  # Enable persistent model server mode
-    stt_preload_models: list[str] | None = (
-        None  # Which models to preload (None means use default ["base"])
-    )
-    stt_model_cache_size: int = 2  # Maximum number of models to keep in memory
-    stt_model_timeout: int = 300  # Timeout for unused models (in seconds)
     enable_hotkey: bool = True  # Enable/disable hotkey monitoring
     hotkey_name: str = "menu"  # Which key to use (menu, f12, ctrl+alt+s, etc.)
     hotkey_output_mode: str = "typing"  # Default output mode when hotkey is used
@@ -46,17 +42,6 @@ class ServerConfig:
     sample_rate: int = 16000
     chunk_size: int = 1024
 
-    @classmethod
-    def _parse_model_list(cls, model_str: str) -> list[str]:
-        """Parse comma-separated model list from environment variable."""
-        if not model_str:
-            return ["base"]
-        return [model.strip() for model in model_str.split(",") if model.strip()]
-
-    def __post_init__(self) -> None:
-        """Post-initialization to set default values for None fields."""
-        if self.stt_preload_models is None:
-            self.stt_preload_models = ["base"]
 
     @classmethod
     def from_env(cls) -> "ServerConfig":
@@ -72,18 +57,13 @@ class ServerConfig:
             ),
             tts_rate=float(os.getenv("VOICE_MCP_TTS_RATE", "1.0")),
             tts_volume=float(os.getenv("VOICE_MCP_TTS_VOLUME", "0.9")),
+            stt_enabled=os.getenv("VOICE_MCP_STT_ENABLED", "false").lower() == "true",
             stt_model=os.getenv("VOICE_MCP_STT_MODEL", "base"),
+            stt_device=os.getenv("VOICE_MCP_STT_DEVICE", "auto"),
             stt_language=os.getenv("VOICE_MCP_STT_LANGUAGE", "en"),
             stt_silence_threshold=float(
                 os.getenv("VOICE_MCP_STT_SILENCE_THRESHOLD", "4.0")
             ),
-            stt_server_mode=os.getenv("VOICE_MCP_STT_SERVER_MODE", "false").lower()
-            == "true",
-            stt_preload_models=cls._parse_model_list(
-                os.getenv("VOICE_MCP_STT_PRELOAD_MODELS", "base")
-            ),
-            stt_model_cache_size=int(os.getenv("VOICE_MCP_STT_MODEL_CACHE_SIZE", "2")),
-            stt_model_timeout=int(os.getenv("VOICE_MCP_STT_MODEL_TIMEOUT", "300")),
             enable_hotkey=os.getenv("VOICE_MCP_ENABLE_HOTKEY", "true").lower()
             == "true",
             hotkey_name=os.getenv("VOICE_MCP_HOTKEY_NAME", "menu"),

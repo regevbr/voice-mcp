@@ -13,6 +13,7 @@ from fastmcp import FastMCP
 from .config import config, setup_logging
 from .prompts import VoicePrompts
 from .tools import VoiceTools
+from .voice.stt import get_transcription_handler
 
 logger = structlog.get_logger(__name__)
 
@@ -24,14 +25,20 @@ mcp = FastMCP(
 )
 
 
-# Cleanup function for hotkey monitoring
-def cleanup_hotkey_monitoring():
-    """Cleanup hotkey monitoring on server shutdown."""
+# Cleanup function for hotkey monitoring and STT
+def cleanup_resources():
+    """Cleanup resources on server shutdown."""
     try:
         if config.enable_hotkey:
             logger.info("Cleaning up hotkey monitoring...")
             result = VoiceTools.stop_hotkey_monitoring()
             logger.info(f"Hotkey cleanup: {result}")
+        
+        # Cleanup STT resources
+        logger.info("Cleaning up STT resources...")
+        stt_handler = get_transcription_handler()
+        stt_handler.cleanup()
+        
     except Exception as e:
         logger.debug(f"Error during cleanup: {e}")
 
@@ -102,7 +109,7 @@ def get_hotkey_status() -> dict[str, Any]:
 
 
 # Setup cleanup on exit
-atexit.register(cleanup_hotkey_monitoring)
+atexit.register(cleanup_resources)
 
 
 def parse_args():
@@ -148,6 +155,21 @@ def main():
     logger.info(f"Transport: {args.transport}")
     logger.info(f"Debug mode: {args.debug}")
 
+    # Preload STT model if enabled
+    if config.stt_enabled:
+        logger.info("Preloading STT model on startup...")
+        stt_handler = get_transcription_handler()
+        if stt_handler.preload():
+            logger.info("STT model preloaded successfully")
+        else:
+            logger.warning("STT model preload failed, will load on first use")
+
+    # Start hotkey monitoring if enabled
+    if config.enable_hotkey:
+        logger.info("Starting hotkey monitoring on startup...")
+        result = VoiceTools.start_hotkey_monitoring()
+        logger.info(f"Hotkey startup: {result}")
+
     try:
         if args.transport == "stdio":
             mcp.run(transport="stdio")
@@ -155,15 +177,15 @@ def main():
             mcp.run(transport="sse", host="localhost", port=args.port)
         else:
             logger.error(f"Unsupported transport: {args.transport}")
-            cleanup_hotkey_monitoring()
+            cleanup_resources()
             sys.exit(1)
 
     except KeyboardInterrupt:
         logger.info("Server shutting down...")
-        cleanup_hotkey_monitoring()
+        cleanup_resources()
     except Exception as e:
         logger.error(f"Server error: {e}")
-        cleanup_hotkey_monitoring()
+        cleanup_resources()
         if args.debug:
             raise
         sys.exit(1)
