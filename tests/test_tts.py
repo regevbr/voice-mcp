@@ -1,12 +1,19 @@
 """
-Tests for TTS (Text-to-Speech) functionality.
+Tests for TTS (Text-to-Speech) functionality using Coqui TTS.
 """
 
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, MagicMock
+import tempfile
+import os
+import sys
 
 import pytest
 
-from voice_mcp.voice.tts import GTTSEngine, Pyttsx3Engine, TTSManager, Voice
+# Mock the TTS module before importing our code
+sys.modules['TTS'] = Mock()
+sys.modules['TTS.api'] = Mock()
+
+from voice_mcp.voice.tts import CoquiTTSEngine, TTSManager, Voice
 
 
 class TestVoice:
@@ -15,270 +22,291 @@ class TestVoice:
     def test_voice_creation(self):
         """Test creating a Voice object."""
         voice = Voice(
-            id="voice1", name="Test Voice", language="en", gender="female", age="adult"
+            id="tts_models/en/ljspeech/tacotron2-DDC",
+            name="LJSpeech Tacotron2",
+            language="en",
+            description="English female voice"
         )
 
-        assert voice.id == "voice1"
-        assert voice.name == "Test Voice"
+        assert voice.id == "tts_models/en/ljspeech/tacotron2-DDC"
+        assert voice.name == "LJSpeech Tacotron2"
         assert voice.language == "en"
-        assert voice.gender == "female"
-        assert voice.age == "adult"
+        assert voice.description == "English female voice"
 
 
-class TestPyttsx3Engine:
-    """Test pyttsx3 TTS engine."""
+class TestCoquiTTSEngine:
+    """Test Coqui TTS engine."""
 
-    @patch("pyttsx3.init")
-    def test_engine_initialization_success(self, mock_init):
+    @patch("voice_mcp.voice.tts.AudioManager")
+    def test_engine_initialization_success(self, mock_audio_manager_class):
         """Test successful engine initialization."""
-        mock_engine = Mock()
-        mock_init.return_value = mock_engine
+        mock_audio_manager = Mock()
+        mock_audio_manager_class.return_value = mock_audio_manager
+        
+        # Mock the TTS constructor
+        with patch("voice_mcp.voice.tts.TTS") as mock_tts_class:
+            mock_tts_instance = Mock()
+            mock_tts_class.return_value = mock_tts_instance
 
-        engine = Pyttsx3Engine()
+            engine = CoquiTTSEngine("test_model")
 
-        assert engine.is_available() is True
-        mock_init.assert_called_once()
+            assert engine.is_available() is True
+            mock_tts_class.assert_called_once_with("test_model", progress_bar=False, gpu=False)
 
-    @patch("pyttsx3.init")
-    def test_engine_initialization_failure(self, mock_init):
+    @patch("TTS.api.TTS")
+    @patch("voice_mcp.voice.tts.AudioManager")
+    def test_engine_initialization_failure(self, mock_audio_manager_class, mock_tts_class):
         """Test failed engine initialization."""
-        mock_init.side_effect = Exception("pyttsx3 not available")
+        mock_audio_manager = Mock()
+        mock_audio_manager_class.return_value = mock_audio_manager
+        
+        mock_tts_class.side_effect = Exception("TTS not available")
 
-        engine = Pyttsx3Engine()
+        engine = CoquiTTSEngine("test_model")
 
         assert engine.is_available() is False
 
-    def test_speak_success(self, mock_tts_engine):
+    @patch("TTS.api.TTS")
+    @patch("voice_mcp.voice.tts.AudioManager")
+    @patch("voice_mcp.voice.tts.tempfile.NamedTemporaryFile")
+    @patch("voice_mcp.voice.tts.os.unlink")
+    def test_speak_success(self, mock_unlink, mock_tempfile, mock_audio_manager_class, mock_tts_class):
         """Test successful speech synthesis."""
-        with patch("pyttsx3.init") as mock_init:
-            mock_init.return_value = mock_tts_engine
+        # Setup mocks
+        mock_tts_instance = Mock()
+        mock_tts_class.return_value = mock_tts_instance
+        
+        mock_audio_manager = Mock()
+        mock_audio_manager.is_available = True
+        mock_audio_manager_class.return_value = mock_audio_manager
+        
+        mock_temp_file = Mock()
+        mock_temp_file.name = "/tmp/test.wav"
+        mock_tempfile.return_value.__enter__.return_value = mock_temp_file
 
-            engine = Pyttsx3Engine()
+        # Mock audio playback
+        with patch.object(CoquiTTSEngine, "_play_audio_file") as mock_play:
+            engine = CoquiTTSEngine("test_model")
             result = engine.speak("Hello, world!")
 
             assert result is True
-            mock_tts_engine.say.assert_called_once_with("Hello, world!")
-            mock_tts_engine.runAndWait.assert_called_once()
+            mock_tts_instance.tts_to_file.assert_called_once_with(
+                text="Hello, world!", 
+                file_path="/tmp/test.wav"
+            )
+            mock_play.assert_called_once_with("/tmp/test.wav")
+            mock_unlink.assert_called_once_with("/tmp/test.wav")
 
-    def test_speak_with_parameters(self, mock_tts_engine):
-        """Test speech synthesis with parameters."""
-        with patch("pyttsx3.init") as mock_init:
-            mock_init.return_value = mock_tts_engine
+    @patch("TTS.api.TTS")
+    def test_speak_engine_unavailable(self, mock_tts_class):
+        """Test speak when engine is unavailable."""
+        mock_tts_class.side_effect = Exception("TTS not available")
+        
+        engine = CoquiTTSEngine("test_model")
+        result = engine.speak("Hello, world!")
 
-            # Mock voices
-            mock_voice = Mock()
-            mock_voice.id = "voice1"
-            mock_voice.name = "Test Voice"
-            mock_tts_engine.getProperty.return_value = [mock_voice]
+        assert result is False
 
-            engine = Pyttsx3Engine()
-            result = engine.speak("Test message", voice="voice1", rate=150, volume=0.8)
+    @patch("TTS.api.TTS")
+    @patch("voice_mcp.voice.tts.tempfile.NamedTemporaryFile")
+    def test_speak_synthesis_error(self, mock_tempfile, mock_tts_class):
+        """Test speak when synthesis fails."""
+        mock_tts_instance = Mock()
+        mock_tts_instance.tts_to_file.side_effect = Exception("Synthesis failed")
+        mock_tts_class.return_value = mock_tts_instance
+        
+        mock_temp_file = Mock()
+        mock_temp_file.name = "/tmp/test.wav"
+        mock_tempfile.return_value.__enter__.return_value = mock_temp_file
 
-            assert result is True
-            mock_tts_engine.setProperty.assert_any_call("voice", "voice1")
-            mock_tts_engine.setProperty.assert_any_call("rate", 150)
-            mock_tts_engine.setProperty.assert_any_call("volume", 0.8)
+        engine = CoquiTTSEngine("test_model")
+        result = engine.speak("Hello, world!")
 
-    def test_get_voices(self, mock_tts_engine):
+        assert result is False
+
+    @patch("TTS.api.TTS")
+    def test_get_voices(self, mock_tts_class):
         """Test getting available voices."""
-        with patch("pyttsx3.init") as mock_init:
-            mock_init.return_value = mock_tts_engine
+        mock_tts_instance = Mock()
+        mock_tts_class.return_value = mock_tts_instance
 
-            # Mock voice objects
-            mock_voice1 = Mock()
-            mock_voice1.id = "voice1"
-            mock_voice1.name = "Voice One"
-            mock_voice1.languages = ["en-US"]
+        engine = CoquiTTSEngine("test_model")
+        voices = engine.get_voices()
 
-            mock_voice2 = Mock()
-            mock_voice2.id = "voice2"
-            mock_voice2.name = "Voice Two"
-            mock_voice2.languages = ["en-GB"]
+        # Should return the predefined list of voices
+        assert len(voices) == 3
+        assert voices[0].id == "tts_models/en/ljspeech/tacotron2-DDC"
+        assert voices[0].name == "LJSpeech Tacotron2"
+        assert voices[0].language == "en"
 
-            mock_tts_engine.getProperty.return_value = [mock_voice1, mock_voice2]
+    @patch("TTS.api.TTS")
+    def test_get_voices_engine_unavailable(self, mock_tts_class):
+        """Test getting voices when engine is unavailable."""
+        mock_tts_class.side_effect = Exception("TTS not available")
+        
+        engine = CoquiTTSEngine("test_model")
+        voices = engine.get_voices()
 
-            engine = Pyttsx3Engine()
-            voices = engine.get_voices()
+        assert voices == []
 
-            assert len(voices) == 2
-            assert voices[0].id == "voice1"
-            assert voices[0].name == "Voice One"
-            assert voices[0].language == "en-US"
+    @patch("TTS.api.TTS")
+    @patch("voice_mcp.voice.tts.AudioManager")
+    def test_stop(self, mock_audio_manager_class, mock_tts_class):
+        """Test stopping playback."""
+        mock_tts_instance = Mock()
+        mock_tts_class.return_value = mock_tts_instance
+        
+        mock_audio_manager = Mock()
+        mock_audio_manager_class.return_value = mock_audio_manager
 
-
-class TestGTTSEngine:
-    """Test gTTS engine."""
-
-    @patch("voice_mcp.voice.tts.GTTSEngine._check_availability")
-    def test_availability_check(self, mock_check):
-        """Test availability check."""
-        mock_check.return_value = True
-        engine = GTTSEngine()
-        assert engine.is_available() is True
-
-        mock_check.return_value = False
-        engine = GTTSEngine()
-        assert engine.is_available() is False
-
-    def test_get_voices(self):
-        """Test getting available languages for gTTS."""
-        with patch.object(GTTSEngine, "_check_availability", return_value=True):
-            engine = GTTSEngine()
-            voices = engine.get_voices()
-
-            assert len(voices) > 0
-            assert any(v.id == "en" for v in voices)
-            assert any(v.id == "es" for v in voices)
-
-    @pytest.mark.skip(
-        reason="gTTS requires pygame which is not installed in test environment"
-    )
-    def test_speak_success(self):
-        """Test successful speech synthesis with gTTS."""
-        # This test is skipped because mocking pygame imports is complex
-        # and not critical for the main functionality
-        pass
-
-    def test_speak_engine_unavailable(self):
-        """Test speak when gTTS engine is unavailable."""
-        with patch.object(GTTSEngine, "_check_availability", return_value=False):
-            engine = GTTSEngine()
-            result = engine.speak("Hello, world!")
-
-            assert result is False
-
-    def test_speak_error(self):
-        """Test speak when an error occurs during synthesis."""
-        with (
-            patch.object(GTTSEngine, "_check_availability", return_value=True),
-            patch("gtts.gTTS", side_effect=Exception("Network error")),
-            patch("tempfile.NamedTemporaryFile"),
-            patch("os.unlink"),
-        ):
-
-            engine = GTTSEngine()
-            result = engine.speak("Hello, world!")
-
-            assert result is False
-
-    @pytest.mark.skip(
-        reason="gTTS requires pygame which is not installed in test environment"
-    )
-    def test_stop(self):
-        """Test stopping gTTS playback."""
-        # This test is skipped because mocking pygame imports is complex
-        # and not critical for the main functionality
-        pass
+        engine = CoquiTTSEngine("test_model")
+        engine.stop()
+        
+        # Should just log a warning since stop is not implemented
+        # No assertions needed as it just logs
 
 
 class TestTTSManager:
     """Test TTS manager."""
 
-    def test_manager_initialization(self):
+    @patch("voice_mcp.voice.tts.CoquiTTSEngine")
+    def test_manager_initialization(self, mock_engine_class):
         """Test TTS manager initialization."""
-        with (
-            patch("voice_mcp.voice.tts.Pyttsx3Engine") as mock_pyttsx3,
-            patch("voice_mcp.voice.tts.GTTSEngine") as mock_gtts,
-        ):
+        mock_engine_instance = Mock()
+        mock_engine_class.return_value = mock_engine_instance
 
-            mock_pyttsx3_instance = Mock()
-            mock_pyttsx3_instance.is_available.return_value = True
-            mock_pyttsx3.return_value = mock_pyttsx3_instance
+        manager = TTSManager("test_model")
 
-            mock_gtts_instance = Mock()
-            mock_gtts_instance.is_available.return_value = False
-            mock_gtts.return_value = mock_gtts_instance
+        mock_engine_class.assert_called_once_with("test_model")
+        assert manager._engine == mock_engine_instance
 
-            manager = TTSManager(preferred_engine="pyttsx3")
-
-            assert manager._current_engine == mock_pyttsx3_instance
-
-    def test_speak_success(self, mock_tts_engine):
+    @patch("voice_mcp.voice.tts.CoquiTTSEngine")
+    def test_speak_success(self, mock_engine_class):
         """Test successful speech through manager."""
-        with (
-            patch("voice_mcp.voice.tts.Pyttsx3Engine") as mock_pyttsx3,
-            patch("voice_mcp.voice.tts.GTTSEngine") as mock_gtts,
-        ):
+        mock_engine_instance = Mock()
+        mock_engine_instance.is_available.return_value = True
+        mock_engine_instance.speak.return_value = True
+        mock_engine_class.return_value = mock_engine_instance
 
-            mock_engine_instance = Mock()
-            mock_engine_instance.is_available.return_value = True
-            mock_engine_instance.speak.return_value = True
-            mock_pyttsx3.return_value = mock_engine_instance
+        manager = TTSManager("test_model")
+        result = manager.speak("Hello, world!")
 
-            mock_gtts_instance = Mock()
-            mock_gtts_instance.is_available.return_value = False
-            mock_gtts.return_value = mock_gtts_instance
+        assert "Successfully spoke" in result
+        mock_engine_instance.speak.assert_called_once_with(
+            "Hello, world!", None, None, None
+        )
 
-            manager = TTSManager()
-            result = manager.speak("Hello, world!")
+    @patch("voice_mcp.voice.tts.CoquiTTSEngine")
+    def test_speak_engine_unavailable(self, mock_engine_class):
+        """Test speak when engine is unavailable."""
+        mock_engine_instance = Mock()
+        mock_engine_instance.is_available.return_value = False
+        mock_engine_class.return_value = mock_engine_instance
 
-            assert "Successfully spoke" in result
-            mock_engine_instance.speak.assert_called_once_with(
-                "Hello, world!", None, None, None
-            )
+        manager = TTSManager("test_model")
+        result = manager.speak("Hello, world!")
 
-    def test_speak_no_engine(self):
-        """Test speak when no engine is available."""
-        with (
-            patch("voice_mcp.voice.tts.Pyttsx3Engine") as mock_pyttsx3,
-            patch("voice_mcp.voice.tts.GTTSEngine") as mock_gtts,
-        ):
+        assert "Coqui TTS engine not available" in result
 
-            mock_pyttsx3_instance = Mock()
-            mock_pyttsx3_instance.is_available.return_value = False
-            mock_pyttsx3.return_value = mock_pyttsx3_instance
-
-            mock_gtts_instance = Mock()
-            mock_gtts_instance.is_available.return_value = False
-            mock_gtts.return_value = mock_gtts_instance
-
-            manager = TTSManager()
-            result = manager.speak("Hello, world!")
-
-            assert "No TTS engines available" in result
-
-    def test_speak_empty_text(self, mock_tts_engine):
+    @patch("voice_mcp.voice.tts.CoquiTTSEngine")
+    def test_speak_empty_text(self, mock_engine_class):
         """Test speak with empty text."""
-        with (
-            patch("voice_mcp.voice.tts.Pyttsx3Engine") as mock_pyttsx3,
-            patch("voice_mcp.voice.tts.GTTSEngine") as mock_gtts,
-        ):
+        mock_engine_instance = Mock()
+        mock_engine_instance.is_available.return_value = True
+        mock_engine_class.return_value = mock_engine_instance
 
-            mock_engine_instance = Mock()
-            mock_engine_instance.is_available.return_value = True
-            mock_pyttsx3.return_value = mock_engine_instance
+        manager = TTSManager("test_model")
+        result = manager.speak("")
 
-            mock_gtts_instance = Mock()
-            mock_gtts_instance.is_available.return_value = False
-            mock_gtts.return_value = mock_gtts_instance
+        assert "No text provided" in result
 
-            manager = TTSManager()
-            result = manager.speak("")
-
-            assert "No text provided" in result
-
-    def test_speak_long_text(self, mock_tts_engine):
+    @patch("voice_mcp.voice.tts.CoquiTTSEngine")
+    def test_speak_long_text(self, mock_engine_class):
         """Test speak with very long text."""
-        with (
-            patch("voice_mcp.voice.tts.Pyttsx3Engine") as mock_pyttsx3,
-            patch("voice_mcp.voice.tts.GTTSEngine") as mock_gtts,
-        ):
+        mock_engine_instance = Mock()
+        mock_engine_instance.is_available.return_value = True
+        mock_engine_instance.speak.return_value = True
+        mock_engine_class.return_value = mock_engine_instance
 
-            mock_engine_instance = Mock()
-            mock_engine_instance.is_available.return_value = True
-            mock_engine_instance.speak.return_value = True
-            mock_pyttsx3.return_value = mock_engine_instance
+        manager = TTSManager("test_model")
+        long_text = "This is a very long text. " * 100  # > 1000 chars
+        result = manager.speak(long_text)
 
-            mock_gtts_instance = Mock()
-            mock_gtts_instance.is_available.return_value = False
-            mock_gtts.return_value = mock_gtts_instance
+        # Should truncate and still succeed
+        assert "Successfully spoke" in result
+        # Verify the engine was called with truncated text
+        called_text = mock_engine_instance.speak.call_args[0][0]
+        assert len(called_text) <= 1000 + len("... (truncated)")
 
-            manager = TTSManager()
-            long_text = "This is a very long text. " * 100  # > 1000 chars
-            result = manager.speak(long_text)
+    @patch("voice_mcp.voice.tts.CoquiTTSEngine")
+    def test_get_voices(self, mock_engine_class):
+        """Test getting voices through manager."""
+        mock_engine_instance = Mock()
+        test_voices = [
+            Voice("model1", "Voice 1", "en", "Test voice 1"),
+            Voice("model2", "Voice 2", "es", "Test voice 2"),
+        ]
+        mock_engine_instance.get_voices.return_value = test_voices
+        mock_engine_class.return_value = mock_engine_instance
 
-            # Should truncate and still succeed
-            assert "Successfully spoke" in result
-            # Verify the engine was called with truncated text
-            called_text = mock_engine_instance.speak.call_args[0][0]
-            assert len(called_text) <= 1000 + len("... (truncated)")
+        manager = TTSManager("test_model")
+        voices = manager.get_voices()
+
+        assert len(voices) == 2
+        assert voices[0].id == "model1"
+        assert voices[1].id == "model2"
+
+    @patch("voice_mcp.voice.tts.CoquiTTSEngine")
+    def test_get_voice_info_available(self, mock_engine_class):
+        """Test getting voice info when engine is available."""
+        mock_engine_instance = Mock()
+        mock_engine_instance.is_available.return_value = True
+        mock_engine_instance._model_name = "test_model"
+        test_voices = [Voice("model1", "Voice 1", "en", "Test voice")]
+        mock_engine_instance.get_voices.return_value = test_voices
+        mock_engine_class.return_value = mock_engine_instance
+
+        manager = TTSManager("test_model")
+        info = manager.get_voice_info()
+
+        assert info["status"] == "available"
+        assert info["engine"] == "CoquiTTS"
+        assert info["model"] == "test_model"
+        assert info["voice_count"] == 1
+
+    @patch("voice_mcp.voice.tts.CoquiTTSEngine")
+    def test_get_voice_info_unavailable(self, mock_engine_class):
+        """Test getting voice info when engine is unavailable."""
+        mock_engine_instance = Mock()
+        mock_engine_instance.is_available.return_value = False
+        mock_engine_class.return_value = mock_engine_instance
+
+        manager = TTSManager("test_model")
+        info = manager.get_voice_info()
+
+        assert info["status"] == "no_engine"
+        assert info["voices"] == []
+
+    @patch("voice_mcp.voice.tts.CoquiTTSEngine")
+    def test_stop(self, mock_engine_class):
+        """Test stopping through manager."""
+        mock_engine_instance = Mock()
+        mock_engine_class.return_value = mock_engine_instance
+
+        manager = TTSManager("test_model")
+        manager.stop()
+
+        mock_engine_instance.stop.assert_called_once()
+
+    @patch("voice_mcp.voice.tts.CoquiTTSEngine")
+    def test_is_available(self, mock_engine_class):
+        """Test availability check through manager."""
+        mock_engine_instance = Mock()
+        mock_engine_instance.is_available.return_value = True
+        mock_engine_class.return_value = mock_engine_instance
+
+        manager = TTSManager("test_model")
+        assert manager.is_available() is True
+
+        mock_engine_instance.is_available.return_value = False
+        assert manager.is_available() is False

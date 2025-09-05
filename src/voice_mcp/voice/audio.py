@@ -247,6 +247,105 @@ class AudioManager:
         """
         return self.play_audio_file("off.wav")
 
+    def play_audio_data(
+        self, 
+        audio_data: bytes, 
+        sample_rate: int = 22050, 
+        channels: int = 1, 
+        sample_width: int = 2
+    ) -> bool:
+        """
+        Play raw audio data directly without saving to file.
+
+        Args:
+            audio_data: Raw audio data as bytes
+            sample_rate: Sample rate in Hz (default: 22050)
+            channels: Number of audio channels (default: 1 for mono)
+            sample_width: Sample width in bytes (default: 2 for 16-bit)
+
+        Returns:
+            True if playback was initiated successfully, False otherwise
+        """
+        if not self._available:
+            logger.debug("Audio playback skipped - system not available")
+            return False
+
+        if not audio_data:
+            logger.warning("No audio data provided")
+            return False
+
+        # Start playback in a separate thread to avoid blocking
+        try:
+            thread = threading.Thread(
+                target=self._play_audio_data_thread,
+                args=(audio_data, sample_rate, channels, sample_width),
+                daemon=True,
+                name="AudioPlayback-RawData",
+            )
+            thread.start()
+            logger.debug("Raw audio data playback initiated", 
+                        sample_rate=sample_rate, 
+                        channels=channels,
+                        data_size=len(audio_data))
+            return True
+        except Exception as e:
+            logger.error("Could not start audio data playback thread", error=str(e))
+            return False
+
+    def _play_audio_data_thread(
+        self, 
+        audio_data: bytes, 
+        sample_rate: int, 
+        channels: int, 
+        sample_width: int
+    ) -> None:
+        """
+        Internal method to play raw audio data in a separate thread.
+
+        Args:
+            audio_data: Raw audio data as bytes
+            sample_rate: Sample rate in Hz
+            channels: Number of audio channels
+            sample_width: Sample width in bytes
+        """
+        if not self._available or not self.audio:
+            return
+
+        try:
+            # Get PyAudio format from sample width
+            format_map = {
+                1: pyaudio.paInt8,
+                2: pyaudio.paInt16,
+                3: pyaudio.paInt24,
+                4: pyaudio.paInt32,
+            }
+            
+            audio_format = format_map.get(sample_width, pyaudio.paInt16)
+
+            stream = self.audio.open(
+                format=audio_format,
+                channels=channels,
+                rate=sample_rate,
+                output=True,
+            )
+
+            # Play the audio data
+            stream.write(audio_data)
+
+            stream.stop_stream()
+            stream.close()
+
+            duration = len(audio_data) / (sample_rate * channels * sample_width)
+            logger.debug(
+                "Raw audio data playback completed",
+                duration=f"{duration:.2f}s",
+                sample_rate=sample_rate,
+                channels=channels
+            )
+
+        except Exception as e:
+            logger.error("Error during raw audio data playback", error=str(e))
+
     def cleanup(self) -> None:
         """Clean up audio resources."""
         if self.audio:

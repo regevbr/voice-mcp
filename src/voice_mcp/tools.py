@@ -32,7 +32,7 @@ def get_tts_manager() -> TTSManager:
     """Get or create TTS manager instance."""
     global _tts_manager
     if _tts_manager is None:
-        _tts_manager = TTSManager(preferred_engine=config.tts_engine)
+        _tts_manager = TTSManager(model_name=config.tts_model)
     return _tts_manager
 
 
@@ -277,8 +277,6 @@ class VoiceTools:
                 rate = config.tts_rate
             if volume is None:
                 volume = config.tts_volume
-            if voice is None:
-                voice = config.tts_voice
 
             result = tts.speak(text, voice, rate, volume)
             logger.info(f"TTS result: {result}")

@@ -19,10 +19,9 @@ class ServerConfig:
     transport: str = "stdio"
 
     # TTS settings
-    tts_engine: str = "pyttsx3"  # pyttsx3, gtts
-    tts_voice: str | None = None
-    tts_rate: int = 200
-    tts_volume: float = 0.9
+    tts_model: str = "tts_models/en/ljspeech/tacotron2-DDC"  # Coqui TTS model to use
+    tts_rate: float = 1.0  # Speed multiplier (not implemented yet)
+    tts_volume: float = 0.9  # Volume level (not implemented yet)
 
     # STT settings
     stt_model: str = "base"  # tiny, base, small, medium, large
@@ -68,9 +67,8 @@ class ServerConfig:
             debug=os.getenv("VOICE_MCP_DEBUG", "false").lower() == "true",
             log_level=os.getenv("VOICE_MCP_LOG_LEVEL", "INFO"),
             transport=os.getenv("VOICE_MCP_TRANSPORT", "stdio"),
-            tts_engine=os.getenv("VOICE_MCP_TTS_ENGINE", "pyttsx3"),
-            tts_voice=os.getenv("VOICE_MCP_TTS_VOICE"),
-            tts_rate=int(os.getenv("VOICE_MCP_TTS_RATE", "200")),
+            tts_model=os.getenv("VOICE_MCP_TTS_MODEL", "tts_models/en/ljspeech/tacotron2-DDC"),
+            tts_rate=float(os.getenv("VOICE_MCP_TTS_RATE", "1.0")),
             tts_volume=float(os.getenv("VOICE_MCP_TTS_VOLUME", "0.9")),
             stt_model=os.getenv("VOICE_MCP_STT_MODEL", "base"),
             stt_language=os.getenv("VOICE_MCP_STT_LANGUAGE", "en"),
