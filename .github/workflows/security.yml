@@ -22,7 +22,7 @@ jobs:
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -45,7 +45,7 @@ jobs:
         echo "🔒 Running Bandit security scan..."
         uv run bandit -r src/ -f json -o bandit-results.json -ll || true
         uv run bandit -r src/ -f txt -o bandit-results.txt -ll || true
-        
+
         # Display results
         echo "### Bandit Security Scan Results" >> $GITHUB_STEP_SUMMARY
         echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
@@ -72,9 +72,9 @@ jobs:
         fi
 
   dependency-scan:
-    name: Dependency Vulnerability Scan  
+    name: Dependency Vulnerability Scan
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -100,7 +100,7 @@ jobs:
         echo "🛡️ Scanning dependencies for known vulnerabilities..."
         uv run safety check --json --output safety-results.json || true
         uv run safety check --output safety-results.txt || true
-        
+
         echo "### Dependency Vulnerability Scan Results" >> $GITHUB_STEP_SUMMARY
         echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
         cat safety-results.txt >> $GITHUB_STEP_SUMMARY || echo "No known vulnerabilities found" >> $GITHUB_STEP_SUMMARY
@@ -129,7 +129,7 @@ jobs:
     name: Check Dependency Updates
     runs-on: ubuntu-latest
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -147,19 +147,19 @@ jobs:
     - name: Check for dependency updates
       run: |
         echo "📦 Checking for dependency updates..."
-        
+
         # Create a backup of current dependencies
         cp pyproject.toml pyproject.toml.backup
         cp uv.lock uv.lock.backup || true
-        
+
         # Try to update dependencies
         uv sync --upgrade || true
-        
+
         # Check if there are changes
         if ! cmp -s pyproject.toml pyproject.toml.backup || ! cmp -s uv.lock uv.lock.backup 2>/dev/null; then
           echo "📋 Dependency updates available!"
           echo "has_updates=true" >> $GITHUB_ENV
-          
+
           # Show differences
           echo "### Dependency Changes" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`diff" >> $GITHUB_STEP_SUMMARY
@@ -174,11 +174,11 @@ jobs:
       if: env.has_updates == 'true'
       run: |
         echo "🧪 Testing updated dependencies..."
-        
+
         # Install updated dependencies
         uv sync --dev --no-install-workspace
         uv pip install -e .
-        
+
         # Run basic tests
         uv run pytest -v -m "not slow and not voice" --tb=short -x tests/ || {
           echo "❌ Tests failed with updated dependencies"
@@ -187,7 +187,7 @@ jobs:
           mv uv.lock.backup uv.lock 2>/dev/null || true
           exit 1
         }
-        
+
         echo "✅ Tests passed with updated dependencies"
 
     - name: Create dependency update PR
@@ -196,31 +196,31 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         echo "📝 Creating dependency update PR..."
-        
+
         # Configure git
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        
+
         # Create branch
         BRANCH="dependency-updates-$(date +%Y%m%d)"
         git checkout -b "$BRANCH"
-        
+
         # Commit changes
         git add pyproject.toml uv.lock
         git commit -m "🔧 Update dependencies
-        
+
         Automated dependency updates from security workflow.
-        
+
         - Updated package versions to latest compatible versions
         - All tests pass with updated dependencies
         - Security scan completed successfully
-        
+
         Generated on: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
         "
-        
+
         # Push branch
         git push origin "$BRANCH"
-        
+
         # Create PR
         gh pr create \
           --title "🔧 Dependency Updates $(date +%Y-%m-%d)" \
@@ -230,7 +230,7 @@ jobs:
 
         ### Changes
         - 📦 Updated dependencies to latest compatible versions
-        - 🧪 All tests pass with updated dependencies  
+        - 🧪 All tests pass with updated dependencies
         - 🔒 Security scans completed successfully
 
         ### Testing
@@ -251,7 +251,7 @@ jobs:
   license-check:
     name: License Compliance Check
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -274,7 +274,7 @@ jobs:
         echo "📄 Checking dependency licenses..."
         uv run pip-licenses --format=json --output-file=licenses.json
         uv run pip-licenses --format=plain-vertical --output-file=licenses.txt
-        
+
         # Display license summary
         echo "### Dependency License Summary" >> $GITHUB_STEP_SUMMARY
         echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
@@ -284,7 +284,7 @@ jobs:
     - name: Check for problematic licenses
       run: |
         echo "🔍 Checking for potentially problematic licenses..."
-        
+
         # List of licenses that might need review (adjust as needed)
         PROBLEMATIC_LICENSES=(
           "GPL-3.0"
@@ -293,7 +293,7 @@ jobs:
           "Copyleft"
           "Restrictive"
         )
-        
+
         FOUND_ISSUES=false
         for license in "${PROBLEMATIC_LICENSES[@]}"; do
           if grep -i "$license" licenses.txt > /dev/null 2>&1; then
@@ -301,7 +301,7 @@ jobs:
             FOUND_ISSUES=true
           fi
         done
-        
+
         if [[ "$FOUND_ISSUES" == "true" ]]; then
           echo "⚠️  Please review the licenses above for compliance"
           # Don't fail CI, just warn
@@ -322,7 +322,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [security-scan, dependency-scan, license-check]
     if: always()
-    
+
     steps:
     - name: Generate security summary
       run: |
@@ -330,28 +330,28 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "**Scan Date:** $(date -u)" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        
+
         echo "## Scan Results" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        
+
         if [[ "${{ needs.security-scan.result }}" == "success" ]]; then
           echo "✅ **Code Security Scan:** Passed" >> $GITHUB_STEP_SUMMARY
         else
           echo "❌ **Code Security Scan:** Failed" >> $GITHUB_STEP_SUMMARY
         fi
-        
+
         if [[ "${{ needs.dependency-scan.result }}" == "success" ]]; then
           echo "✅ **Dependency Vulnerability Scan:** Passed" >> $GITHUB_STEP_SUMMARY
         else
           echo "❌ **Dependency Vulnerability Scan:** Failed" >> $GITHUB_STEP_SUMMARY
         fi
-        
+
         if [[ "${{ needs.license-check.result }}" == "success" ]]; then
           echo "✅ **License Compliance Check:** Passed" >> $GITHUB_STEP_SUMMARY
         else
           echo "❌ **License Compliance Check:** Failed" >> $GITHUB_STEP_SUMMARY
         fi
-        
+
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "## Next Steps" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY

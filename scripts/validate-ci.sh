@@ -142,7 +142,7 @@ if [[ ! -f "pyproject.toml" ]]; then
     report_error "pyproject.toml not found"
 else
     report_success "pyproject.toml exists"
-    
+
     # Check for required sections
     REQUIRED_SECTIONS=(
         "\[project\]"
@@ -152,7 +152,7 @@ else
         "\[tool\.mypy\]"
         "\[tool\.coverage"
     )
-    
+
     for section in "${REQUIRED_SECTIONS[@]}"; do
         if grep -q "$section" pyproject.toml; then
             report_success "Found configuration section: $section"
@@ -176,7 +176,7 @@ echo -e "\n7️⃣  Checking dependencies..."
 # Check if uv is available
 if command -v uv > /dev/null 2>&1; then
     report_success "uv package manager available"
-    
+
     # Check if dependencies can be resolved
     if uv sync --dry-run > /dev/null 2>&1; then
         report_success "Dependencies can be resolved"

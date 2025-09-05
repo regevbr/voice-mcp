@@ -69,7 +69,7 @@ body:
       description: Which area does this feature relate to?
       options:
         - "TTS (Text-to-Speech)"
-        - "STT (Speech-to-Text)" 
+        - "STT (Speech-to-Text)"
         - "Hotkey System"
         - "Audio Processing"
         - "Configuration"
@@ -93,7 +93,7 @@ body:
       placeholder: |
         # Example of how the feature would work
         from voice_mcp import VoiceTools
-        
+
         # New feature usage
         result = VoiceTools.new_feature(...)
 

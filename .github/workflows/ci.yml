@@ -18,7 +18,7 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.11", "3.12"]
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -119,7 +119,7 @@ jobs:
             python-version: "3.12"
           - os: macos-latest
             python-version: "3.12"
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -235,7 +235,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -302,7 +302,7 @@ jobs:
     name: Build Package
     runs-on: ubuntu-latest
     needs: [quality-checks, test]
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -343,31 +343,31 @@ jobs:
     runs-on: ubuntu-latest
     needs: [quality-checks, test, build]
     if: always()
-    
+
     steps:
     - name: Check results
       run: |
         echo "## CI Pipeline Results" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        
+
         if [[ "${{ needs.quality-checks.result }}" == "success" ]]; then
           echo "✅ Code Quality: Passed" >> $GITHUB_STEP_SUMMARY
         else
           echo "❌ Code Quality: Failed" >> $GITHUB_STEP_SUMMARY
         fi
-        
+
         if [[ "${{ needs.test.result }}" == "success" ]]; then
           echo "✅ Tests: Passed" >> $GITHUB_STEP_SUMMARY
         else
           echo "❌ Tests: Failed" >> $GITHUB_STEP_SUMMARY
         fi
-        
+
         if [[ "${{ needs.build.result }}" == "success" ]]; then
           echo "✅ Build: Passed" >> $GITHUB_STEP_SUMMARY
         else
           echo "❌ Build: Failed" >> $GITHUB_STEP_SUMMARY
         fi
-        
+
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "📊 View detailed results in the Actions tab above." >> $GITHUB_STEP_SUMMARY
 

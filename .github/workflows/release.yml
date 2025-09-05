@@ -27,7 +27,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
       is-prerelease: ${{ steps.version.outputs.is-prerelease }}
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -50,7 +50,7 @@ jobs:
             IS_PRERELEASE="false"
           fi
         fi
-        
+
         echo "version=$VERSION" >> $GITHUB_OUTPUT
         echo "is-prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
         echo "📋 Release version: $VERSION"
@@ -70,7 +70,7 @@ jobs:
     name: Quality Gate
     runs-on: ubuntu-latest
     needs: validate-release
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -129,7 +129,7 @@ jobs:
             python-version: "3.12"
           - os: macos-latest
             python-version: "3.12"
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -186,10 +186,10 @@ jobs:
         echo "🧪 Testing package installation..."
         # Test that the package can be imported
         uv run python -c "import voice_mcp; print(f'✅ voice_mcp imported successfully: {voice_mcp.__file__}')"
-        
+
         # Test that the CLI works
         uv run python -m voice_mcp.server --help
-        
+
         # Run core tests
         uv run pytest -v -m "not slow and not voice" --tb=short tests/
 
@@ -199,7 +199,7 @@ jobs:
     needs: [validate-release, build-and-test]
     outputs:
       package-version: ${{ steps.package.outputs.version }}
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -219,13 +219,13 @@ jobs:
       run: |
         VERSION="${{ needs.validate-release.outputs.version }}"
         echo "📝 Updating package version to: $VERSION"
-        
+
         # Update version in pyproject.toml
         sed -i "s/^version = .*/version = \"$VERSION\"/" pyproject.toml
-        
+
         # Verify the change
         grep "^version =" pyproject.toml
-        
+
         echo "version=$VERSION" >> $GITHUB_OUTPUT
 
     - name: Install build dependencies
@@ -241,14 +241,14 @@ jobs:
       run: |
         echo "🔍 Verifying package contents..."
         uv run python -m twine check dist/*
-        
+
         # Show package contents
         ls -la dist/
-        
+
         # Verify version in built package
         WHEEL_FILE=$(ls dist/*.whl | head -1)
         echo "📋 Built wheel: $WHEEL_FILE"
-        
+
         # Extract and check version
         unzip -l "$WHEEL_FILE" | grep -E "(METADATA|PKG-INFO)" || true
 
@@ -267,7 +267,7 @@ jobs:
     outputs:
       release-id: ${{ steps.release.outputs.id }}
       upload-url: ${{ steps.release.outputs.upload_url }}
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -284,51 +284,51 @@ jobs:
       id: release-notes
       run: |
         VERSION="${{ needs.validate-release.outputs.version }}"
-        
+
         # Generate release notes
         cat > release-notes.md << EOF
         ## Voice MCP Server v${VERSION}
-        
+
         ### What's New
-        
+
         This release includes improvements to the Voice MCP Server, providing advanced text-to-speech (TTS), speech-to-text (STT), and global hotkey monitoring capabilities for AI assistants.
-        
+
         ### Key Features
-        
+
         - 🗣️ **Text-to-Speech**: Neural TTS with Coqui TTS models
         - 🎤 **Speech-to-Text**: Real-time STT with faster-whisper
         - ⌨️ **Global Hotkeys**: Voice activation with customizable hotkeys
         - 🎛️ **Audio Processing**: Advanced pipeline with VAD and effects
         - 📝 **Text Output**: Multiple modes (typing, clipboard, return)
         - ⚙️ **Configuration**: Rich environment-based settings
-        
+
         ### Installation
-        
+
         \`\`\`bash
         pip install voice-mcp==${VERSION}
         \`\`\`
-        
+
         ### Documentation
-        
+
         See the [project README](https://github.com/voice-mcp/voice-mcp) for setup and usage instructions.
-        
+
         ### System Requirements
-        
+
         - Python 3.11+
         - Audio input/output devices
         - System dependencies for audio processing
-        
+
         ### Changes
-        
+
         - All changes included in this release
         - Comprehensive testing and quality assurance
         - Production-ready deployment
-        
+
         ---
-        
+
         **Full Changelog**: https://github.com/voice-mcp/voice-mcp/compare/v${VERSION}
         EOF
-        
+
         echo "Generated release notes:"
         cat release-notes.md
 
@@ -348,14 +348,14 @@ jobs:
       run: |
         VERSION="${{ needs.validate-release.outputs.version }}"
         UPLOAD_URL="${{ steps.release.outputs.upload_url }}"
-        
+
         # Upload wheel
         WHEEL_FILE=$(ls dist/*.whl | head -1)
         if [[ -f "$WHEEL_FILE" ]]; then
           echo "📦 Uploading wheel: $WHEEL_FILE"
           gh release upload "v$VERSION" "$WHEEL_FILE" --clobber
         fi
-        
+
         # Upload source distribution
         SDIST_FILE=$(ls dist/*.tar.gz | head -1)
         if [[ -f "$SDIST_FILE" ]]; then
@@ -371,7 +371,7 @@ jobs:
     needs: [validate-release, create-release, build-package]
     if: github.repository == 'voice-mcp/voice-mcp'  # Only for official repo
     environment: release  # Requires manual approval for production
-    
+
     steps:
     - name: Download build artifacts
       uses: actions/download-artifact@v4
@@ -383,18 +383,18 @@ jobs:
       run: |
         echo "🔍 Final package verification before PyPI upload..."
         ls -la dist/
-        
+
         # Ensure we have both wheel and sdist
         if [[ ! -f dist/*.whl ]]; then
           echo "❌ No wheel file found!"
           exit 1
         fi
-        
+
         if [[ ! -f dist/*.tar.gz ]]; then
           echo "❌ No source distribution found!"
           exit 1
         fi
-        
+
         echo "✅ Package verification passed"
 
     - name: Publish to Test PyPI
@@ -417,7 +417,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [validate-release, create-release, publish-pypi]
     if: always() && (needs.create-release.result == 'success')
-    
+
     steps:
     - name: Notify success
       if: needs.publish-pypi.result == 'success'
@@ -440,34 +440,34 @@ jobs:
     runs-on: ubuntu-latest
     needs: [validate-release, create-release, publish-pypi, post-release]
     if: always()
-    
+
     steps:
     - name: Generate summary
       run: |
         VERSION="${{ needs.validate-release.outputs.version }}"
         IS_PRERELEASE="${{ needs.validate-release.outputs.is-prerelease }}"
-        
+
         echo "# 🚀 Release Summary" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "## Voice MCP Server v${VERSION}" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        
+
         if [[ "$IS_PRERELEASE" == "true" ]]; then
           echo "🔖 **Pre-release version**" >> $GITHUB_STEP_SUMMARY
         else
           echo "🔖 **Stable release version**" >> $GITHUB_STEP_SUMMARY
         fi
         echo "" >> $GITHUB_STEP_SUMMARY
-        
+
         echo "### Release Status" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        
+
         if [[ "${{ needs.create-release.result }}" == "success" ]]; then
           echo "✅ GitHub Release: Created" >> $GITHUB_STEP_SUMMARY
         else
           echo "❌ GitHub Release: Failed" >> $GITHUB_STEP_SUMMARY
         fi
-        
+
         if [[ "${{ needs.publish-pypi.result }}" == "success" ]]; then
           echo "✅ PyPI Publication: Success" >> $GITHUB_STEP_SUMMARY
         elif [[ "${{ needs.publish-pypi.result }}" == "skipped" ]]; then
@@ -475,7 +475,7 @@ jobs:
         else
           echo "❌ PyPI Publication: Failed" >> $GITHUB_STEP_SUMMARY
         fi
-        
+
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Links" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY

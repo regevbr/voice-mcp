@@ -15,9 +15,9 @@
 ## 🔧 Changes Made
 <!-- List the specific changes made in this PR -->
 
-- 
-- 
-- 
+-
+-
+-
 
 ## 🧪 Testing
 <!-- Describe the tests performed to verify your changes -->
@@ -84,9 +84,9 @@ Related to #<!-- issue number -->
 <!-- Any specific areas you want reviewers to focus on -->
 
 - Please pay special attention to:
-  - 
-  - 
-  - 
+  -
+  -
+  -
 
 ---
 

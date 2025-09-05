@@ -21,7 +21,7 @@ updates:
       - "python"
     milestone: "Next Release"
     rebase-strategy: "auto"
-    
+
     # Group related updates together
     groups:
       testing-deps:
@@ -30,7 +30,7 @@ updates:
           - "*test*"
           - "*mock*"
           - "coverage*"
-      
+
       code-quality:
         patterns:
           - "black*"
@@ -39,12 +39,12 @@ updates:
           - "isort*"
           - "bandit*"
           - "pre-commit*"
-      
+
       mcp-framework:
         patterns:
           - "mcp*"
           - "fastmcp*"
-      
+
       ml-deps:
         patterns:
           - "torch*"
@@ -53,13 +53,13 @@ updates:
           - "*whisper*"
           - "coqui*"
           - "TTS*"
-      
+
       audio-deps:
         patterns:
           - "pyaudio*"
           - "soundfile*"
           - "webrtcvad*"
-      
+
       system-deps:
         patterns:
           - "pynput*"
@@ -69,7 +69,7 @@ updates:
 
     # Version update strategy
     versioning-strategy: "increase"
-    
+
     # Ignore major version updates for ML dependencies (can be breaking)
     ignore:
       - dependency-name: "torch*"
@@ -100,12 +100,12 @@ updates:
       - "dependencies"
       - "github-actions"
       - "ci"
-    
+
     groups:
       actions-core:
         patterns:
           - "actions/*"
-      
+
       external-actions:
         patterns:
           - "*"
