@@ -460,7 +460,7 @@ wheels = [
 
 [[package]]
 name = "coqui-tts"
-version = "0.27.0"
+version = "0.27.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyascii" },
@@ -488,9 +488,9 @@ dependencies = [
     { name = "transformers" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/22/8d/2169857fdc3bc68a1eaab28d90e77169bd010a8492b264eb85db5828c03b/coqui_tts-0.27.0.tar.gz", hash = "sha256:f4e075f7a5d1355d9ac05834214ce6f914ff1773cb8d231ed2c6f274bc3884fd", size = 1852806, upload-time = "2025-07-14T13:59:58.696Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ba/01/2c473642ad233f50e87ed99d617098d8dfc1e1d55b6d804ea8a38467d2e4/coqui_tts-0.27.1.tar.gz", hash = "sha256:cf4500bfb04bba86ac286c34be4e30155013b720171937d9f1bc4172289ceee1", size = 1854161, upload-time = "2025-09-05T23:03:18.363Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/61/cf/4192f81c53cb2bfa27b47b29285ff865cdec351791e8070255315bbc4786/coqui_tts-0.27.0-py3-none-any.whl", hash = "sha256:acf6a62c32bf4facfc2c5d1006815a82574eeaac170f7d973ee9f4dc87393e9c", size = 857501, upload-time = "2025-07-14T13:59:56.771Z" },
+    { url = "https://files.pythonhosted.org/packages/4a/3b/0fdddd8505c5ce5d51d6ecb6e6fab899fe7f0a803e425fa87868b91a3d33/coqui_tts-0.27.1-py3-none-any.whl", hash = "sha256:b5d822ddbbfa916facdac98a51bb596350637964dd12a9742753f6f97340d01e", size = 858363, upload-time = "2025-09-05T23:03:16.434Z" },
 ]
 
 [[package]]

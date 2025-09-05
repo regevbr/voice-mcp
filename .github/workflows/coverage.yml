@@ -62,7 +62,6 @@ jobs:
         key: ${{ runner.os }}-uv-coverage-${{ hashFiles('**/pyproject.toml', '**/uv.lock') }}
         restore-keys: |
           ${{ runner.os }}-uv-coverage-
-          ${{ runner.os }}-uv-
 
     - name: Install dependencies
       run: |
