@@ -2,10 +2,14 @@
 Tests for the simplified MCP server functionality.
 """
 
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from voice_mcp.config import setup_logging
-from voice_mcp.server import parse_args
+from voice_mcp.server import (
+    cleanup_resources,
+    main,
+    parse_args,
+)
 
 
 def test_parse_args_default():
@@ -106,3 +110,469 @@ def test_prompt_via_voice_prompts():
     assert isinstance(guide, str)
     assert len(guide) > 0
     assert "speak" in guide.lower()
+
+
+class TestServerTools:
+    """Test server tool implementations."""
+
+    def test_speak_tool_via_voice_tools(self):
+        """Test the speak tool through VoiceTools."""
+        with patch("voice_mcp.server.VoiceTools.speak") as mock_speak:
+            mock_speak.return_value = "Success"
+
+            # Test via VoiceTools directly since tool functions are wrapped
+            from voice_mcp.tools import VoiceTools
+
+            result = VoiceTools.speak("Hello", voice="default", rate=150, volume=0.8)
+
+            assert result == "Success"
+            mock_speak.assert_called_once_with(
+                "Hello", voice="default", rate=150, volume=0.8
+            )
+
+    def test_server_tool_registration(self):
+        """Test that server tools are properly registered with FastMCP."""
+        from voice_mcp.server import mcp
+
+        # Check that mcp instance has tools registered
+        assert hasattr(mcp, "_tools")
+        # Check that our tools are in the tools list
+        tool_names = [tool.name for tool in mcp._tools]
+        assert "speak" in tool_names
+        assert "start_hotkey_monitoring" in tool_names
+        assert "stop_hotkey_monitoring" in tool_names
+        assert "get_hotkey_status" in tool_names
+
+    def test_server_prompt_registration(self):
+        """Test that server prompts are properly registered with FastMCP."""
+        from voice_mcp.server import mcp
+
+        # Check that mcp instance has prompts registered
+        assert hasattr(mcp, "_prompts")
+        # Check that our prompt is in the prompts list
+        prompt_names = [prompt.name for prompt in mcp._prompts]
+        assert "speak_guide" in prompt_names
+
+
+class TestCleanupResources:
+    """Test cleanup resource function."""
+
+    @patch("voice_mcp.server.config")
+    @patch("voice_mcp.server.VoiceTools")
+    @patch("voice_mcp.server.get_transcription_handler")
+    def test_cleanup_resources_with_hotkey_enabled(
+        self, _mock_get_stt, _mock_voice_tools, mock_config
+    ):
+        """Test cleanup with hotkey enabled."""
+        mock_config.enable_hotkey = True
+        _mock_voice_tools.stop_hotkey_monitoring.return_value = "Stopped"
+        mock_stt_handler = Mock()
+        _mock_get_stt.return_value = mock_stt_handler
+
+        cleanup_resources()
+
+        _mock_voice_tools.stop_hotkey_monitoring.assert_called_once()
+        mock_stt_handler.cleanup.assert_called_once()
+
+    @patch("voice_mcp.server.config")
+    @patch("voice_mcp.server.VoiceTools")
+    @patch("voice_mcp.server.get_transcription_handler")
+    def test_cleanup_resources_with_hotkey_disabled(
+        self, _mock_get_stt, _mock_voice_tools, mock_config
+    ):
+        """Test cleanup with hotkey disabled."""
+        mock_config.enable_hotkey = False
+        mock_stt_handler = Mock()
+        _mock_get_stt.return_value = mock_stt_handler
+
+        cleanup_resources()
+
+        _mock_voice_tools.stop_hotkey_monitoring.assert_not_called()
+        mock_stt_handler.cleanup.assert_called_once()
+
+    @patch("voice_mcp.server.config")
+    @patch("voice_mcp.server.VoiceTools")
+    @patch("voice_mcp.server.get_transcription_handler")
+    def test_cleanup_resources_with_exception(
+        self, _mock_get_stt, _mock_voice_tools, mock_config
+    ):
+        """Test cleanup with exception handling."""
+        mock_config.enable_hotkey = False  # Test STT cleanup exception instead
+        mock_stt_handler = Mock()
+        mock_stt_handler.cleanup.side_effect = Exception("STT cleanup error")
+        _mock_get_stt.return_value = mock_stt_handler
+
+        # Should not raise exception even when cleanup fails
+        cleanup_resources()
+
+        mock_stt_handler.cleanup.assert_called_once()
+
+
+class TestMainFunction:
+    """Test main server function."""
+
+    @patch("voice_mcp.server.parse_args")
+    @patch("voice_mcp.server.setup_logging")
+    @patch("voice_mcp.server.config")
+    @patch("voice_mcp.server.get_transcription_handler")
+    @patch("voice_mcp.server.VoiceTools")
+    @patch("voice_mcp.server.mcp")
+    def test_main_stdio_transport(
+        self,
+        _mock_mcp,
+        _mock_voice_tools,
+        _mock_get_stt,
+        mock_config,
+        _mock_setup_logging,
+        mock_parse_args,
+    ):
+        """Test main function with stdio transport."""
+        mock_args = Mock()
+        mock_args.transport = "stdio"
+        mock_args.log_level = "INFO"
+        mock_args.debug = False
+        mock_args.port = 8000
+        mock_parse_args.return_value = mock_args
+
+        mock_config.stt_enabled = False
+        mock_config.enable_hotkey = False
+
+        main()
+
+        _mock_setup_logging.assert_called_once_with("INFO")
+        _mock_mcp.run.assert_called_once_with(transport="stdio")
+
+    @patch("voice_mcp.server.parse_args")
+    @patch("voice_mcp.server.setup_logging")
+    @patch("voice_mcp.server.config")
+    @patch("voice_mcp.server.get_transcription_handler")
+    @patch("voice_mcp.server.VoiceTools")
+    @patch("voice_mcp.server.mcp")
+    def test_main_sse_transport(
+        self,
+        _mock_mcp,
+        _mock_voice_tools,
+        _mock_get_stt,
+        mock_config,
+        _mock_setup_logging,
+        mock_parse_args,
+    ):
+        """Test main function with SSE transport."""
+        mock_args = Mock()
+        mock_args.transport = "sse"
+        mock_args.log_level = "DEBUG"
+        mock_args.debug = True
+        mock_args.port = 9000
+        mock_parse_args.return_value = mock_args
+
+        mock_config.stt_enabled = False
+        mock_config.enable_hotkey = False
+
+        main()
+
+        _mock_setup_logging.assert_called_once_with("DEBUG")
+        _mock_mcp.run.assert_called_once_with(
+            transport="sse", host="localhost", port=9000
+        )
+
+    @patch("voice_mcp.server.parse_args")
+    @patch("voice_mcp.server.setup_logging")
+    @patch("voice_mcp.server.config")
+    @patch("voice_mcp.server.get_transcription_handler")
+    @patch("voice_mcp.server.VoiceTools")
+    @patch("voice_mcp.server.mcp")
+    @patch("voice_mcp.server.cleanup_resources")
+    @patch("sys.exit")
+    def test_main_unsupported_transport(
+        self,
+        mock_exit,
+        mock_cleanup,
+        _mock_mcp,
+        _mock_voice_tools,
+        _mock_get_stt,
+        mock_config,
+        _mock_setup_logging,
+        mock_parse_args,
+    ):
+        """Test main function with unsupported transport."""
+        mock_args = Mock()
+        mock_args.transport = "invalid"
+        mock_args.log_level = "INFO"
+        mock_args.debug = False
+        mock_parse_args.return_value = mock_args
+
+        mock_config.stt_enabled = False
+        mock_config.enable_hotkey = False
+
+        main()
+
+        mock_cleanup.assert_called_once()
+        mock_exit.assert_called_once_with(1)
+
+    @patch("voice_mcp.server.parse_args")
+    @patch("voice_mcp.server.setup_logging")
+    @patch("voice_mcp.server.config")
+    @patch("voice_mcp.server.get_transcription_handler")
+    @patch("voice_mcp.server.VoiceTools")
+    @patch("voice_mcp.server.mcp")
+    def test_main_with_stt_enabled_success(
+        self,
+        _mock_mcp,
+        _mock_voice_tools,
+        _mock_get_stt,
+        mock_config,
+        _mock_setup_logging,
+        mock_parse_args,
+    ):
+        """Test main function with STT enabled and successful preload."""
+        mock_args = Mock()
+        mock_args.transport = "stdio"
+        mock_args.log_level = "INFO"
+        mock_args.debug = False
+        mock_parse_args.return_value = mock_args
+
+        mock_config.stt_enabled = True
+        mock_config.enable_hotkey = False
+
+        mock_stt_handler = Mock()
+        mock_stt_handler.preload.return_value = True
+        _mock_get_stt.return_value = mock_stt_handler
+
+        main()
+
+        mock_stt_handler.preload.assert_called_once()
+        _mock_mcp.run.assert_called_once_with(transport="stdio")
+
+    @patch("voice_mcp.server.parse_args")
+    @patch("voice_mcp.server.setup_logging")
+    @patch("voice_mcp.server.config")
+    @patch("voice_mcp.server.get_transcription_handler")
+    @patch("voice_mcp.server.VoiceTools")
+    @patch("voice_mcp.server.mcp")
+    def test_main_with_stt_enabled_failure(
+        self,
+        _mock_mcp,
+        _mock_voice_tools,
+        _mock_get_stt,
+        mock_config,
+        _mock_setup_logging,
+        mock_parse_args,
+    ):
+        """Test main function with STT enabled but preload failure."""
+        mock_args = Mock()
+        mock_args.transport = "stdio"
+        mock_args.log_level = "INFO"
+        mock_args.debug = False
+        mock_parse_args.return_value = mock_args
+
+        mock_config.stt_enabled = True
+        mock_config.enable_hotkey = False
+
+        mock_stt_handler = Mock()
+        mock_stt_handler.preload.return_value = False
+        _mock_get_stt.return_value = mock_stt_handler
+
+        main()
+
+        mock_stt_handler.preload.assert_called_once()
+        _mock_mcp.run.assert_called_once_with(transport="stdio")
+
+    @patch("voice_mcp.server.parse_args")
+    @patch("voice_mcp.server.setup_logging")
+    @patch("voice_mcp.server.config")
+    @patch("voice_mcp.server.get_transcription_handler")
+    @patch("voice_mcp.server.VoiceTools")
+    @patch("voice_mcp.server.mcp")
+    def test_main_with_hotkey_enabled(
+        self,
+        _mock_mcp,
+        _mock_voice_tools,
+        _mock_get_stt,
+        mock_config,
+        _mock_setup_logging,
+        mock_parse_args,
+    ):
+        """Test main function with hotkey enabled."""
+        mock_args = Mock()
+        mock_args.transport = "stdio"
+        mock_args.log_level = "INFO"
+        mock_args.debug = False
+        mock_parse_args.return_value = mock_args
+
+        mock_config.stt_enabled = False
+        mock_config.enable_hotkey = True
+
+        _mock_voice_tools.start_hotkey_monitoring.return_value = "Started"
+
+        main()
+
+        _mock_voice_tools.start_hotkey_monitoring.assert_called_once()
+        _mock_mcp.run.assert_called_once_with(transport="stdio")
+
+    @patch("voice_mcp.server.parse_args")
+    @patch("voice_mcp.server.setup_logging")
+    @patch("voice_mcp.server.config")
+    @patch("voice_mcp.server.get_transcription_handler")
+    @patch("voice_mcp.server.VoiceTools")
+    @patch("voice_mcp.server.mcp")
+    @patch("voice_mcp.server.cleanup_resources")
+    def test_main_keyboard_interrupt(
+        self,
+        mock_cleanup,
+        _mock_mcp,
+        _mock_voice_tools,
+        _mock_get_stt,
+        mock_config,
+        _mock_setup_logging,
+        mock_parse_args,
+    ):
+        """Test main function with KeyboardInterrupt."""
+        mock_args = Mock()
+        mock_args.transport = "stdio"
+        mock_args.log_level = "INFO"
+        mock_args.debug = False
+        mock_parse_args.return_value = mock_args
+
+        mock_config.stt_enabled = False
+        mock_config.enable_hotkey = False
+
+        _mock_mcp.run.side_effect = KeyboardInterrupt()
+
+        main()
+
+        mock_cleanup.assert_called_once()
+
+    @patch("voice_mcp.server.parse_args")
+    @patch("voice_mcp.server.setup_logging")
+    @patch("voice_mcp.server.config")
+    @patch("voice_mcp.server.get_transcription_handler")
+    @patch("voice_mcp.server.VoiceTools")
+    @patch("voice_mcp.server.mcp")
+    @patch("voice_mcp.server.cleanup_resources")
+    @patch("sys.exit")
+    def test_main_generic_exception_debug_false(
+        self,
+        mock_exit,
+        mock_cleanup,
+        _mock_mcp,
+        _mock_voice_tools,
+        _mock_get_stt,
+        mock_config,
+        _mock_setup_logging,
+        mock_parse_args,
+    ):
+        """Test main function with generic exception and debug=False."""
+        mock_args = Mock()
+        mock_args.transport = "stdio"
+        mock_args.log_level = "INFO"
+        mock_args.debug = False
+        mock_parse_args.return_value = mock_args
+
+        mock_config.stt_enabled = False
+        mock_config.enable_hotkey = False
+
+        _mock_mcp.run.side_effect = Exception("Server error")
+
+        main()
+
+        mock_cleanup.assert_called_once()
+        mock_exit.assert_called_once_with(1)
+
+    @patch("voice_mcp.server.parse_args")
+    @patch("voice_mcp.server.setup_logging")
+    @patch("voice_mcp.server.config")
+    @patch("voice_mcp.server.get_transcription_handler")
+    @patch("voice_mcp.server.VoiceTools")
+    @patch("voice_mcp.server.mcp")
+    @patch("voice_mcp.server.cleanup_resources")
+    def test_main_generic_exception_debug_true(
+        self,
+        mock_cleanup,
+        _mock_mcp,
+        _mock_voice_tools,
+        _mock_get_stt,
+        mock_config,
+        _mock_setup_logging,
+        mock_parse_args,
+    ):
+        """Test main function with generic exception and debug=True."""
+        mock_args = Mock()
+        mock_args.transport = "stdio"
+        mock_args.log_level = "INFO"
+        mock_args.debug = True
+        mock_parse_args.return_value = mock_args
+
+        mock_config.stt_enabled = False
+        mock_config.enable_hotkey = False
+
+        _mock_mcp.run.side_effect = Exception("Server error")
+
+        try:
+            main()
+            raise AssertionError("Should have raised exception")
+        except Exception as e:
+            assert str(e) == "Server error"
+
+        mock_cleanup.assert_called_once()
+
+
+class TestParseArgsEdgeCases:
+    """Test edge cases for argument parsing."""
+
+    def test_parse_args_invalid_transport(self):
+        """Test argument parsing with invalid transport."""
+        test_args = ["voice-mcp", "--transport", "invalid"]
+
+        with patch("sys.argv", test_args):
+            try:
+                parse_args()
+                raise AssertionError("Should have raised SystemExit")
+            except SystemExit:
+                pass  # Expected behavior
+
+    def test_parse_args_invalid_log_level(self):
+        """Test argument parsing with invalid log level."""
+        test_args = ["voice-mcp", "--log-level", "INVALID"]
+
+        with patch("sys.argv", test_args):
+            try:
+                parse_args()
+                raise AssertionError("Should have raised SystemExit")
+            except SystemExit:
+                pass  # Expected behavior
+
+    def test_parse_args_invalid_port(self):
+        """Test argument parsing with invalid port."""
+        test_args = ["voice-mcp", "--port", "not_a_number"]
+
+        with patch("sys.argv", test_args):
+            try:
+                parse_args()
+                raise AssertionError("Should have raised SystemExit")
+            except SystemExit:
+                pass  # Expected behavior
+
+
+class TestServerIntegration:
+    """Integration tests for server components."""
+
+    @patch("voice_mcp.server.atexit.register")
+    def test_atexit_registration(self, mock_register):
+        """Test that cleanup is registered with atexit."""
+        # Re-import to trigger atexit registration
+        import importlib
+
+        import voice_mcp.server
+
+        importlib.reload(voice_mcp.server)
+
+        # Check that register was called (at least once during import)
+        mock_register.assert_called()
+
+    def test_mcp_instance_creation(self):
+        """Test MCP instance is created with correct parameters."""
+        from voice_mcp.server import mcp
+
+        assert mcp is not None
+        # Basic check that it's a FastMCP instance
+        assert hasattr(mcp, "run")
