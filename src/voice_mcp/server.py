@@ -30,17 +30,15 @@ def cleanup_resources():
     """Cleanup resources on server shutdown."""
     try:
         if config.enable_hotkey:
-            logger.info("Cleaning up hotkey monitoring...")
-            result = VoiceTools.stop_hotkey_monitoring()
-            logger.info(f"Hotkey cleanup: {result}")
+            VoiceTools.stop_hotkey_monitoring()
 
         # Cleanup STT resources
-        logger.info("Cleaning up STT resources...")
         stt_handler = get_transcription_handler()
         stt_handler.cleanup()
 
-    except Exception as e:
-        logger.debug(f"Error during cleanup: {e}")
+    except Exception:
+        # Silently handle cleanup errors to avoid I/O issues during shutdown
+        pass
 
 
 # Register voice tools

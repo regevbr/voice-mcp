@@ -198,3 +198,4 @@ uv run mypy src/
 - **CI/CD**: GitHub Actions for testing and releases
 
 The project follows production-ready patterns with comprehensive error handling, logging, and configuration management suitable for both development and production deployment. The full-featured voice system provides complete TTS and STT capabilities with real-time processing, making it suitable for advanced AI assistant voice interactions while maintaining high code quality and reliability.
+- always sync uv locally with uv sync --extra audio --dev --upgrade

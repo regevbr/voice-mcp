@@ -56,7 +56,7 @@ dependencies = [
     # Utilities
     "typing-extensions>=4.5.0",
     "setuptools-rust>=1.12.0",
-    "pyaudio>=0.2.14",
+    "huggingface-hub>=0.26.0",
 ]
 
 # Optional dependencies for development only
