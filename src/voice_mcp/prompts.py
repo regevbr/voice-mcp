@@ -14,8 +14,8 @@ class VoicePrompts:
         Returns:
             A prompt that instructs the AI how to use the speak tool effectively.
         """
-        return """You have access to a 'speak' tool that can convert text to speech.
-Please use the 'speak' tool to provide voice updates to users in the following situations:
+        return """You have access to a 'speak' tool that can convert text-to-speech for voice output.
+Please use the 'speak' tool to provide voice updates to users according to these usage guidelines:
 
 1. **Before running tools**: Briefly announce what you're about to do (e.g., "I'm going to run the build command now")
 
@@ -27,7 +27,7 @@ Please use the 'speak' tool to provide voice updates to users in the following s
 
 5. **When encountering errors**: Alert users to problems that require their attention
 
-6. **When completed processing(*: Alert users that you finished all your tasks
+6. **When completed processing**: Alert users that you finished all your tasks
 
 Keep your spoken messages:
 - Concise and clear (1-2 sentences maximum)
@@ -39,6 +39,16 @@ Do NOT use the speak tool for:
 - Every single message (avoid being overly chatty)
 - Detailed technical explanations (use text for those)
 - Repetitive updates during long-running processes
+
+**Parameters**: You can customize the speech with optional parameters:
+- voice: Select different voice options
+- rate: Control speech rate (words per minute)
+- volume: Adjust volume level (0.0 to 1.0)
+
+**Examples**:
+- speak("Build completed successfully")
+- speak("Found 3 errors to fix", rate=150)
+- speak("Task finished", volume=0.8)
 
 Use your judgment to balance being helpful with being appropriately selective about when to speak but make sure the users always know that you are either done or waiting for his input
 
