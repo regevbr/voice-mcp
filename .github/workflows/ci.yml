@@ -190,7 +190,8 @@ jobs:
         # Start pulseaudio for audio tests
         pulseaudio --start --log-target=syslog
 
-    - name: Run tests
+    - name: Run tests (Unix)
+      if: matrix.os != 'windows-latest'
       env:
         # Set environment variables for testing
         VOICE_MCP_DEBUG: "false"
@@ -211,6 +212,21 @@ jobs:
           --cov-report=term-missing \
           --cov-report=html \
           --junit-xml=pytest-results-${{ matrix.os }}-${{ matrix.python-version }}.xml
+
+    - name: Run tests (Windows)
+      if: matrix.os == 'windows-latest'
+      env:
+        # Set environment variables for testing
+        VOICE_MCP_DEBUG: "false"
+        VOICE_MCP_LOG_LEVEL: "WARNING"
+        VOICE_MCP_TTS_ENABLED: "false"  # Disable actual TTS in CI
+        VOICE_MCP_STT_ENABLED: "false"  # Disable actual STT in CI
+        VOICE_MCP_ENABLE_HOTKEY: "false"  # Disable hotkey monitoring in CI
+        PYTEST_CURRENT_TEST: "true"  # Indicate we're running in pytest
+      shell: bash
+      run: |
+        echo "🧪 Running tests..."
+        uv run pytest -v -m "not slow and not voice" --tb=short --cov=src/voice_mcp --cov-report=xml --cov-report=term-missing --cov-report=html --junit-xml=pytest-results-${{ matrix.os }}-${{ matrix.python-version }}.xml
 
     - name: Upload test results
       uses: actions/upload-artifact@v4
@@ -286,11 +302,7 @@ jobs:
       run: |
         echo "🔗 Running integration tests..."
         # Run integration tests with longer timeout
-        uv run pytest -v \
-          -m "integration" \
-          --tb=long \
-          --timeout=300 \
-          tests/integration/
+        uv run pytest -v -m "integration" --tb=long --timeout=300 tests/integration/
 
     - name: Test MCP server startup
       run: |

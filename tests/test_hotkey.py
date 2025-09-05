@@ -51,10 +51,10 @@ def mock_pynput():
     mock_keyboard.Key = mock_key
     mock_keyboard.KeyCode = mock_keycode
 
-    with (
-        patch("voice_mcp.voice.hotkey.keyboard", mock_keyboard),
-        patch("voice_mcp.voice.hotkey.Key", mock_key),
-        patch("voice_mcp.voice.hotkey.KeyCode", mock_keycode),
+    # Mock the lazy loading function to return our mocks
+    with patch(
+        "voice_mcp.voice.hotkey._get_keyboard_modules",
+        return_value=(mock_keyboard, mock_key, mock_keycode),
     ):
         yield mock_keyboard
 
@@ -538,19 +538,18 @@ class TestHotkeyIntegration:
         status = manager.get_status()
         assert status["active"] is False
 
-        # Test starting and stopping
-        with patch("voice_mcp.voice.hotkey.keyboard"):
-            start_result = manager.start_monitoring("f12")
-            assert start_result["success"] is True
+        # Test starting and stopping - no additional mocking needed as autouse fixture handles it
+        start_result = manager.start_monitoring("f12")
+        assert start_result["success"] is True
 
-            status = manager.get_status()
-            assert status["active"] is True
+        status = manager.get_status()
+        assert status["active"] is True
 
-            stop_result = manager.stop_monitoring()
-            assert stop_result["success"] is True
+        stop_result = manager.stop_monitoring()
+        assert stop_result["success"] is True
 
-            status = manager.get_status()
-            assert status["active"] is False
+        status = manager.get_status()
+        assert status["active"] is False
 
     def test_configuration_integration(self, sample_config):
         """Test integration with configuration system."""
