@@ -13,8 +13,8 @@ def test_default_config():
     assert config.port == 8000
     assert config.debug is False
     assert config.log_level == "INFO"
-    assert config.tts_engine == "pyttsx3"
-    assert config.tts_rate == 200
+    assert config.tts_model == "tts_models/en/ljspeech/tacotron2-DDC"
+    assert config.tts_rate == 1.0
     assert config.tts_volume == 0.9
     assert config.stt_model == "base"
     assert config.stt_language == "en"
@@ -35,8 +35,8 @@ def test_config_from_env(monkeypatch):
     monkeypatch.setenv("VOICE_MCP_PORT", "9000")
     monkeypatch.setenv("VOICE_MCP_DEBUG", "true")
     monkeypatch.setenv("VOICE_MCP_LOG_LEVEL", "DEBUG")
-    monkeypatch.setenv("VOICE_MCP_TTS_ENGINE", "gtts")
-    monkeypatch.setenv("VOICE_MCP_TTS_RATE", "150")
+    monkeypatch.setenv("VOICE_MCP_TTS_MODEL", "some_model")
+    monkeypatch.setenv("VOICE_MCP_TTS_RATE", "1.5")
     monkeypatch.setenv("VOICE_MCP_TTS_VOLUME", "0.7")
     monkeypatch.setenv("VOICE_MCP_STT_MODEL", "base")
     monkeypatch.setenv("VOICE_MCP_STT_SILENCE_THRESHOLD", "3.0")
@@ -50,8 +50,8 @@ def test_config_from_env(monkeypatch):
     assert config.port == 9000
     assert config.debug is True
     assert config.log_level == "DEBUG"
-    assert config.tts_engine == "gtts"
-    assert config.tts_rate == 150
+    assert config.tts_model == "some_model"
+    assert config.tts_rate == 1.5
     assert config.tts_volume == 0.7
     assert config.stt_model == "base"
     assert config.stt_silence_threshold == 3.0

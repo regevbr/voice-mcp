@@ -415,7 +415,7 @@ class VoiceTools:
                 audio_manager = get_audio_manager()
                 if audio_manager.is_available:
                     audio_manager.play_off_sound()
-            except:
+            except Exception:
                 pass
 
             return {

@@ -3,8 +3,6 @@ Text-to-Speech engine implementation using Coqui TTS.
 """
 
 import logging
-import tempfile
-import os
 from dataclasses import dataclass
 from typing import Any
 
@@ -37,7 +35,7 @@ class CoquiTTSEngine:
         """Initialize the Coqui TTS engine."""
         try:
             from TTS.api import TTS
-            
+
             logger.info(f"Initializing Coqui TTS with model: {self._model_name}")
             self._tts = TTS(self._model_name, progress_bar=False, gpu=False)
             self._initialized = True
@@ -66,45 +64,48 @@ class CoquiTTSEngine:
 
             # Convert to bytes if needed and play directly
             if self._play_audio_data_directly(audio_data):
-                logger.debug(f"Successfully spoke text using direct method: {text[:50]}...")
+                logger.debug(
+                    f"Successfully spoke text using direct method: {text[:50]}..."
+                )
                 return True
             else:
                 # Fallback to file method if direct playback failed
-                logger.warning("Direct audio playback failed, falling back to file method")
-            
+                logger.warning(
+                    "Direct audio playback failed, falling back to file method"
+                )
+
         except Exception as e:
             logger.error(f"Error during speech synthesis: {e}")
             return False
-    
 
     def _play_audio_data_directly(self, audio_data) -> bool:
         """
         Play audio data directly without saving to file.
-        
+
         Args:
             audio_data: Audio data from Coqui TTS (typically numpy array or torch tensor)
-            
+
         Returns:
             True if playback was successful, False otherwise
         """
         try:
             import numpy as np
-            
+
             # Convert audio data to the right format
-            if hasattr(audio_data, 'cpu'):
+            if hasattr(audio_data, "cpu"):
                 # PyTorch tensor
                 audio_array = audio_data.cpu().numpy()
-            elif hasattr(audio_data, 'numpy'):
+            elif hasattr(audio_data, "numpy"):
                 # TensorFlow tensor or similar
                 audio_array = audio_data.numpy()
             else:
                 # Assume it's already a numpy array
                 audio_array = np.array(audio_data)
-            
+
             # Ensure it's the right data type and range for audio playback
             if audio_array.dtype != np.float32:
                 audio_array = audio_array.astype(np.float32)
-            
+
             # Coqui TTS usually outputs float32 in range [-1, 1]
             # Convert to 16-bit PCM (typical for WAV files)
             if audio_array.dtype == np.float32 and np.abs(audio_array).max() <= 1.0:
@@ -113,23 +114,27 @@ class CoquiTTSEngine:
             elif audio_array.dtype != np.int16:
                 # Ensure it's int16
                 audio_array = audio_array.astype(np.int16)
-            
+
             # Convert to bytes
             audio_bytes = audio_array.tobytes()
-            
+
             # Play using AudioManager with typical TTS parameters
             # Most TTS models output at 22050 Hz, mono, 16-bit
-            sample_rate = getattr(self._tts, 'synthesizer', {}).get('output_sample_rate', 22050) if hasattr(self._tts, 'synthesizer') else 22050
-            
+            sample_rate = (
+                getattr(self._tts, "synthesizer", {}).get("output_sample_rate", 22050)
+                if hasattr(self._tts, "synthesizer")
+                else 22050
+            )
+
             success = self._audio_manager.play_audio_data(
                 audio_data=audio_bytes,
                 sample_rate=sample_rate,
                 channels=1,  # mono
-                sample_width=2  # 16-bit = 2 bytes
+                sample_width=2,  # 16-bit = 2 bytes
             )
-            
+
             return success
-            
+
         except Exception as e:
             logger.error(f"Error playing audio data directly: {e}")
             return False
@@ -147,19 +152,19 @@ class CoquiTTSEngine:
                     id="tts_models/en/ljspeech/tacotron2-DDC",
                     name="LJSpeech Tacotron2",
                     language="en",
-                    description="English female voice (LJSpeech dataset)"
+                    description="English female voice (LJSpeech dataset)",
                 ),
                 Voice(
                     id="tts_models/en/ljspeech/fast_pitch",
-                    name="LJSpeech FastPitch", 
+                    name="LJSpeech FastPitch",
                     language="en",
-                    description="English female voice (FastPitch model)"
+                    description="English female voice (FastPitch model)",
                 ),
                 Voice(
                     id="tts_models/multilingual/multi-dataset/xtts_v2",
                     name="XTTS v2 Multilingual",
                     language="multilingual",
-                    description="High-quality multilingual voice"
+                    description="High-quality multilingual voice",
                 ),
             ]
         except Exception as e:
@@ -236,11 +241,11 @@ class TTSManager:
             "voice_count": len(voices),
             "voices": [
                 {
-                    "id": v.id, 
-                    "name": v.name, 
+                    "id": v.id,
+                    "name": v.name,
                     "language": v.language,
-                    "description": v.description
-                } 
+                    "description": v.description,
+                }
                 for v in voices[:5]
             ],  # Limit to 5 for brevity
         }
@@ -252,3 +257,4 @@ class TTSManager:
     def is_available(self) -> bool:
         """Check if TTS engine is available."""
         return self._engine.is_available()
+

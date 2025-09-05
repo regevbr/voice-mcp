@@ -40,7 +40,7 @@ def create_parser() -> argparse.ArgumentParser:
     server_parser.add_argument("--debug", action="store_true", help="Enable debug mode")
 
     # Version command
-    version_parser = subparsers.add_parser("version", help="Show version information")
+    subparsers.add_parser("version", help="Show version information")
 
     # Test command
     test_parser = subparsers.add_parser("test", help="Test voice functionality")
@@ -82,7 +82,7 @@ def handle_server_command(args: argparse.Namespace) -> int:
         sys.argv = original_argv
 
 
-def handle_version_command(args: argparse.Namespace) -> int:
+def handle_version_command(_args: argparse.Namespace) -> int:
     """Handle the version command."""
     from . import __version__
 

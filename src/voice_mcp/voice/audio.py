@@ -248,11 +248,11 @@ class AudioManager:
         return self.play_audio_file("off.wav")
 
     def play_audio_data(
-        self, 
-        audio_data: bytes, 
-        sample_rate: int = 22050, 
-        channels: int = 1, 
-        sample_width: int = 2
+        self,
+        audio_data: bytes,
+        sample_rate: int = 22050,
+        channels: int = 1,
+        sample_width: int = 2,
     ) -> bool:
         """
         Play raw audio data directly without saving to file.
@@ -283,21 +283,19 @@ class AudioManager:
                 name="AudioPlayback-RawData",
             )
             thread.start()
-            logger.debug("Raw audio data playback initiated", 
-                        sample_rate=sample_rate, 
-                        channels=channels,
-                        data_size=len(audio_data))
+            logger.debug(
+                "Raw audio data playback initiated",
+                sample_rate=sample_rate,
+                channels=channels,
+                data_size=len(audio_data),
+            )
             return True
         except Exception as e:
             logger.error("Could not start audio data playback thread", error=str(e))
             return False
 
     def _play_audio_data_thread(
-        self, 
-        audio_data: bytes, 
-        sample_rate: int, 
-        channels: int, 
-        sample_width: int
+        self, audio_data: bytes, sample_rate: int, channels: int, sample_width: int
     ) -> None:
         """
         Internal method to play raw audio data in a separate thread.
@@ -319,7 +317,7 @@ class AudioManager:
                 3: pyaudio.paInt24,
                 4: pyaudio.paInt32,
             }
-            
+
             audio_format = format_map.get(sample_width, pyaudio.paInt16)
 
             stream = self.audio.open(
@@ -340,7 +338,7 @@ class AudioManager:
                 "Raw audio data playback completed",
                 duration=f"{duration:.2f}s",
                 sample_rate=sample_rate,
-                channels=channels
+                channels=channels,
             )
 
         except Exception as e:

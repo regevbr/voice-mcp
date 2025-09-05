@@ -130,7 +130,6 @@ class TestSTTServerManager:
             patch.object(manager, "_check_dependencies", return_value=True),
             patch.object(manager, "_start_cleanup_thread"),
         ):
-
             result = manager.start()
 
             assert result["success"] is True

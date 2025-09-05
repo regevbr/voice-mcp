@@ -28,7 +28,7 @@ class ServerConfig:
     stt_language: str = "en"  # Default language for STT
     stt_silence_threshold: float = 4.0
     stt_server_mode: bool = True  # Enable persistent model server mode
-    stt_preload_models: list[str] = (
+    stt_preload_models: list[str] | None = (
         None  # Which models to preload (None means use default ["base"])
     )
     stt_model_cache_size: int = 2  # Maximum number of models to keep in memory
@@ -53,7 +53,7 @@ class ServerConfig:
             return ["base"]
         return [model.strip() for model in model_str.split(",") if model.strip()]
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Post-initialization to set default values for None fields."""
         if self.stt_preload_models is None:
             self.stt_preload_models = ["base"]
@@ -67,7 +67,9 @@ class ServerConfig:
             debug=os.getenv("VOICE_MCP_DEBUG", "false").lower() == "true",
             log_level=os.getenv("VOICE_MCP_LOG_LEVEL", "INFO"),
             transport=os.getenv("VOICE_MCP_TRANSPORT", "stdio"),
-            tts_model=os.getenv("VOICE_MCP_TTS_MODEL", "tts_models/en/ljspeech/tacotron2-DDC"),
+            tts_model=os.getenv(
+                "VOICE_MCP_TTS_MODEL", "tts_models/en/ljspeech/tacotron2-DDC"
+            ),
             tts_rate=float(os.getenv("VOICE_MCP_TTS_RATE", "1.0")),
             tts_volume=float(os.getenv("VOICE_MCP_TTS_VOLUME", "0.9")),
             stt_model=os.getenv("VOICE_MCP_STT_MODEL", "base"),
