@@ -1,6 +1,6 @@
 # Voice MCP Server
 
-A lightweight Model Context Protocol (MCP) server providing text-to-speech (TTS) capabilities and hotkey monitoring for AI assistants.
+A comprehensive Model Context Protocol (MCP) server providing advanced text-to-speech (TTS) and speech-to-text (STT) capabilities with global hotkey monitoring for AI assistants.
 
 [![Tests](https://github.com/voice-mcp/voice-mcp/actions/workflows/test.yml/badge.svg)](https://github.com/voice-mcp/voice-mcp/actions/workflows/test.yml)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
@@ -9,40 +9,62 @@ A lightweight Model Context Protocol (MCP) server providing text-to-speech (TTS)
 ## ✨ Features
 
 ### 🔊 Text-to-Speech (TTS)
-- **Multi-engine support**: pyttsx3 (offline) and gTTS (cloud) with automatic fallback
+- **Coqui TTS Engine**: High-quality neural text-to-speech with customizable models
 - **Voice customization**: Select voices, adjust rate and volume
 - **Cross-platform**: Works on Linux, Windows, and macOS
 - **MCP Integration**: Native `speak` tool and guidance prompts
 
-### ⌨️ Hotkey Monitoring
+### 🎤 Speech-to-Text (STT)
+- **Faster-Whisper Engine**: Optimized Whisper implementation for real-time transcription
+- **Real-time Processing**: Live typing during speech recognition
+- **Multiple Output Modes**: Direct return, clipboard, or real-time typing
+- **Language Support**: Multi-language speech recognition
+- **Silence Detection**: Automatic stopping based on speech patterns
+
+### ⌨️ Hotkey Monitoring & Voice Activation
 - **Global hotkey support**: Monitor system-wide keyboard shortcuts
-- **Menu key activation**: Configurable hotkey triggers for voice activation
+- **Menu key activation**: Configurable hotkey triggers for voice-to-text
+- **Real-time Feedback**: Audio cues (on/off sounds) and live typing
 - **Hands-free operation**: Start/stop monitoring via MCP tools
+- **Advanced Text Output**: Debounced typing, clipboard integration
 
 ### 🏗️ Architecture
 - **FastMCP framework**: Modern MCP server implementation
 - **Type-safe**: Full type hints and validation with Pydantic
-- **Focused functionality**: Streamlined tool set for core use cases
-- **Production-ready**: Error handling, logging, and configuration management
+- **Advanced Audio Processing**: NumPy, LibROSA, WebRTC VAD integration
+- **Real-time Systems**: Optimized for low-latency voice interactions
+- **Production-ready**: Comprehensive error handling, logging, and configuration management
+- **Modular Design**: Separate managers for TTS, STT, audio, hotkeys, and text output
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
+**Python Requirements:**
+- Python 3.11+ (required for advanced dependencies)
+- Rust toolchain (for setuptools-rust)
+
 **Linux (Ubuntu/Debian):**
 ```bash
 sudo apt-get update
-sudo apt-get install python3-dev portaudio19-dev
+sudo apt-get install python3-dev portaudio19-dev libasound2-dev
+sudo apt-get install build-essential cmake
+# For audio processing
+sudo apt-get install ffmpeg libsndfile1
 ```
 
 **macOS:**
 ```bash
-brew install portaudio
+brew install portaudio ffmpeg libsndfile
+# Install Rust if not present
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 
 **Windows:**
 - Install Python 3.11+ from [python.org](https://www.python.org/downloads/)
 - Install [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
+- Install [Rust toolchain](https://rustup.rs/)
+- Install [FFmpeg](https://ffmpeg.org/download.html) and add to PATH
 
 ### Installation
 
@@ -82,7 +104,9 @@ Create or update your Claude Desktop configuration:
       "command": "uv",
       "args": ["run", "python", "-m", "voice_mcp.server"],
       "env": {
-        "VOICE_MCP_TTS_ENGINE": "pyttsx3",
+        "VOICE_MCP_TTS_MODEL": "tts_models/en/ljspeech/tacotron2-DDC",
+        "VOICE_MCP_STT_ENABLED": "true",
+        "VOICE_MCP_ENABLE_HOTKEY": "true",
         "VOICE_MCP_LOG_LEVEL": "INFO"
       }
     }
@@ -103,17 +127,22 @@ uv run python -m voice_mcp.server --transport sse --port 8000
 uv run python -m voice_mcp.server --debug --log-level DEBUG
 ```
 
-#### 3. CLI Interface
+#### 3. Direct Testing
 
 ```bash
-# Check version
-uv run voice-mcp version
+# Test TTS functionality directly
+uv run python -c "
+from voice_mcp.tools import VoiceTools
+result = VoiceTools.speak('Hello from Voice MCP!')
+print('TTS Result:', result)
+"
 
-# Test TTS functionality
-uv run voice-mcp test --tts --text "Hello, this is a test!"
-
-# Get help
-uv run voice-mcp --help
+# Test hotkey status
+uv run python -c "
+from voice_mcp.tools import VoiceTools
+status = VoiceTools.get_hotkey_status()
+print('Hotkey Status:', status['active'])
+"
 ```
 
 ## 🛠️ MCP Tools & Prompts
@@ -167,21 +196,34 @@ Claude: I'll start the global hotkey monitoring for you.
 | `VOICE_MCP_PORT` | `8000` | Server port |
 | `VOICE_MCP_DEBUG` | `false` | Enable debug mode |
 | `VOICE_MCP_LOG_LEVEL` | `INFO` | Logging level |
-| `VOICE_MCP_TTS_ENGINE` | `pyttsx3` | TTS engine (`pyttsx3`, `gtts`) |
-| `VOICE_MCP_TTS_RATE` | `200` | Speech rate (words per minute) |
+| `VOICE_MCP_TTS_MODEL` | `tts_models/en/ljspeech/tacotron2-DDC` | Coqui TTS model |
+| `VOICE_MCP_TTS_RATE` | `1.0` | Speech rate multiplier |
 | `VOICE_MCP_TTS_VOLUME` | `0.9` | Volume level (0.0 to 1.0) |
+| `VOICE_MCP_STT_ENABLED` | `true` | Enable STT preloading on startup |
+| `VOICE_MCP_STT_MODEL` | `base` | Whisper model (`tiny`, `base`, `small`, `medium`, `large`) |
+| `VOICE_MCP_STT_DEVICE` | `auto` | Processing device (`auto`, `cuda`, `cpu`) |
+| `VOICE_MCP_STT_LANGUAGE` | `en` | Default STT language |
+| `VOICE_MCP_STT_SILENCE_THRESHOLD` | `4.0` | Silence detection threshold (seconds) |
 | `VOICE_MCP_ENABLE_HOTKEY` | `true` | Enable hotkey activation |
 | `VOICE_MCP_HOTKEY_NAME` | `menu` | Hotkey to monitor |
+| `VOICE_MCP_HOTKEY_OUTPUT_MODE` | `typing` | Default hotkey output mode (`typing`, `clipboard`, `return`) |
+| `VOICE_MCP_TYPING_ENABLED` | `true` | Enable real-time typing output |
+| `VOICE_MCP_CLIPBOARD_ENABLED` | `true` | Enable clipboard output |
+| `VOICE_MCP_TYPING_DEBOUNCE_DELAY` | `0.1` | Typing debounce delay (seconds) |
 
 ### Example Configuration
 
 ```bash
 # .env file
-VOICE_MCP_TTS_ENGINE=pyttsx3
-VOICE_MCP_TTS_RATE=180
+VOICE_MCP_TTS_MODEL=tts_models/en/ljspeech/tacotron2-DDC
+VOICE_MCP_TTS_RATE=1.0
 VOICE_MCP_TTS_VOLUME=0.8
+VOICE_MCP_STT_ENABLED=true
+VOICE_MCP_STT_MODEL=base
+VOICE_MCP_STT_DEVICE=auto
 VOICE_MCP_ENABLE_HOTKEY=true
 VOICE_MCP_HOTKEY_NAME=menu
+VOICE_MCP_HOTKEY_OUTPUT_MODE=typing
 VOICE_MCP_LOG_LEVEL=DEBUG
 ```
 
@@ -239,18 +281,27 @@ print('Hotkey Status:', status)
 voice-mcp/
 ├── src/voice_mcp/
 │   ├── __init__.py
-│   ├── server.py          # Main MCP server
+│   ├── server.py          # Main MCP server with FastMCP
 │   ├── config.py          # Configuration management
 │   ├── tools.py           # MCP tools implementation
 │   ├── prompts.py         # MCP prompts
-│   ├── cli.py             # Command-line interface
+│   ├── cli.py             # Command-line interface (partial)
 │   └── voice/
 │       ├── __init__.py
-│       └── tts.py         # TTS engine implementations
+│       ├── audio.py       # Audio I/O and effects management
+│       ├── hotkey.py      # Global hotkey monitoring
+│       ├── stt.py         # Speech-to-text with faster-whisper
+│       ├── stt_server.py  # STT server implementation
+│       ├── text_output.py # Real-time typing and clipboard
+│       └── tts.py         # Coqui TTS engine
 ├── tests/
 │   ├── conftest.py        # Test configuration
-│   ├── test_*.py          # Test modules
-│   └── integration/       # Integration tests
+│   ├── test_*.py          # Comprehensive test suite
+│   ├── integration/       # Integration tests
+│   └── unit/              # Unit tests
+├── examples/
+│   ├── hotkey_demo.py     # Hotkey usage examples
+│   └── stt_server_demo.py # STT server examples
 ├── pyproject.toml         # Project configuration
 └── README.md
 ```
@@ -284,10 +335,13 @@ uv run python -m voice_mcp.server --debug
 
 ### Common Issues
 
-**Import Error: No module named 'pyttsx3'**
+**Import Error: No module named 'TTS' or 'faster_whisper'**
 ```bash
-# Reinstall dependencies
+# Reinstall dependencies with proper build tools
 uv sync --reinstall
+
+# On Linux, ensure build dependencies
+sudo apt-get install build-essential cmake
 ```
 
 **Audio playback not working**
@@ -301,19 +355,43 @@ sudo apt-get install alsa-utils pulseaudio
 
 **TTS engine initialization failed**
 ```bash
-# Check available voices
+# Check Coqui TTS installation and models
 uv run python -c "
-import pyttsx3
-engine = pyttsx3.init()
-voices = engine.getProperty('voices')
-for voice in voices:
-    print(f'ID: {voice.id}, Name: {voice.name}')
+from TTS.api import TTS
+print('Available models:')
+for model in TTS.list_models():
+    print(f'- {model}')
+"
+
+# Test TTS functionality
+uv run python -c "
+from voice_mcp.tools import VoiceTools
+result = VoiceTools.speak('Test message')
+print(result)
 "
 ```
 
 **FastMCP errors**
 - Ensure you're using Python 3.11+
 - Check MCP package version: `uv list | grep mcp`
+
+**STT/Audio Issues**
+```bash
+# Test microphone access
+uv run python -c "
+import pyaudio
+p = pyaudio.PyAudio()
+print(f'Available audio devices: {p.get_device_count()}')
+p.terminate()
+"
+
+# Check faster-whisper installation
+uv run python -c "
+from faster_whisper import WhisperModel
+model = WhisperModel('base')
+print('Faster-whisper working!')
+"
+```
 
 ## 📄 License
 
