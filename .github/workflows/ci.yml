@@ -46,7 +46,6 @@ jobs:
         key: ${{ runner.os }}-uv-${{ matrix.python-version }}-${{ hashFiles('**/pyproject.toml', '**/uv.lock') }}
         restore-keys: |
           ${{ runner.os }}-uv-${{ matrix.python-version }}-
-          ${{ runner.os }}-uv-
 
     - name: Install system dependencies
       run: |
@@ -133,6 +132,9 @@ jobs:
     - name: Set up Python ${{ matrix.python-version }}
       run: uv python install ${{ matrix.python-version }}
 
+    - name: Create virtual environment
+      run: uv venv --python ${{ matrix.python-version }}
+
     - name: Install system dependencies (Ubuntu)
       if: matrix.os == 'ubuntu-latest'
       run: |
@@ -174,7 +176,6 @@ jobs:
         key: ${{ runner.os }}-uv-${{ matrix.python-version }}-${{ hashFiles('**/pyproject.toml', '**/uv.lock') }}
         restore-keys: |
           ${{ runner.os }}-uv-${{ matrix.python-version }}-
-          ${{ runner.os }}-uv-
 
     - name: Install dependencies
       run: |
