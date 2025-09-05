@@ -48,33 +48,36 @@ class TestTranscriptionHandler:
         """Test successful model preloading."""
         handler = TranscriptionHandler()
 
-        with patch("voice_mcp.voice.stt.config") as mock_config:
-            mock_config.stt_model = "base"
-            mock_config.stt_language = "en"
-            mock_config.stt_silence_threshold = 4.0
+        with patch("voice_mcp.voice.stt.REALTIMESTT_AVAILABLE", True):
+            with patch("voice_mcp.voice.stt.config") as mock_config:
+                mock_config.stt_model = "base"
+                mock_config.stt_language = "en"
+                mock_config.stt_silence_threshold = 4.0
 
-            with patch.object(
-                handler, "_get_optimal_device", return_value=("cpu", "int8")
-            ):
-                with patch("voice_mcp.voice.stt.AudioToTextRecorder") as mock_recorder:
-                    mock_recorder.return_value = Mock()
+                with patch.object(
+                    handler, "_get_optimal_device", return_value=("cpu", "int8")
+                ):
+                    with patch(
+                        "voice_mcp.voice.stt.AudioToTextRecorder"
+                    ) as mock_recorder:
+                        mock_recorder.return_value = Mock()
 
-                    result = handler.preload()
+                        result = handler.preload()
 
-                    assert result is True
-                    assert handler._is_initialized is True
-                    assert handler.is_ready() is True
-                    assert handler.device == "cpu"
-                    assert handler.compute_type == "int8"
+                        assert result is True
+                        assert handler._is_initialized is True
+                        assert handler.is_ready() is True
+                        assert handler.device == "cpu"
+                        assert handler.compute_type == "int8"
 
     def test_preload_already_loaded(self):
         """Test preloading when already loaded."""
         handler = TranscriptionHandler()
-        handler._is_initialized = True
 
-        result = handler.preload()
-
-        assert result is True
+        with patch("voice_mcp.voice.stt.REALTIMESTT_AVAILABLE", True):
+            handler._is_initialized = True
+            result = handler.preload()
+            assert result is True
 
     def test_preload_failure(self):
         """Test preload failure handling."""
@@ -97,12 +100,12 @@ class TestTranscriptionHandler:
     def test_enable_when_ready(self):
         """Test enable when already ready."""
         handler = TranscriptionHandler()
-        handler._is_initialized = True
-        handler._recorder = Mock()
 
-        result = handler.enable()
-
-        assert result is True
+        with patch("voice_mcp.voice.stt.REALTIMESTT_AVAILABLE", True):
+            handler._is_initialized = True
+            handler._recorder = Mock()
+            result = handler.enable()
+            assert result is True
 
     def test_enable_when_not_ready(self):
         """Test enable when not ready (should preload)."""
@@ -196,32 +199,34 @@ class TestTranscriptionHandler:
     def test_transcribe_once_success(self):
         """Test successful transcription."""
         handler = TranscriptionHandler()
-        handler._is_initialized = True
-        handler._recorder = Mock()
-        handler.device = "cpu"
-        handler.compute_type = "int8"
 
-        mock_session_recorder = Mock()
+        with patch("voice_mcp.voice.stt.REALTIMESTT_AVAILABLE", True):
+            handler._is_initialized = True
+            handler._recorder = Mock()
+            handler.device = "cpu"
+            handler.compute_type = "int8"
 
-        with patch("voice_mcp.voice.stt.config") as mock_config:
-            mock_config.stt_model = "base"
-            mock_config.stt_language = "en"
-            mock_config.stt_silence_threshold = 4.0
+            mock_session_recorder = Mock()
 
-            with patch(
-                "voice_mcp.voice.stt.AudioToTextRecorder",
-                return_value=mock_session_recorder,
-            ):
+            with patch("voice_mcp.voice.stt.config") as mock_config:
+                mock_config.stt_model = "base"
+                mock_config.stt_language = "en"
+                mock_config.stt_silence_threshold = 4.0
+
                 with patch(
-                    "time.time", side_effect=[0.0, 5.0]
-                ):  # Mock start and end time
-                    result = handler.transcribe_once()
+                    "voice_mcp.voice.stt.AudioToTextRecorder",
+                    return_value=mock_session_recorder,
+                ):
+                    with patch(
+                        "time.time", side_effect=[0.0, 5.0]
+                    ):  # Mock start and end time
+                        result = handler.transcribe_once()
 
-                    assert result["success"] is True
-                    assert "transcription" in result
-                    assert result["duration"] == 5.0
-                    assert result["language"] == "en"
-                    assert result["model"] == "base"
+                        assert result["success"] is True
+                        assert "transcription" in result
+                        assert result["duration"] == 5.0
+                        assert result["language"] == "en"
+                        assert result["model"] == "base"
 
     def test_cleanup(self):
         """Test cleanup method."""

@@ -2,6 +2,8 @@
 Tests for Voice MCP tools.
 """
 
+from unittest.mock import patch
+
 import pytest
 
 from voice_mcp.tools import VoiceTools
@@ -41,12 +43,19 @@ class TestVoiceTools:
 
     def test_start_hotkey_monitoring(self, mock_hotkey_manager):
         """Test starting hotkey monitoring."""
-        result = VoiceTools.start_hotkey_monitoring()
+        # Mock successful start_monitoring result
+        mock_hotkey_manager.start_monitoring.return_value = {
+            "success": True,
+            "description": "menu key",
+        }
 
-        assert isinstance(result, str)
-        assert "✅" in result
-        assert "started" in result.lower()
-        mock_hotkey_manager.start_monitoring.assert_called_once()
+        with patch("voice_mcp.tools.config.enable_hotkey", True):
+            result = VoiceTools.start_hotkey_monitoring()
+
+            assert isinstance(result, str)
+            assert "✅" in result
+            assert "started" in result.lower()
+            mock_hotkey_manager.start_monitoring.assert_called_once()
 
     def test_stop_hotkey_monitoring(self, mock_hotkey_manager):
         """Test stopping hotkey monitoring."""
@@ -88,12 +97,19 @@ class TestVoiceToolsHotkey:
 
     def test_start_hotkey_monitoring_success(self, mock_hotkey_manager):
         """Test successful hotkey monitoring start."""
-        result = VoiceTools.start_hotkey_monitoring()
+        # Mock successful start_monitoring result
+        mock_hotkey_manager.start_monitoring.return_value = {
+            "success": True,
+            "description": "menu key",
+        }
 
-        assert isinstance(result, str)
-        assert "✅" in result
-        assert "started" in result.lower()
-        mock_hotkey_manager.start_monitoring.assert_called_once()
+        with patch("voice_mcp.tools.config.enable_hotkey", True):
+            result = VoiceTools.start_hotkey_monitoring()
+
+            assert isinstance(result, str)
+            assert "✅" in result
+            assert "started" in result.lower()
+            mock_hotkey_manager.start_monitoring.assert_called_once()
 
     def test_stop_hotkey_monitoring_success(self, mock_hotkey_manager):
         """Test successful hotkey monitoring stop."""
@@ -108,11 +124,12 @@ class TestVoiceToolsHotkey:
         """Test hotkey monitoring start when error occurs."""
         mock_hotkey_manager.start_monitoring.side_effect = Exception("Hotkey error")
 
-        result = VoiceTools.start_hotkey_monitoring()
+        with patch("voice_mcp.tools.config.enable_hotkey", True):
+            result = VoiceTools.start_hotkey_monitoring()
 
-        assert isinstance(result, str)
-        assert "❌" in result
-        assert "Hotkey error" in result
+            assert isinstance(result, str)
+            assert "❌" in result
+            assert "Hotkey error" in result
 
     def test_stop_hotkey_monitoring_error(self, mock_hotkey_manager):
         """Test hotkey monitoring stop when error occurs."""

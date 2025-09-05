@@ -20,13 +20,7 @@ class TestAudioManager:
 
     def test_init_without_pyaudio(self):
         """Test AudioManager initialization when PyAudio is not available."""
-        with (
-            patch("voice_mcp.voice.audio.PYAUDIO_AVAILABLE", False),
-            patch(
-                "voice_mcp.voice.audio.pyaudio.PyAudio",
-                side_effect=Exception("No PyAudio"),
-            ),
-        ):
+        with patch("voice_mcp.voice.audio.PYAUDIO_AVAILABLE", False):
             audio_manager = AudioManager()
             assert not audio_manager.is_available
 
@@ -112,13 +106,7 @@ class TestAudioManager:
 
     def test_play_audio_file_not_available(self):
         """Test audio playback when system is not available."""
-        with (
-            patch("voice_mcp.voice.audio.PYAUDIO_AVAILABLE", False),
-            patch(
-                "voice_mcp.voice.audio.pyaudio.PyAudio",
-                side_effect=Exception("No PyAudio"),
-            ),
-        ):
+        with patch("voice_mcp.voice.audio.PYAUDIO_AVAILABLE", False):
             audio_manager = AudioManager()
 
             result = audio_manager.play_audio_file("on.wav")

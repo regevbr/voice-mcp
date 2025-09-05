@@ -11,12 +11,13 @@ from voice_mcp.server import parse_args
 def test_parse_args_default():
     """Test argument parsing with default values."""
     with patch("sys.argv", ["voice-mcp"]):
-        args = parse_args()
+        with patch("voice_mcp.server.config.log_level", "INFO"):
+            args = parse_args()
 
-        assert args.transport == "stdio"
-        assert args.port == 8000
-        assert args.log_level == "INFO"
-        assert args.debug is False
+            assert args.transport == "stdio"
+            assert args.port == 8000
+            assert args.log_level == "INFO"
+            assert args.debug is False
 
 
 def test_parse_args_custom():

@@ -3,12 +3,15 @@ Simplified speech-to-text functionality with singleton pattern and preloading.
 """
 
 import contextlib
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import structlog
 import torch
 
 from ..config import config
+
+if TYPE_CHECKING:
+    from .text_output import TextOutputController
 
 # Check if RealtimeSTT is available
 try:
@@ -257,7 +260,7 @@ class TranscriptionHandler:
 
     def transcribe_with_realtime_output(
         self,
-        text_output_controller,
+        text_output_controller: "TextOutputController",
         duration: float | None = None,
         language: str | None = None,
     ) -> dict[str, Any]:
