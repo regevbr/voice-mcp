@@ -2,15 +2,13 @@
 Tests for configuration management.
 """
 
-import os
-import pytest
 from voice_mcp.config import ServerConfig
 
 
 def test_default_config():
     """Test default configuration values."""
     config = ServerConfig()
-    
+
     assert config.host == "localhost"
     assert config.port == 8000
     assert config.debug is False
@@ -45,9 +43,9 @@ def test_config_from_env(monkeypatch):
     monkeypatch.setenv("VOICE_MCP_ENABLE_HOTKEY", "true")  # Enable for this test
     monkeypatch.setenv("VOICE_MCP_HOTKEY_NAME", "f11")
     monkeypatch.setenv("VOICE_MCP_HOTKEY_OUTPUT_MODE", "clipboard")
-    
+
     config = ServerConfig.from_env()
-    
+
     assert config.host == "0.0.0.0"
     assert config.port == 9000
     assert config.debug is True
@@ -66,19 +64,19 @@ def test_config_validation():
     """Test configuration parameter validation."""
     # Test invalid values
     config = ServerConfig()
-    
+
     # Port should be within valid range
     assert 1 <= config.port <= 65535
-    
+
     # Volume should be between 0 and 1
     assert 0.0 <= config.tts_volume <= 1.0
-    
+
     # Sample rate should be positive
     assert config.sample_rate > 0
-    
+
     # Chunk size should be positive
     assert config.chunk_size > 0
-    
+
     # Silence threshold should be positive
     assert config.stt_silence_threshold > 0
 
@@ -87,7 +85,7 @@ def test_config_boolean_parsing(monkeypatch):
     """Test boolean environment variable parsing."""
     test_cases = [
         ("true", True),
-        ("True", True), 
+        ("True", True),
         ("TRUE", True),
         ("1", False),  # Only "true" (case-insensitive) should be True
         ("false", False),
@@ -97,7 +95,7 @@ def test_config_boolean_parsing(monkeypatch):
         ("", False),
         ("invalid", False),
     ]
-    
+
     for env_value, expected in test_cases:
         monkeypatch.setenv("VOICE_MCP_DEBUG", env_value)
         config = ServerConfig.from_env()

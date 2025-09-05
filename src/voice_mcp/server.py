@@ -2,18 +2,17 @@
 Voice MCP Server - Simplified version with only essential tools.
 """
 
-import sys
-import time
 import argparse
 import atexit
-from typing import Dict, Any, Optional, Union, Literal
+import sys
+from typing import Any
 
 import structlog
 from fastmcp import FastMCP
 
-from .tools import VoiceTools
-from .prompts import VoicePrompts
 from .config import config, setup_logging
+from .prompts import VoicePrompts
+from .tools import VoiceTools
 
 logger = structlog.get_logger(__name__)
 
@@ -21,7 +20,7 @@ logger = structlog.get_logger(__name__)
 mcp = FastMCP(
     name="Voice MCP Server",
     instructions="A Model Context Protocol server providing text-to-speech (TTS) capabilities and hotkey monitoring for AI assistants.",
-    version="3.0.0"
+    version="3.0.0",
 )
 
 
@@ -40,20 +39,20 @@ def cleanup_hotkey_monitoring():
 # Register voice tools
 @mcp.tool()
 def speak(
-    text: str, 
-    voice: Optional[str] = None, 
-    rate: Optional[int] = None, 
-    volume: Optional[float] = None
+    text: str,
+    voice: str | None = None,
+    rate: int | None = None,
+    volume: float | None = None,
 ) -> str:
     """
     Convert text to speech using the configured TTS engine.
-    
+
     Args:
         text: The text to convert to speech
         voice: Optional voice to use (system-dependent)
         rate: Optional speech rate (words per minute)
         volume: Optional volume level (0.0 to 1.0)
-        
+
     Returns:
         Status message indicating success or failure
     """
@@ -72,7 +71,7 @@ def speak_guide() -> str:
 def start_hotkey_monitoring() -> str:
     """
     Start global hotkey monitoring for voice activation.
-    
+
     Returns:
         Status message indicating success or failure of hotkey setup
     """
@@ -83,7 +82,7 @@ def start_hotkey_monitoring() -> str:
 def stop_hotkey_monitoring() -> str:
     """
     Stop global hotkey monitoring and cleanup resources.
-    
+
     Returns:
         Status message indicating success or failure of hotkey cleanup
     """
@@ -91,10 +90,10 @@ def stop_hotkey_monitoring() -> str:
 
 
 @mcp.tool()
-def get_hotkey_status() -> Dict[str, Any]:
+def get_hotkey_status() -> dict[str, Any]:
     """
     Get current hotkey monitoring status and configuration details.
-    
+
     Returns:
         Dictionary containing hotkey monitoring state, configured key combination,
         output mode settings, and any error conditions for debugging purposes.
@@ -109,49 +108,46 @@ atexit.register(cleanup_hotkey_monitoring)
 def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description="Voice MCP Server")
-    
+
     parser.add_argument(
-        "--transport", 
+        "--transport",
         choices=["stdio", "sse"],
         default=config.transport,
-        help=f"Transport type (default: {config.transport})"
+        help=f"Transport type (default: {config.transport})",
     )
-    
+
     parser.add_argument(
-        "--port", 
+        "--port",
         type=int,
         default=config.port,
-        help=f"Port to bind to (default: {config.port})"
+        help=f"Port to bind to (default: {config.port})",
     )
-    
+
     parser.add_argument(
         "--log-level",
         choices=["DEBUG", "INFO", "WARNING", "ERROR"],
         default=config.log_level,
-        help=f"Log level (default: {config.log_level})"
+        help=f"Log level (default: {config.log_level})",
     )
-    
+
     parser.add_argument(
-        "--debug",
-        action="store_true", 
-        default=config.debug,
-        help="Enable debug mode"
+        "--debug", action="store_true", default=config.debug, help="Enable debug mode"
     )
-    
+
     return parser.parse_args()
 
 
 def main():
     """Main entry point for the MCP server."""
     args = parse_args()
-    
+
     # Setup logging based on arguments
     setup_logging(args.log_level)
-    
+
     logger.info("Starting Voice MCP Server...")
     logger.info(f"Transport: {args.transport}")
     logger.info(f"Debug mode: {args.debug}")
-    
+
     try:
         if args.transport == "stdio":
             mcp.run(transport="stdio")
@@ -161,7 +157,7 @@ def main():
             logger.error(f"Unsupported transport: {args.transport}")
             cleanup_hotkey_monitoring()
             sys.exit(1)
-            
+
     except KeyboardInterrupt:
         logger.info("Server shutting down...")
         cleanup_hotkey_monitoring()

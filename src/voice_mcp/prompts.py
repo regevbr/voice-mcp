@@ -5,12 +5,12 @@ MCP prompts for voice functionality.
 
 class VoicePrompts:
     """Container for voice-related MCP prompts."""
-    
+
     @staticmethod
     def speak_prompt() -> str:
         """
         Prompt to guide AI usage of the speak tool.
-        
+
         Returns:
             A prompt that instructs the AI how to use the speak tool effectively.
         """
@@ -53,4 +53,3 @@ Do NOT use the speak tool for:
 Use your judgment to balance being helpful with being appropriately selective about when to speak but make sure the users always know that you are either done or waiting for his input
 
 Please continue the conversation from the previous message."""
-    
