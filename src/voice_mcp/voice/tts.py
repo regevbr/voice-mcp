@@ -124,11 +124,8 @@ class CoquiTTSEngine:
 
             # Play using AudioManager with typical TTS parameters
             # Most TTS models output at 22050 Hz, mono, 16-bit
-            sample_rate = (
-                getattr(self._tts, "synthesizer", {}).get("output_sample_rate", 22050)
-                if hasattr(self._tts, "synthesizer")
-                else 22050
-            )
+            # Default to 22050 Hz which is common for Coqui TTS models
+            sample_rate = 22050
 
             success = self._audio_manager.play_audio_data(
                 audio_data=audio_bytes,

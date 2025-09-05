@@ -80,8 +80,8 @@ jobs:
       with:
         version: "0.5.13"
 
-    - name: Set up Python 3.11
-      run: uv python install 3.11
+    - name: Set up Python 3.12
+      run: uv python install 3.12
 
     - name: Install system dependencies
       run: |
@@ -117,18 +117,18 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ["3.11", "3.12"]
+        python-version: ["3.12", "3.13"]
         include:
           # Only test all combinations on Ubuntu, others just one Python version
           - os: windows-latest
-            python-version: "3.11"
+            python-version: "3.12"
           - os: macos-latest
-            python-version: "3.11"
+            python-version: "3.12"
         exclude:
           - os: windows-latest
-            python-version: "3.12"
+            python-version: "3.13"
           - os: macos-latest
-            python-version: "3.12"
+            python-version: "3.13"
 
     steps:
     - name: Checkout code
@@ -211,8 +211,8 @@ jobs:
       with:
         version: "0.5.13"
 
-    - name: Set up Python 3.11
-      run: uv python install 3.11
+    - name: Set up Python 3.12
+      run: uv python install 3.12
 
     - name: Update package version
       id: package
@@ -314,7 +314,7 @@ jobs:
 
         ### System Requirements
 
-        - Python 3.11+
+        - Python 3.12+
         - Audio input/output devices
         - System dependencies for audio processing
 

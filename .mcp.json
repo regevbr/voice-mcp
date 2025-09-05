@@ -1,16 +1,11 @@
 {
   "mcpServers": {
     "voice-mcp": {
-      "command": "uv",
+      "command": "bash",
       "args": [
-        "run",
-        "python",
-        "-m",
-        "voice_mcp.server"
-      ],
-      "env": {
-        "VOICE_MCP_LOG_LEVEL": "INFO"
-      }
+        "-c",
+        "uv run python -m voice_mcp.server 2> /tmp/voice-mcp.log"
+      ]
     }
   }
 }

@@ -32,8 +32,8 @@ jobs:
       with:
         version: "0.5.13"
 
-    - name: Set up Python 3.11
-      run: uv python install 3.11
+    - name: Set up Python 3.12
+      run: uv python install 3.12
 
     - name: Install dependencies
       run: |
@@ -84,8 +84,8 @@ jobs:
       with:
         version: "0.5.13"
 
-    - name: Set up Python 3.11
-      run: uv python install 3.11
+    - name: Set up Python 3.12
+      run: uv python install 3.12
 
     - name: Install dependencies
       run: |
@@ -141,8 +141,8 @@ jobs:
       with:
         version: "0.5.13"
 
-    - name: Set up Python 3.11
-      run: uv python install 3.11
+    - name: Set up Python 3.12
+      run: uv python install 3.12
 
     - name: Check for dependency updates
       run: |
@@ -189,6 +189,13 @@ jobs:
         }
 
         echo "✅ Tests passed with updated dependencies"
+
+    - name: Clean up backup files
+      if: env.has_updates == 'true'
+      run: |
+        echo "🧹 Cleaning up backup files..."
+        rm -f pyproject.toml.backup
+        rm -f uv.lock.backup
 
     - name: Get current date
       if: env.has_updates == 'true'
@@ -252,8 +259,8 @@ jobs:
       with:
         version: "0.5.13"
 
-    - name: Set up Python 3.11
-      run: uv python install 3.11
+    - name: Set up Python 3.12
+      run: uv python install 3.12
 
     - name: Install dependencies
       run: |

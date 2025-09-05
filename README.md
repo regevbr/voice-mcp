@@ -3,7 +3,7 @@
 A comprehensive Model Context Protocol (MCP) server providing advanced text-to-speech (TTS) and speech-to-text (STT) capabilities with global hotkey monitoring for AI assistants.
 
 [![Tests](https://github.com/voice-mcp/voice-mcp/actions/workflows/test.yml/badge.svg)](https://github.com/voice-mcp/voice-mcp/actions/workflows/test.yml)
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 ## ✨ Features
@@ -41,7 +41,7 @@ A comprehensive Model Context Protocol (MCP) server providing advanced text-to-s
 ### Prerequisites
 
 **Python Requirements:**
-- Python 3.11+ (required for advanced dependencies)
+- Python 3.12+ (required for advanced dependencies)
 - Rust toolchain (for setuptools-rust)
 
 **Linux (Ubuntu/Debian):**
@@ -61,7 +61,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 
 **Windows:**
-- Install Python 3.11+ from [python.org](https://www.python.org/downloads/)
+- Install Python 3.12+ from [python.org](https://www.python.org/downloads/)
 - Install [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
 - Install [Rust toolchain](https://rustup.rs/)
 - Install [FFmpeg](https://ffmpeg.org/download.html) and add to PATH
@@ -160,7 +160,7 @@ print('Hotkey Status:', status['active'])
 
 | Prompt | Description |
 |--------|-------------|
-| `speak_guide` | Instructions for using the speak tool |
+| `speak` | Instructions for using the speak tool |
 
 ### Example Usage in Claude
 
@@ -372,7 +372,7 @@ print(result)
 ```
 
 **FastMCP errors**
-- Ensure you're using Python 3.11+
+- Ensure you're using Python 3.12+
 - Check MCP package version: `uv list | grep mcp`
 
 **STT/Audio Issues**

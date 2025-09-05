@@ -94,7 +94,7 @@ repos:
   # Note: flake8 disabled to avoid conflicts with ruff which provides equivalent coverage
 
 default_language_version:
-  python: python3.11
+  python: python3.12
 
 # Configuration for different stages
 default_stages: [pre-commit]

@@ -53,7 +53,7 @@ src/voice_mcp/
 
 ## Development Setup
 
-**Required Python**: 3.11+ (due to dependency constraints)
+**Required Python**: 3.12+ (due to dependency constraints)
 
 ```bash
 # Install with uv (recommended)
@@ -99,8 +99,8 @@ uv run python -m voice_mcp.server --debug
 - Audio feedback with on/off sounds
 - Live typing during recognition
 
-### Available Prompts  
-- `speak_guide` - Instructions for using TTS tools
+### Available Prompts
+- `speak` - Instructions for using TTS tools
 
 ### Configuration Options
 All configurable via environment variables:

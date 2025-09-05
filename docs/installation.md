@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- Python 3.11 or higher
+- Python 3.12 or higher
 - Audio hardware (speakers/microphone for full functionality)
 
 ## Basic Installation

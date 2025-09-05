@@ -44,8 +44,8 @@ jobs:
       with:
         version: "0.5.13"
 
-    - name: Set up Python 3.11
-      run: uv python install 3.11
+    - name: Set up Python 3.12
+      run: uv python install 3.12
 
     - name: Install dependencies
       run: |
@@ -145,8 +145,8 @@ jobs:
       with:
         version: "0.5.13"
 
-    - name: Set up Python 3.11
-      run: uv python install 3.11
+    - name: Set up Python 3.12
+      run: uv python install 3.12
 
     - name: Install dependencies
       run: |
@@ -274,7 +274,7 @@ jobs:
 
         ## Requirements
 
-        - Python 3.11 or higher
+        - Python 3.12 or higher
         - Audio input/output devices
         - System dependencies for audio processing
 

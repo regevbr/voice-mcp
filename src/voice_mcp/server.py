@@ -67,7 +67,7 @@ def speak(
 
 
 # Register voice prompts
-@mcp.prompt()
+@mcp.prompt(name="speak")
 def speak_guide() -> str:
     """Guide for using the speak tool effectively."""
     return VoicePrompts.speak_prompt()

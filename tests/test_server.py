@@ -155,7 +155,7 @@ class TestServerTools:
 
         # Check that our prompt is in the prompts list
         prompt_names = list(mcp._prompt_manager._prompts.keys())
-        assert "speak_guide" in prompt_names
+        assert "speak" in prompt_names
 
 
 class TestCleanupResources:

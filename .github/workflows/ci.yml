@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.11", "3.12"]
+        python-version: ["3.12", "3.13"]
 
     steps:
     - name: Checkout code
@@ -112,7 +112,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ["3.11", "3.12"]
+        python-version: ["3.12", "3.13"]
         exclude:
           # Reduce matrix size for faster CI - focus on Ubuntu for most tests
           - os: windows-latest
@@ -232,7 +232,7 @@ jobs:
           .coverage
 
     - name: Upload coverage to Codecov
-      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
+      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
       uses: codecov/codecov-action@v4
       with:
         file: ./coverage.xml
@@ -254,8 +254,8 @@ jobs:
       with:
         version: "0.5.13"
 
-    - name: Set up Python 3.11
-      run: uv python install 3.11
+    - name: Set up Python 3.12
+      run: uv python install 3.12
 
     - name: Install system dependencies
       run: |
@@ -319,8 +319,8 @@ jobs:
       with:
         version: "0.5.13"
 
-    - name: Set up Python 3.11
-      run: uv python install 3.11
+    - name: Set up Python 3.12
+      run: uv python install 3.12
 
     - name: Install build dependencies
       run: |

@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "A modern MCP server providing text-to-speech and speech-to-text capabilities"
 readme = "README.md"
 license = {text = "Apache-2.0"}
-requires-python = ">=3.11,<3.14"
+requires-python = ">=3.12,<3.14"
 authors = [
     {name = "Voice MCP Development Team"},
 ]
@@ -22,8 +22,8 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
@@ -56,6 +56,7 @@ dependencies = [
     # Utilities
     "typing-extensions>=4.5.0",
     "setuptools-rust>=1.12.0",
+    "pyaudio>=0.2.14",
 ]
 
 # Optional dependencies for development only
@@ -167,7 +168,7 @@ ignore = [
 
 # MyPy type checking configuration
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 check_untyped_defs = true
 disallow_any_generics = false  # More permissive for external libraries
 disallow_untyped_defs = false  # More permissive while maintaining gradual typing
