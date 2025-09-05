@@ -79,13 +79,13 @@ cd voice-mcp
 # Install uv if you don't have it
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Install project
-uv sync --dev
+# Install project with all audio dependencies
+uv sync --extra audio --dev
 ```
 
 3. **Alternative with pip:**
 ```bash
-pip install -e .
+pip install -e .[audio]
 ```
 
 ### Usage
@@ -322,7 +322,7 @@ voice-mcp/
 # Clone and setup
 git clone https://github.com/voice-mcp/voice-mcp.git
 cd voice-mcp
-uv sync --dev
+uv sync --extra audio --dev
 
 # Install pre-commit hooks
 uv run pre-commit install
@@ -335,10 +335,10 @@ uv run python -m voice_mcp.server --debug
 
 ### Common Issues
 
-**Import Error: No module named 'TTS' or 'faster_whisper'**
+**Import Error: No module named 'TTS', 'faster_whisper', or 'pyaudio'**
 ```bash
-# Reinstall dependencies with proper build tools
-uv sync --reinstall
+# Reinstall dependencies with proper build tools and audio support
+uv sync --extra audio --reinstall
 
 # On Linux, ensure build dependencies
 sudo apt-get install build-essential cmake
@@ -408,7 +408,7 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 ## 🗺️ Roadmap
 
 - [x] **Phase 1**: MCP server foundation with FastMCP
-- [x] **Phase 2**: Text-to-Speech implementation  
+- [x] **Phase 2**: Text-to-Speech implementation
 - [x] **Phase 3**: Hotkey monitoring and core functionality
 - [x] **Phase 4**: Streamlined tool set and focused architecture
 - [ ] **Phase 5**: Enhanced voice features and production optimization
