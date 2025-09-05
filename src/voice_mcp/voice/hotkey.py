@@ -5,13 +5,29 @@ Hotkey monitoring functionality for voice-mcp with configurable global hotkeys.
 import threading
 import time
 from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import structlog
-from pynput import keyboard
-from pynput.keyboard import Key, KeyCode
+
+if TYPE_CHECKING:
+    pass
 
 logger = structlog.get_logger(__name__)
+
+
+# Lazy imports to avoid issues in headless environments
+def _get_keyboard_modules():
+    """Lazy import keyboard modules to avoid headless environment issues."""
+    try:
+        from pynput import keyboard
+        from pynput.keyboard import Key, KeyCode
+
+        return keyboard, Key, KeyCode
+    except ImportError as e:
+        logger.warning(
+            "pynput not available, hotkey functionality disabled", error=str(e)
+        )
+        return None, None, None
 
 
 class HotkeyManager:
@@ -104,6 +120,10 @@ class HotkeyManager:
         Returns:
             pynput Key or KeyCode, or None if unknown
         """
+        keyboard, Key, KeyCode = _get_keyboard_modules()
+        if not Key or not KeyCode:
+            return None
+
         key_name = key_name.lower()
 
         # Special keys
@@ -220,6 +240,13 @@ class HotkeyManager:
                 return parse_result
 
             try:
+                keyboard, Key, KeyCode = _get_keyboard_modules()
+                if not keyboard:
+                    return {
+                        "success": False,
+                        "error": "pynput not available - hotkey functionality disabled",
+                    }
+
                 # Set up hotkey configuration
                 self._hotkey_name = hotkey_name
                 self._hotkey_keys = parse_result["keys"]

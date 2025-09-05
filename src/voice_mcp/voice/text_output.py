@@ -4,15 +4,32 @@ Enhanced text output functionality with multiple output modes and error handling
 
 import difflib
 import time
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import pyperclip  # type: ignore
 import structlog
-from pynput import keyboard
+
+if TYPE_CHECKING:
+    pass
 
 from ..config import config
 
 logger = structlog.get_logger(__name__)
+
+
+# Lazy imports to avoid issues in headless environments
+def _get_keyboard_module():
+    """Lazy import keyboard module to avoid headless environment issues."""
+    try:
+        from pynput import keyboard
+
+        return keyboard
+    except ImportError as e:
+        logger.warning(
+            "pynput not available, typing functionality disabled", error=str(e)
+        )
+        return None
+
 
 OutputMode = Literal["typing", "clipboard", "return"]
 
@@ -47,6 +64,13 @@ class TextOutputController:
         """Get or create keyboard controller with error handling."""
         if self._keyboard_controller is None:
             try:
+                keyboard = _get_keyboard_module()
+                if not keyboard:
+                    logger.warning(
+                        "pynput not available, keyboard controller unavailable"
+                    )
+                    return None
+
                 self._keyboard_controller = keyboard.Controller()
                 logger.debug("Keyboard controller initialized")
             except Exception as e:
@@ -229,6 +253,15 @@ class TextOutputController:
                 "mode": "typing",
                 "text": text,
                 "error": "Failed to get keyboard controller",
+            }
+
+        keyboard = _get_keyboard_module()
+        if not keyboard:
+            return {
+                "success": False,
+                "mode": "typing",
+                "text": text,
+                "error": "pynput keyboard module not available",
             }
 
         # Get optimal diff operations
