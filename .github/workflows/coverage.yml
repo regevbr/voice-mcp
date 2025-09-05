@@ -176,7 +176,7 @@ jobs:
             if coverage < 80:  # Highlight files with low coverage
                 print(f"| **{filename}** | **{coverage:.1f}%** | **{missing}** |")
             else:
-                print(f"| {filename} | {coverage:.1f}%% | {missing} |")
+                print(f"| {filename} | {coverage:.1f}% | {missing} |")
 
         print()
         print("### Recommendations")
@@ -199,6 +199,7 @@ jobs:
             print(f"\n❌ Overall coverage {data['totals']['percent_covered']:.1f}% is below minimum threshold of 70%")
             sys.exit(1)
         EOF
+        fi
 
     - name: Upload coverage reports
       uses: actions/upload-artifact@v4
