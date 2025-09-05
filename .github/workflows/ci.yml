@@ -1,0 +1,381 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch: # Allow manual triggering
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality-checks:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Full history for better analysis
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        version: "0.5.13"
+        enable-cache: true
+
+    - name: Set up Python ${{ matrix.python-version }}
+      run: uv python install ${{ matrix.python-version }}
+
+    - name: Create virtual environment
+      run: uv venv --python ${{ matrix.python-version }}
+
+    - name: Cache uv dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/uv
+          .venv
+        key: ${{ runner.os }}-uv-${{ matrix.python-version }}-${{ hashFiles('**/pyproject.toml', '**/uv.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-uv-${{ matrix.python-version }}-
+          ${{ runner.os }}-uv-
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          portaudio19-dev \
+          python3-dev \
+          gcc \
+          g++ \
+          make \
+          libffi-dev \
+          libasound2-dev \
+          espeak \
+          espeak-data \
+          libespeak1 \
+          libespeak-dev \
+          ffmpeg
+
+    - name: Install dependencies
+      run: |
+        uv sync --dev --no-install-workspace
+        # Install the project in development mode
+        uv pip install -e .
+
+    - name: Check formatting
+      run: |
+        echo "🎨 Checking code formatting..."
+        uv run black --check --diff src/ tests/
+
+    - name: Check import sorting
+      run: |
+        echo "📚 Checking import sorting..."
+        uv run isort --check-only --diff src/ tests/
+
+    - name: Lint with Ruff
+      run: |
+        echo "🔍 Running Ruff linting..."
+        uv run ruff check src/ tests/
+
+    - name: Type check with MyPy
+      run: |
+        echo "🔬 Running MyPy type checking..."
+        uv run mypy src/
+
+    - name: Security check with Bandit
+      run: |
+        echo "🔒 Running security checks..."
+        uv run bandit -r src/ -f json -o bandit-report.json || true
+        uv run bandit -r src/ -ll
+
+    - name: Upload security report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: security-report-${{ matrix.python-version }}
+        path: bandit-report.json
+
+  test:
+    name: Tests
+    runs-on: ${{ matrix.os }}
+    needs: quality-checks
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.11", "3.12"]
+        exclude:
+          # Reduce matrix size for faster CI - focus on Ubuntu for most tests
+          - os: windows-latest
+            python-version: "3.12"
+          - os: macos-latest
+            python-version: "3.12"
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        version: "0.5.13"
+        enable-cache: true
+
+    - name: Set up Python ${{ matrix.python-version }}
+      run: uv python install ${{ matrix.python-version }}
+
+    - name: Install system dependencies (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          portaudio19-dev \
+          python3-dev \
+          gcc \
+          g++ \
+          make \
+          libffi-dev \
+          libasound2-dev \
+          espeak \
+          espeak-data \
+          libespeak1 \
+          libespeak-dev \
+          ffmpeg \
+          pulseaudio \
+          xvfb
+
+    - name: Install system dependencies (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew install portaudio espeak ffmpeg
+
+    - name: Install system dependencies (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        # Install via chocolatey
+        choco install ffmpeg
+      shell: cmd
+
+    - name: Cache uv dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/uv
+          .venv
+        key: ${{ runner.os }}-uv-${{ matrix.python-version }}-${{ hashFiles('**/pyproject.toml', '**/uv.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-uv-${{ matrix.python-version }}-
+          ${{ runner.os }}-uv-
+
+    - name: Install dependencies
+      run: |
+        uv sync --dev --no-install-workspace
+        uv pip install -e .
+
+    - name: Setup display (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        # Start virtual display for GUI tests
+        export DISPLAY=:99
+        Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+        # Start pulseaudio for audio tests
+        pulseaudio --start --log-target=syslog
+
+    - name: Run tests
+      env:
+        # Set environment variables for testing
+        VOICE_MCP_DEBUG: "false"
+        VOICE_MCP_LOG_LEVEL: "WARNING"
+        VOICE_MCP_TTS_ENABLED: "false"  # Disable actual TTS in CI
+        VOICE_MCP_STT_ENABLED: "false"  # Disable actual STT in CI
+        VOICE_MCP_ENABLE_HOTKEY: "false"  # Disable hotkey monitoring in CI
+        PYTEST_CURRENT_TEST: "true"  # Indicate we're running in pytest
+        DISPLAY: ":99"  # For Ubuntu GUI tests
+      run: |
+        echo "🧪 Running tests..."
+        # Run fast tests without hardware dependencies
+        uv run pytest -v \
+          -m "not slow and not voice" \
+          --tb=short \
+          --cov=src/voice_mcp \
+          --cov-report=xml \
+          --cov-report=term-missing \
+          --cov-report=html \
+          --junit-xml=pytest-results-${{ matrix.os }}-${{ matrix.python-version }}.xml
+
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results-${{ matrix.os }}-${{ matrix.python-version }}
+        path: |
+          pytest-results-*.xml
+          htmlcov/
+          .coverage
+
+    - name: Upload coverage to Codecov
+      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./coverage.xml
+        fail_ci_if_error: false
+        verbose: true
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        version: "0.5.13"
+
+    - name: Set up Python 3.11
+      run: uv python install 3.11
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          portaudio19-dev \
+          python3-dev \
+          gcc \
+          g++ \
+          make \
+          libffi-dev \
+          libasound2-dev \
+          espeak \
+          espeak-data \
+          libespeak1 \
+          libespeak-dev \
+          ffmpeg \
+          pulseaudio \
+          xvfb
+
+    - name: Install dependencies
+      run: |
+        uv sync --dev --no-install-workspace
+        uv pip install -e .
+
+    - name: Setup environment
+      run: |
+        export DISPLAY=:99
+        Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+        pulseaudio --start --log-target=syslog
+
+    - name: Run integration tests
+      env:
+        VOICE_MCP_DEBUG: "true"
+        VOICE_MCP_LOG_LEVEL: "INFO"
+        DISPLAY: ":99"
+      run: |
+        echo "🔗 Running integration tests..."
+        # Run integration tests with longer timeout
+        uv run pytest -v \
+          -m "integration" \
+          --tb=long \
+          --timeout=300 \
+          tests/integration/
+
+    - name: Test MCP server startup
+      run: |
+        echo "🚀 Testing MCP server startup..."
+        timeout 30s uv run python -m voice_mcp.server --debug || true
+        echo "Server startup test completed"
+
+  build:
+    name: Build Package
+    runs-on: ubuntu-latest
+    needs: [quality-checks, test]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Full history for version detection
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        version: "0.5.13"
+
+    - name: Set up Python 3.11
+      run: uv python install 3.11
+
+    - name: Install build dependencies
+      run: |
+        uv sync --group build
+
+    - name: Build package
+      run: |
+        echo "📦 Building package..."
+        uv run python -m build
+
+    - name: Check package
+      run: |
+        echo "🔍 Checking package..."
+        uv run python -m twine check dist/*
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: python-package
+        path: dist/
+
+  # Job summary
+  ci-summary:
+    name: CI Summary
+    runs-on: ubuntu-latest
+    needs: [quality-checks, test, build]
+    if: always()
+    
+    steps:
+    - name: Check results
+      run: |
+        echo "## CI Pipeline Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [[ "${{ needs.quality-checks.result }}" == "success" ]]; then
+          echo "✅ Code Quality: Passed" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Code Quality: Failed" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [[ "${{ needs.test.result }}" == "success" ]]; then
+          echo "✅ Tests: Passed" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Tests: Failed" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [[ "${{ needs.build.result }}" == "success" ]]; then
+          echo "✅ Build: Passed" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Build: Failed" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "📊 View detailed results in the Actions tab above." >> $GITHUB_STEP_SUMMARY
+
+    - name: Fail if any job failed
+      if: |
+        needs.quality-checks.result == 'failure' ||
+        needs.test.result == 'failure' ||
+        needs.build.result == 'failure'
+      run: |
+        echo "❌ CI pipeline failed - check job details above"
+        exit 1

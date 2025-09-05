@@ -1,0 +1,25 @@
+# Global code ownership
+* @voice-mcp/maintainers
+
+# GitHub Actions and CI/CD
+/.github/ @voice-mcp/maintainers @voice-mcp/devops
+
+# Core source code
+/src/voice_mcp/ @voice-mcp/maintainers
+
+# Configuration files
+/pyproject.toml @voice-mcp/maintainers
+/uv.lock @voice-mcp/maintainers
+/.gitignore @voice-mcp/maintainers
+
+# Documentation
+/README.md @voice-mcp/maintainers @voice-mcp/docs
+/CLAUDE.md @voice-mcp/maintainers @voice-mcp/docs
+/docs/ @voice-mcp/maintainers @voice-mcp/docs
+
+# Testing
+/tests/ @voice-mcp/maintainers @voice-mcp/qa
+/scripts/ @voice-mcp/maintainers @voice-mcp/devops
+
+# Examples
+/examples/ @voice-mcp/maintainers @voice-mcp/docs

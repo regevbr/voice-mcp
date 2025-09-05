@@ -1,0 +1,404 @@
+name: Coverage Analysis
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Weekly coverage analysis
+    - cron: '0 3 * * 1'  # Monday 3 AM UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  coverage-analysis:
+    name: Coverage Analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Full history for better coverage analysis
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        version: "0.5.13"
+
+    - name: Set up Python 3.11
+      run: uv python install 3.11
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          portaudio19-dev \
+          python3-dev \
+          gcc \
+          g++ \
+          make \
+          libffi-dev \
+          libasound2-dev \
+          espeak \
+          espeak-data \
+          libespeak1 \
+          libespeak-dev \
+          ffmpeg \
+          pulseaudio \
+          xvfb
+
+    - name: Cache uv dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/uv
+          .venv
+        key: ${{ runner.os }}-uv-coverage-${{ hashFiles('**/pyproject.toml', '**/uv.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-uv-coverage-
+          ${{ runner.os }}-uv-
+
+    - name: Install dependencies
+      run: |
+        uv sync --dev --no-install-workspace
+        uv pip install -e .
+
+    - name: Setup display and audio
+      run: |
+        export DISPLAY=:99
+        Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+        pulseaudio --start --log-target=syslog
+
+    - name: Run comprehensive test suite with coverage
+      env:
+        VOICE_MCP_DEBUG: "false"
+        VOICE_MCP_LOG_LEVEL: "WARNING" 
+        VOICE_MCP_TTS_ENABLED: "false"
+        VOICE_MCP_STT_ENABLED: "false"
+        VOICE_MCP_ENABLE_HOTKEY: "false"
+        PYTEST_CURRENT_TEST: "true"
+        DISPLAY: ":99"
+      run: |
+        echo "🧪 Running comprehensive test suite with coverage..."
+        
+        # Run all tests with coverage (excluding slow/hardware tests)
+        uv run pytest \
+          -v \
+          --tb=short \
+          --cov=src/voice_mcp \
+          --cov-report=xml \
+          --cov-report=html \
+          --cov-report=term-missing \
+          --cov-report=json \
+          --cov-config=pyproject.toml \
+          --cov-branch \
+          --cov-context=test \
+          -m "not slow and not voice" \
+          --durations=10 \
+          tests/
+
+    - name: Generate coverage badge
+      run: |
+        echo "🏷️ Generating coverage badge..."
+        
+        # Extract coverage percentage from JSON report
+        if [[ -f "coverage.json" ]]; then
+          COVERAGE=$(python -c "
+        import json
+        with open('coverage.json') as f:
+            data = json.load(f)
+            print(f\"{data['totals']['percent_covered']:.1f}\")
+        ")
+          
+          echo "📊 Coverage: $COVERAGE%"
+          echo "COVERAGE_PERCENTAGE=$COVERAGE" >> $GITHUB_ENV
+          
+          # Generate badge color based on coverage
+          if (( $(echo "$COVERAGE >= 90" | bc -l) )); then
+            COLOR="brightgreen"
+          elif (( $(echo "$COVERAGE >= 80" | bc -l) )); then
+            COLOR="green" 
+          elif (( $(echo "$COVERAGE >= 70" | bc -l) )); then
+            COLOR="yellowgreen"
+          elif (( $(echo "$COVERAGE >= 60" | bc -l) )); then
+            COLOR="yellow"
+          elif (( $(echo "$COVERAGE >= 50" | bc -l) )); then
+            COLOR="orange"
+          else
+            COLOR="red"
+          fi
+          
+          echo "BADGE_COLOR=$COLOR" >> $GITHUB_ENV
+          
+          # Create badge URL
+          BADGE_URL="https://img.shields.io/badge/coverage-${COVERAGE}%25-${COLOR}"
+          echo "BADGE_URL=$BADGE_URL" >> $GITHUB_ENV
+        fi
+
+    - name: Coverage report analysis
+      run: |
+        echo "📈 Analyzing coverage report..."
+        
+        if [[ -f "coverage.json" ]]; then
+          python << 'EOF'
+        import json
+        import sys
+        
+        with open('coverage.json') as f:
+            data = json.load(f)
+        
+        print("## Coverage Analysis")
+        print(f"**Total Coverage:** {data['totals']['percent_covered']:.1f}%")
+        print(f"**Lines Covered:** {data['totals']['covered_lines']}/{data['totals']['num_statements']}")
+        print(f"**Missing Lines:** {data['totals']['missing_lines']}")
+        print(f"**Branch Coverage:** {data['totals']['percent_covered_display']}%")
+        print()
+        
+        print("### File Coverage Breakdown")
+        print("| File | Coverage | Missing Lines |")
+        print("|------|----------|---------------|")
+        
+        # Sort files by coverage percentage
+        files = [(f, d) for f, d in data['files'].items()]
+        files.sort(key=lambda x: x[1]['summary']['percent_covered'])
+        
+        for filepath, file_data in files:
+            filename = filepath.split('/')[-1]  # Just the filename
+            coverage = file_data['summary']['percent_covered']
+            missing = file_data['summary']['missing_lines']
+            
+            if coverage < 80:  # Highlight files with low coverage
+                print(f"| **{filename}** | **{coverage:.1f}%** | **{missing}** |")
+            else:
+                print(f"| {filename} | {coverage:.1f}%% | {missing} |")
+        
+        print()
+        print("### Recommendations")
+        
+        low_coverage_files = [
+            (f.split('/')[-1], d['summary']['percent_covered']) 
+            for f, d in data['files'].items() 
+            if d['summary']['percent_covered'] < 80
+        ]
+        
+        if low_coverage_files:
+            print("**Files needing attention (< 80% coverage):**")
+            for filename, cov in low_coverage_files:
+                print(f"- `{filename}`: {cov:.1f}% coverage")
+        else:
+            print("✅ All files have good coverage (>= 80%)")
+        
+        # Exit with error if overall coverage is too low
+        if data['totals']['percent_covered'] < 70:
+            print(f"\n❌ Overall coverage {data['totals']['percent_covered']:.1f}% is below minimum threshold of 70%")
+            sys.exit(1)
+        EOF
+
+    - name: Upload coverage reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-reports
+        path: |
+          htmlcov/
+          coverage.xml
+          coverage.json
+          .coverage
+
+    - name: Comment coverage on PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          
+          if (!fs.existsSync('coverage.json')) {
+            console.log('No coverage.json found');
+            return;
+          }
+          
+          const coverage = JSON.parse(fs.readFileSync('coverage.json', 'utf8'));
+          const totalCoverage = coverage.totals.percent_covered.toFixed(1);
+          
+          const coverageEmoji = totalCoverage >= 90 ? '🟢' : 
+                              totalCoverage >= 80 ? '🟡' : 
+                              totalCoverage >= 70 ? '🟠' : '🔴';
+          
+          const comment = `## ${coverageEmoji} Coverage Report
+          
+          **Total Coverage:** ${totalCoverage}%
+          **Lines Covered:** ${coverage.totals.covered_lines}/${coverage.totals.num_statements}
+          **Missing Lines:** ${coverage.totals.missing_lines}
+          
+          ### Files with Low Coverage (< 80%)
+          ${Object.entries(coverage.files)
+            .filter(([_, data]) => data.summary.percent_covered < 80)
+            .map(([file, data]) => `- \`${file.split('/').pop()}\`: ${data.summary.percent_covered.toFixed(1)}%`)
+            .join('\n') || '✅ All files have good coverage!'}
+          
+          ### Coverage Trend
+          ${totalCoverage >= 80 ? '✅ Coverage is good!' : 
+            totalCoverage >= 70 ? '⚠️ Coverage could be improved' : 
+            '❌ Coverage is below recommended threshold (70%)'}
+          
+          ---
+          📊 [View detailed coverage report](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})`;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+        verbose: true
+        env_vars: OS,PYTHON
+
+    - name: Generate coverage summary for step
+      run: |
+        if [[ -f "coverage.json" ]]; then
+          COVERAGE=$(cat coverage.json | python -c "import sys, json; print(json.load(sys.stdin)['totals']['percent_covered'])")
+          
+          echo "## 📊 Coverage Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Total Coverage:** ${COVERAGE}%" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if (( $(echo "$COVERAGE >= 90" | bc -l) )); then
+            echo "🟢 **Excellent coverage!** Keep up the great work." >> $GITHUB_STEP_SUMMARY
+          elif (( $(echo "$COVERAGE >= 80" | bc -l) )); then
+            echo "🟡 **Good coverage.** Consider improving files below 80%." >> $GITHUB_STEP_SUMMARY
+          elif (( $(echo "$COVERAGE >= 70" | bc -l) )); then
+            echo "🟠 **Adequate coverage.** Focus on testing critical paths." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "🔴 **Coverage needs improvement.** Priority: get above 70%." >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📈 [View detailed HTML report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+        fi
+
+  coverage-history:
+    name: Coverage History
+    runs-on: ubuntu-latest
+    needs: coverage-analysis
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Download coverage reports
+      uses: actions/download-artifact@v4
+      with:
+        name: coverage-reports
+        path: ./coverage
+
+    - name: Setup coverage history tracking
+      run: |
+        echo "📈 Setting up coverage history tracking..."
+        
+        # Create coverage history directory
+        mkdir -p coverage-history
+        
+        # Get current coverage
+        if [[ -f "coverage/coverage.json" ]]; then
+          COVERAGE=$(cat coverage/coverage.json | python -c "import sys, json; print(json.load(sys.stdin)['totals']['percent_covered'])")
+          DATE=$(date -u +"%Y-%m-%d")
+          COMMIT=$(git rev-parse --short HEAD)
+          
+          # Create coverage history entry
+          echo "$DATE,$COMMIT,$COVERAGE" >> coverage-history/coverage.csv
+          
+          echo "📊 Coverage: $COVERAGE% (commit: $COMMIT)"
+        fi
+
+    - name: Upload coverage history
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-history
+        path: coverage-history/
+
+  mutation-testing:
+    name: Mutation Testing
+    runs-on: ubuntu-latest
+    needs: coverage-analysis
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        version: "0.5.13"
+
+    - name: Set up Python 3.11
+      run: uv python install 3.11
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          portaudio19-dev \
+          python3-dev \
+          gcc \
+          g++ \
+          make \
+          libffi-dev \
+          libasound2-dev \
+          espeak \
+          espeak-data \
+          libespeak1 \
+          libespeak-dev \
+          ffmpeg
+
+    - name: Install dependencies
+      run: |
+        uv sync --dev --no-install-workspace
+        uv pip install -e .
+        uv pip install mutmut
+
+    - name: Run mutation testing
+      env:
+        VOICE_MCP_DEBUG: "false"
+        VOICE_MCP_TTS_ENABLED: "false"
+        VOICE_MCP_STT_ENABLED: "false"
+        VOICE_MCP_ENABLE_HOTKEY: "false"
+      run: |
+        echo "🧬 Running mutation testing..."
+        
+        # Run mutation testing on core modules
+        uv run mutmut run \
+          --paths-to-mutate=src/voice_mcp/config.py,src/voice_mcp/tools.py \
+          --tests-dir=tests/ \
+          --runner="python -m pytest -x -m 'not slow and not voice'" \
+          || true
+        
+        # Generate mutation report
+        uv run mutmut show > mutation-report.txt || true
+        uv run mutmut junitxml > mutation-junit.xml || true
+
+    - name: Upload mutation testing results
+      uses: actions/upload-artifact@v4
+      with:
+        name: mutation-testing-results
+        path: |
+          mutation-report.txt
+          mutation-junit.xml
+          .mutmut-cache

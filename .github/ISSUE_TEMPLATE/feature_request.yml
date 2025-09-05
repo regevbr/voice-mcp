@@ -1,0 +1,142 @@
+name: ✨ Feature Request
+description: Suggest a new feature or enhancement
+title: "[Feature]: "
+labels: ["enhancement", "needs-triage"]
+projects: ["voice-mcp/1"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a new feature! Please provide as much detail as possible.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: 🎯 Feature Summary
+      description: A brief summary of the feature you'd like to see
+      placeholder: Describe the feature in one or two sentences...
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 🤔 Problem Statement
+      description: What problem does this feature solve? What's the use case?
+      placeholder: |
+        I'm frustrated when...
+        It would be helpful if...
+        Currently there's no way to...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: 💡 Proposed Solution
+      description: How do you envision this feature working?
+      placeholder: Describe your ideal solution...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 🔄 Alternatives Considered
+      description: What alternatives have you considered?
+      placeholder: |
+        I also considered...
+        Another approach could be...
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: 📊 Priority
+      description: How important is this feature to you?
+      options:
+        - "Low - Nice to have"
+        - "Medium - Would improve workflow"
+        - "High - Important for my use case"
+        - "Critical - Blocking my adoption"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: 🏷️ Category
+      description: Which area does this feature relate to?
+      options:
+        - "TTS (Text-to-Speech)"
+        - "STT (Speech-to-Text)" 
+        - "Hotkey System"
+        - "Audio Processing"
+        - "Configuration"
+        - "MCP Server"
+        - "CLI Interface"
+        - "Performance"
+        - "Security"
+        - "Documentation"
+        - "Developer Experience"
+        - "Integration"
+        - "Other"
+    validations:
+      required: true
+
+  - type: textarea
+    id: examples
+    attributes:
+      label: 📝 Example Usage
+      description: Show how this feature would be used
+      render: python
+      placeholder: |
+        # Example of how the feature would work
+        from voice_mcp import VoiceTools
+        
+        # New feature usage
+        result = VoiceTools.new_feature(...)
+
+  - type: textarea
+    id: technical
+    attributes:
+      label: 🔧 Technical Considerations
+      description: Any technical details or constraints to consider?
+      placeholder: |
+        - This might require...
+        - Potential challenges...
+        - Integration with...
+
+  - type: checkboxes
+    id: implementation
+    attributes:
+      label: 🛠️ Implementation Interest
+      description: Would you be interested in helping implement this?
+      options:
+        - label: I would like to help implement this feature
+        - label: I can provide technical guidance
+        - label: I can help with testing
+        - label: I can help with documentation
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: 📋 Additional Context
+      description: Anything else you'd like to add?
+      placeholder: |
+        Links to similar features...
+        References to standards...
+        Example implementations...
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: ✅ Pre-submission Checklist
+      description: Please verify before submitting
+      options:
+        - label: I have searched existing issues for similar requests
+          required: true
+        - label: This feature aligns with the project's goals
+          required: true
+        - label: I have provided clear use cases and examples
+          required: true

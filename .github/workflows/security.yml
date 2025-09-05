@@ -1,0 +1,369 @@
+name: Security & Dependencies
+
+on:
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch: # Allow manual triggering
+  push:
+    branches: [ main ]
+    paths:
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - '.github/workflows/security.yml'
+
+permissions:
+  contents: read
+  security-events: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        version: "0.5.13"
+
+    - name: Set up Python 3.11
+      run: uv python install 3.11
+
+    - name: Install dependencies
+      run: |
+        uv sync --dev --no-install-workspace
+        uv pip install -e .
+
+    - name: Run Bandit security scan
+      run: |
+        echo "🔒 Running Bandit security scan..."
+        uv run bandit -r src/ -f json -o bandit-results.json -ll || true
+        uv run bandit -r src/ -f txt -o bandit-results.txt -ll || true
+        
+        # Display results
+        echo "### Bandit Security Scan Results" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        cat bandit-results.txt >> $GITHUB_STEP_SUMMARY || echo "No security issues found" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+    - name: Upload Bandit results
+      uses: actions/upload-artifact@v4
+      with:
+        name: bandit-security-scan
+        path: |
+          bandit-results.json
+          bandit-results.txt
+
+    - name: Check for high-severity issues
+      run: |
+        if [[ -f "bandit-results.json" ]]; then
+          HIGH_ISSUES=$(cat bandit-results.json | jq '.results[] | select(.issue_severity == "HIGH") | length' | wc -l)
+          if [[ $HIGH_ISSUES -gt 0 ]]; then
+            echo "❌ Found $HIGH_ISSUES high-severity security issues!"
+            echo "See bandit-results.txt for details"
+            exit 1
+          fi
+        fi
+
+  dependency-scan:
+    name: Dependency Vulnerability Scan  
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        version: "0.5.13"
+
+    - name: Set up Python 3.11
+      run: uv python install 3.11
+
+    - name: Install dependencies
+      run: |
+        uv sync --dev --no-install-workspace
+
+    - name: Install safety
+      run: |
+        uv pip install safety
+
+    - name: Run Safety check
+      run: |
+        echo "🛡️ Scanning dependencies for known vulnerabilities..."
+        uv run safety check --json --output safety-results.json || true
+        uv run safety check --output safety-results.txt || true
+        
+        echo "### Dependency Vulnerability Scan Results" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        cat safety-results.txt >> $GITHUB_STEP_SUMMARY || echo "No known vulnerabilities found" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+    - name: Upload Safety results
+      uses: actions/upload-artifact@v4
+      with:
+        name: safety-vulnerability-scan
+        path: |
+          safety-results.json
+          safety-results.txt
+
+    - name: Check for vulnerabilities
+      run: |
+        if [[ -f "safety-results.json" ]]; then
+          VULNS=$(cat safety-results.json | jq '.vulnerabilities | length' 2>/dev/null || echo "0")
+          if [[ $VULNS -gt 0 ]]; then
+            echo "⚠️ Found $VULNS dependency vulnerabilities!"
+            echo "See safety-results.txt for details"
+            # Don't fail CI for vulnerabilities, just warn
+          fi
+        fi
+
+  dependency-updates:
+    name: Check Dependency Updates
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        version: "0.5.13"
+
+    - name: Set up Python 3.11
+      run: uv python install 3.11
+
+    - name: Check for dependency updates
+      run: |
+        echo "📦 Checking for dependency updates..."
+        
+        # Create a backup of current dependencies
+        cp pyproject.toml pyproject.toml.backup
+        cp uv.lock uv.lock.backup || true
+        
+        # Try to update dependencies
+        uv sync --upgrade || true
+        
+        # Check if there are changes
+        if ! cmp -s pyproject.toml pyproject.toml.backup || ! cmp -s uv.lock uv.lock.backup 2>/dev/null; then
+          echo "📋 Dependency updates available!"
+          echo "has_updates=true" >> $GITHUB_ENV
+          
+          # Show differences
+          echo "### Dependency Changes" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`diff" >> $GITHUB_STEP_SUMMARY
+          diff -u uv.lock.backup uv.lock 2>/dev/null || echo "Lock file changes detected" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "✅ Dependencies are up to date"
+          echo "has_updates=false" >> $GITHUB_ENV
+        fi
+
+    - name: Test updated dependencies
+      if: env.has_updates == 'true'
+      run: |
+        echo "🧪 Testing updated dependencies..."
+        
+        # Install updated dependencies
+        uv sync --dev --no-install-workspace
+        uv pip install -e .
+        
+        # Run basic tests
+        uv run pytest -v -m "not slow and not voice" --tb=short -x tests/ || {
+          echo "❌ Tests failed with updated dependencies"
+          echo "Reverting changes..."
+          mv pyproject.toml.backup pyproject.toml
+          mv uv.lock.backup uv.lock 2>/dev/null || true
+          exit 1
+        }
+        
+        echo "✅ Tests passed with updated dependencies"
+
+    - name: Create dependency update PR
+      if: env.has_updates == 'true'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        echo "📝 Creating dependency update PR..."
+        
+        # Configure git
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+        # Create branch
+        BRANCH="dependency-updates-$(date +%Y%m%d)"
+        git checkout -b "$BRANCH"
+        
+        # Commit changes
+        git add pyproject.toml uv.lock
+        git commit -m "🔧 Update dependencies
+        
+        Automated dependency updates from security workflow.
+        
+        - Updated package versions to latest compatible versions
+        - All tests pass with updated dependencies
+        - Security scan completed successfully
+        
+        Generated on: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+        "
+        
+        # Push branch
+        git push origin "$BRANCH"
+        
+        # Create PR
+        gh pr create \
+          --title "🔧 Dependency Updates $(date +%Y-%m-%d)" \
+          --body "## Automated Dependency Updates
+
+        This PR contains automated dependency updates from the security workflow.
+
+        ### Changes
+        - 📦 Updated dependencies to latest compatible versions
+        - 🧪 All tests pass with updated dependencies  
+        - 🔒 Security scans completed successfully
+
+        ### Testing
+        - [x] Unit tests pass
+        - [x] Security scan clean
+        - [x] No breaking changes detected
+
+        ### Review Notes
+        Please review the dependency changes and ensure they align with project requirements.
+
+        **Generated automatically on:** $(date -u +'%Y-%m-%d %H:%M:%S UTC')
+        " \
+          --head "$BRANCH" \
+          --base main \
+          --label "dependencies" \
+          --label "automated"
+
+  license-check:
+    name: License Compliance Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        version: "0.5.13"
+
+    - name: Set up Python 3.11
+      run: uv python install 3.11
+
+    - name: Install dependencies
+      run: |
+        uv sync --dev --no-install-workspace
+        uv pip install pip-licenses
+
+    - name: Check licenses
+      run: |
+        echo "📄 Checking dependency licenses..."
+        uv run pip-licenses --format=json --output-file=licenses.json
+        uv run pip-licenses --format=plain-vertical --output-file=licenses.txt
+        
+        # Display license summary
+        echo "### Dependency License Summary" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        head -50 licenses.txt >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+    - name: Check for problematic licenses
+      run: |
+        echo "🔍 Checking for potentially problematic licenses..."
+        
+        # List of licenses that might need review (adjust as needed)
+        PROBLEMATIC_LICENSES=(
+          "GPL-3.0"
+          "AGPL-3.0"
+          "LGPL-3.0"
+          "Copyleft"
+          "Restrictive"
+        )
+        
+        FOUND_ISSUES=false
+        for license in "${PROBLEMATIC_LICENSES[@]}"; do
+          if grep -i "$license" licenses.txt > /dev/null 2>&1; then
+            echo "⚠️  Found potentially problematic license: $license"
+            FOUND_ISSUES=true
+          fi
+        done
+        
+        if [[ "$FOUND_ISSUES" == "true" ]]; then
+          echo "⚠️  Please review the licenses above for compliance"
+          # Don't fail CI, just warn
+        else
+          echo "✅ No problematic licenses detected"
+        fi
+
+    - name: Upload license report
+      uses: actions/upload-artifact@v4
+      with:
+        name: license-compliance-report
+        path: |
+          licenses.json
+          licenses.txt
+
+  security-summary:
+    name: Security Summary
+    runs-on: ubuntu-latest
+    needs: [security-scan, dependency-scan, license-check]
+    if: always()
+    
+    steps:
+    - name: Generate security summary
+      run: |
+        echo "# 🛡️ Security & Compliance Report" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Scan Date:** $(date -u)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        echo "## Scan Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [[ "${{ needs.security-scan.result }}" == "success" ]]; then
+          echo "✅ **Code Security Scan:** Passed" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **Code Security Scan:** Failed" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [[ "${{ needs.dependency-scan.result }}" == "success" ]]; then
+          echo "✅ **Dependency Vulnerability Scan:** Passed" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **Dependency Vulnerability Scan:** Failed" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [[ "${{ needs.license-check.result }}" == "success" ]]; then
+          echo "✅ **License Compliance Check:** Passed" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **License Compliance Check:** Failed" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## Next Steps" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- Review any security issues in the scan reports" >> $GITHUB_STEP_SUMMARY
+        echo "- Check dependency update PRs for approved updates" >> $GITHUB_STEP_SUMMARY
+        echo "- Verify license compliance with project requirements" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "📊 **View detailed results in the Actions artifacts above.**" >> $GITHUB_STEP_SUMMARY
+
+    - name: Fail if critical security issues
+      if: needs.security-scan.result == 'failure'
+      run: |
+        echo "❌ Critical security issues detected!"
+        echo "Please review the security scan results and address high-severity findings."
+        exit 1

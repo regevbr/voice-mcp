@@ -1,0 +1,113 @@
+version: 2
+
+updates:
+  # Python dependencies
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "@voice-mcp/maintainers"
+    assignees:
+      - "@voice-mcp/maintainers"
+    commit-message:
+      prefix: "🔧"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "python"
+    milestone: "Next Release"
+    rebase-strategy: "auto"
+    
+    # Group related updates together
+    groups:
+      testing-deps:
+        patterns:
+          - "pytest*"
+          - "*test*"
+          - "*mock*"
+          - "coverage*"
+      
+      code-quality:
+        patterns:
+          - "black*"
+          - "ruff*"
+          - "mypy*"
+          - "isort*"
+          - "bandit*"
+          - "pre-commit*"
+      
+      mcp-framework:
+        patterns:
+          - "mcp*"
+          - "fastmcp*"
+      
+      ml-deps:
+        patterns:
+          - "torch*"
+          - "numpy*"
+          - "librosa*"
+          - "*whisper*"
+          - "coqui*"
+          - "TTS*"
+      
+      audio-deps:
+        patterns:
+          - "pyaudio*"
+          - "soundfile*"
+          - "webrtcvad*"
+      
+      system-deps:
+        patterns:
+          - "pynput*"
+          - "pyautogui*"
+          - "pyperclip*"
+          - "psutil*"
+
+    # Version update strategy
+    versioning-strategy: "increase"
+    
+    # Ignore major version updates for ML dependencies (can be breaking)
+    ignore:
+      - dependency-name: "torch*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "coqui-tts"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "faster-whisper"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "librosa"
+        update-types: ["version-update:semver-major"]
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "09:00"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "@voice-mcp/maintainers"
+    assignees:
+      - "@voice-mcp/maintainers"
+    commit-message:
+      prefix: "🔧 CI"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "github-actions"
+      - "ci"
+    
+    groups:
+      actions-core:
+        patterns:
+          - "actions/*"
+      
+      external-actions:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "actions/*"

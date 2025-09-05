@@ -1,0 +1,484 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Triggers on version tags like v0.1.0, v1.2.3
+  workflow_dispatch:  # Allow manual triggering
+    inputs:
+      version:
+        description: 'Release version (e.g., 0.1.0)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  id-token: write  # For PyPI trusted publishing
+
+jobs:
+  validate-release:
+    name: Validate Release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      is-prerelease: ${{ steps.version.outputs.is-prerelease }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Determine version
+      id: version
+      run: |
+        if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          VERSION="${{ github.event.inputs.version }}"
+          IS_PRERELEASE="${{ github.event.inputs.prerelease }}"
+        else
+          # Extract version from tag
+          VERSION=${GITHUB_REF#refs/tags/v}
+          # Check if it's a pre-release (contains alpha, beta, rc, dev)
+          if [[ "$VERSION" =~ (alpha|beta|rc|dev) ]]; then
+            IS_PRERELEASE="true"
+          else
+            IS_PRERELEASE="false"
+          fi
+        fi
+        
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "is-prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
+        echo "📋 Release version: $VERSION"
+        echo "📋 Pre-release: $IS_PRERELEASE"
+
+    - name: Validate version format
+      run: |
+        VERSION="${{ steps.version.outputs.version }}"
+        if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([a-zA-Z0-9\.-]+)?$ ]]; then
+          echo "❌ Invalid version format: $VERSION"
+          echo "Expected format: X.Y.Z or X.Y.Z-suffix"
+          exit 1
+        fi
+        echo "✅ Version format is valid: $VERSION"
+
+  quality-gate:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    needs: validate-release
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        version: "0.5.13"
+
+    - name: Set up Python 3.11
+      run: uv python install 3.11
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          portaudio19-dev \
+          python3-dev \
+          gcc \
+          g++ \
+          make \
+          libffi-dev \
+          libasound2-dev \
+          espeak \
+          espeak-data \
+          libespeak1 \
+          libespeak-dev \
+          ffmpeg
+
+    - name: Install dependencies
+      run: |
+        uv sync --dev --no-install-workspace
+        uv pip install -e .
+
+    - name: Run quality checks
+      run: |
+        echo "🚀 Running pre-release quality checks..."
+        ./scripts/check-all.sh
+
+  build-and-test:
+    name: Build and Test Release
+    runs-on: ${{ matrix.os }}
+    needs: [validate-release, quality-gate]
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.11", "3.12"]
+        include:
+          # Only test all combinations on Ubuntu, others just one Python version
+          - os: windows-latest
+            python-version: "3.11"
+          - os: macos-latest
+            python-version: "3.11"
+        exclude:
+          - os: windows-latest
+            python-version: "3.12"
+          - os: macos-latest
+            python-version: "3.12"
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        version: "0.5.13"
+
+    - name: Set up Python ${{ matrix.python-version }}
+      run: uv python install ${{ matrix.python-version }}
+
+    - name: Install system dependencies (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          portaudio19-dev \
+          python3-dev \
+          gcc \
+          g++ \
+          make \
+          libffi-dev \
+          libasound2-dev \
+          espeak \
+          espeak-data \
+          libespeak1 \
+          libespeak-dev \
+          ffmpeg
+
+    - name: Install system dependencies (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew install portaudio espeak ffmpeg
+
+    - name: Install system dependencies (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        choco install ffmpeg
+      shell: cmd
+
+    - name: Install dependencies
+      run: |
+        uv sync --dev --no-install-workspace
+        uv pip install -e .
+
+    - name: Test installation
+      env:
+        VOICE_MCP_DEBUG: "false"
+        VOICE_MCP_TTS_ENABLED: "false"
+        VOICE_MCP_STT_ENABLED: "false"
+        VOICE_MCP_ENABLE_HOTKEY: "false"
+      run: |
+        echo "🧪 Testing package installation..."
+        # Test that the package can be imported
+        uv run python -c "import voice_mcp; print(f'✅ voice_mcp imported successfully: {voice_mcp.__file__}')"
+        
+        # Test that the CLI works
+        uv run python -m voice_mcp.server --help
+        
+        # Run core tests
+        uv run pytest -v -m "not slow and not voice" --tb=short tests/
+
+  build-package:
+    name: Build Release Package
+    runs-on: ubuntu-latest
+    needs: [validate-release, build-and-test]
+    outputs:
+      package-version: ${{ steps.package.outputs.version }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        version: "0.5.13"
+
+    - name: Set up Python 3.11
+      run: uv python install 3.11
+
+    - name: Update package version
+      id: package
+      run: |
+        VERSION="${{ needs.validate-release.outputs.version }}"
+        echo "📝 Updating package version to: $VERSION"
+        
+        # Update version in pyproject.toml
+        sed -i "s/^version = .*/version = \"$VERSION\"/" pyproject.toml
+        
+        # Verify the change
+        grep "^version =" pyproject.toml
+        
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+    - name: Install build dependencies
+      run: |
+        uv sync --group build
+
+    - name: Build package
+      run: |
+        echo "📦 Building release package..."
+        uv run python -m build --sdist --wheel
+
+    - name: Verify package
+      run: |
+        echo "🔍 Verifying package contents..."
+        uv run python -m twine check dist/*
+        
+        # Show package contents
+        ls -la dist/
+        
+        # Verify version in built package
+        WHEEL_FILE=$(ls dist/*.whl | head -1)
+        echo "📋 Built wheel: $WHEEL_FILE"
+        
+        # Extract and check version
+        unzip -l "$WHEEL_FILE" | grep -E "(METADATA|PKG-INFO)" || true
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-packages
+        path: |
+          dist/
+          pyproject.toml
+
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [validate-release, build-package]
+    outputs:
+      release-id: ${{ steps.release.outputs.id }}
+      upload-url: ${{ steps.release.outputs.upload_url }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: release-packages
+        path: ./dist
+
+    - name: Generate release notes
+      id: release-notes
+      run: |
+        VERSION="${{ needs.validate-release.outputs.version }}"
+        
+        # Generate release notes
+        cat > release-notes.md << EOF
+        ## Voice MCP Server v${VERSION}
+        
+        ### What's New
+        
+        This release includes improvements to the Voice MCP Server, providing advanced text-to-speech (TTS), speech-to-text (STT), and global hotkey monitoring capabilities for AI assistants.
+        
+        ### Key Features
+        
+        - 🗣️ **Text-to-Speech**: Neural TTS with Coqui TTS models
+        - 🎤 **Speech-to-Text**: Real-time STT with faster-whisper
+        - ⌨️ **Global Hotkeys**: Voice activation with customizable hotkeys
+        - 🎛️ **Audio Processing**: Advanced pipeline with VAD and effects
+        - 📝 **Text Output**: Multiple modes (typing, clipboard, return)
+        - ⚙️ **Configuration**: Rich environment-based settings
+        
+        ### Installation
+        
+        \`\`\`bash
+        pip install voice-mcp==${VERSION}
+        \`\`\`
+        
+        ### Documentation
+        
+        See the [project README](https://github.com/voice-mcp/voice-mcp) for setup and usage instructions.
+        
+        ### System Requirements
+        
+        - Python 3.11+
+        - Audio input/output devices
+        - System dependencies for audio processing
+        
+        ### Changes
+        
+        - All changes included in this release
+        - Comprehensive testing and quality assurance
+        - Production-ready deployment
+        
+        ---
+        
+        **Full Changelog**: https://github.com/voice-mcp/voice-mcp/compare/v${VERSION}
+        EOF
+        
+        echo "Generated release notes:"
+        cat release-notes.md
+
+    - name: Create Release
+      id: release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ needs.validate-release.outputs.version }}
+        release_name: Voice MCP Server v${{ needs.validate-release.outputs.version }}
+        body_path: release-notes.md
+        draft: false
+        prerelease: ${{ needs.validate-release.outputs.is-prerelease == 'true' }}
+
+    - name: Upload Release Assets
+      run: |
+        VERSION="${{ needs.validate-release.outputs.version }}"
+        UPLOAD_URL="${{ steps.release.outputs.upload_url }}"
+        
+        # Upload wheel
+        WHEEL_FILE=$(ls dist/*.whl | head -1)
+        if [[ -f "$WHEEL_FILE" ]]; then
+          echo "📦 Uploading wheel: $WHEEL_FILE"
+          gh release upload "v$VERSION" "$WHEEL_FILE" --clobber
+        fi
+        
+        # Upload source distribution
+        SDIST_FILE=$(ls dist/*.tar.gz | head -1)
+        if [[ -f "$SDIST_FILE" ]]; then
+          echo "📦 Uploading sdist: $SDIST_FILE"
+          gh release upload "v$VERSION" "$SDIST_FILE" --clobber
+        fi
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-pypi:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    needs: [validate-release, create-release, build-package]
+    if: github.repository == 'voice-mcp/voice-mcp'  # Only for official repo
+    environment: release  # Requires manual approval for production
+    
+    steps:
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: release-packages
+        path: ./dist
+
+    - name: Verify package before upload
+      run: |
+        echo "🔍 Final package verification before PyPI upload..."
+        ls -la dist/
+        
+        # Ensure we have both wheel and sdist
+        if [[ ! -f dist/*.whl ]]; then
+          echo "❌ No wheel file found!"
+          exit 1
+        fi
+        
+        if [[ ! -f dist/*.tar.gz ]]; then
+          echo "❌ No source distribution found!"
+          exit 1
+        fi
+        
+        echo "✅ Package verification passed"
+
+    - name: Publish to Test PyPI
+      if: needs.validate-release.outputs.is-prerelease == 'true'
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        repository-url: https://test.pypi.org/legacy/
+        verbose: true
+        print-hash: true
+
+    - name: Publish to PyPI
+      if: needs.validate-release.outputs.is-prerelease == 'false'
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        verbose: true
+        print-hash: true
+
+  post-release:
+    name: Post-Release Actions
+    runs-on: ubuntu-latest
+    needs: [validate-release, create-release, publish-pypi]
+    if: always() && (needs.create-release.result == 'success')
+    
+    steps:
+    - name: Notify success
+      if: needs.publish-pypi.result == 'success'
+      run: |
+        VERSION="${{ needs.validate-release.outputs.version }}"
+        echo "🎉 Successfully released Voice MCP Server v$VERSION!"
+        echo "📦 Package is available on PyPI: https://pypi.org/project/voice-mcp/$VERSION/"
+        echo "🚀 GitHub Release: ${{ needs.create-release.outputs.html_url }}"
+
+    - name: Notify partial success
+      if: needs.publish-pypi.result != 'success'
+      run: |
+        VERSION="${{ needs.validate-release.outputs.version }}"
+        echo "⚠️ GitHub Release created for v$VERSION, but PyPI publish failed or was skipped"
+        echo "🔗 Release URL: ${{ needs.create-release.outputs.html_url }}"
+        echo "📝 Manual PyPI upload may be required"
+
+  release-summary:
+    name: Release Summary
+    runs-on: ubuntu-latest
+    needs: [validate-release, create-release, publish-pypi, post-release]
+    if: always()
+    
+    steps:
+    - name: Generate summary
+      run: |
+        VERSION="${{ needs.validate-release.outputs.version }}"
+        IS_PRERELEASE="${{ needs.validate-release.outputs.is-prerelease }}"
+        
+        echo "# 🚀 Release Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## Voice MCP Server v${VERSION}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [[ "$IS_PRERELEASE" == "true" ]]; then
+          echo "🔖 **Pre-release version**" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "🔖 **Stable release version**" >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        echo "### Release Status" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [[ "${{ needs.create-release.result }}" == "success" ]]; then
+          echo "✅ GitHub Release: Created" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ GitHub Release: Failed" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [[ "${{ needs.publish-pypi.result }}" == "success" ]]; then
+          echo "✅ PyPI Publication: Success" >> $GITHUB_STEP_SUMMARY
+        elif [[ "${{ needs.publish-pypi.result }}" == "skipped" ]]; then
+          echo "⏭️ PyPI Publication: Skipped" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ PyPI Publication: Failed" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Links" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- 📋 [Release Notes](https://github.com/${{ github.repository }}/releases/tag/v${VERSION})" >> $GITHUB_STEP_SUMMARY
+        echo "- 📦 [PyPI Package](https://pypi.org/project/voice-mcp/${VERSION}/)" >> $GITHUB_STEP_SUMMARY
+        echo "- 🏷️ [Git Tag](https://github.com/${{ github.repository }}/tree/v${VERSION})" >> $GITHUB_STEP_SUMMARY
