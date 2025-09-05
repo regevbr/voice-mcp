@@ -89,6 +89,14 @@ class AudioManager:
 
     def _init_audio_system(self) -> None:
         """Initialize PyAudio once at startup."""
+        if not PYAUDIO_AVAILABLE:
+            logger.warning(
+                "PyAudio not available - audio feedback disabled",
+                recommendation="Install PyAudio for audio feedback support",
+            )
+            self.audio = None
+            return
+
         try:
             self.audio = pyaudio.PyAudio()
             self._available = True

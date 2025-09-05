@@ -56,7 +56,11 @@ def mock_pynput():
         "voice_mcp.voice.hotkey._get_keyboard_modules",
         return_value=(mock_keyboard, mock_key, mock_keycode),
     ):
-        yield mock_keyboard
+        # Also mock any other lazy imports in the module
+        with patch(
+            "voice_mcp.voice.text_output._get_keyboard_module", return_value=Mock()
+        ):
+            yield mock_keyboard
 
 
 @pytest.fixture
