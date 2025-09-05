@@ -190,63 +190,54 @@ jobs:
 
         echo "✅ Tests passed with updated dependencies"
 
+    - name: Get current date
+      if: env.has_updates == 'true'
+      id: date
+      run: |
+        echo "date=$(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_OUTPUT
+        echo "short-date=$(date +%Y%m%d)" >> $GITHUB_OUTPUT
+
     - name: Create dependency update PR
       if: env.has_updates == 'true'
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        echo "📝 Creating dependency update PR..."
+      uses: peter-evans/create-pull-request@v6
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: |
+          🔧 Update dependencies
 
-        # Configure git
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
+          Automated dependency updates from security workflow.
 
-        # Create branch
-        BRANCH="dependency-updates-$(date +%Y%m%d)"
-        git checkout -b "$BRANCH"
+          - Updated package versions to latest compatible versions
+          - All tests pass with updated dependencies
+          - Security scan completed successfully
 
-        # Commit changes
-        git add pyproject.toml uv.lock
-        git commit -m "🔧 Update dependencies
+          Generated on: ${{ steps.date.outputs.date }}
+        title: '🔧 Dependency Updates ${{ steps.date.outputs.short-date }}'
+        body: |
+          ## Automated Dependency Updates
 
-        Automated dependency updates from security workflow.
+          This PR contains automated dependency updates from the security workflow.
 
-        - Updated package versions to latest compatible versions
-        - All tests pass with updated dependencies
-        - Security scan completed successfully
+          ### Changes
+          - 📦 Updated dependencies to latest compatible versions
+          - 🧪 All tests pass with updated dependencies
+          - 🔒 Security scans completed successfully
 
-        Generated on: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
-        "
+          ### Testing
+          - [x] Unit tests pass
+          - [x] Security scan clean
+          - [x] No breaking changes detected
 
-        # Push branch
-        git push origin "$BRANCH"
+          ### Review Notes
+          Please review the dependency changes and ensure they align with project requirements.
 
-        # Create PR
-        gh pr create \
-          --title "🔧 Dependency Updates $(date +%Y-%m-%d)" \
-          --body "## Automated Dependency Updates
-
-        This PR contains automated dependency updates from the security workflow.
-
-        ### Changes
-        - 📦 Updated dependencies to latest compatible versions
-        - 🧪 All tests pass with updated dependencies
-        - 🔒 Security scans completed successfully
-
-        ### Testing
-        - [x] Unit tests pass
-        - [x] Security scan clean
-        - [x] No breaking changes detected
-
-        ### Review Notes
-        Please review the dependency changes and ensure they align with project requirements.
-
-        **Generated automatically on:** $(date -u +'%Y-%m-%d %H:%M:%S UTC')
-        " \
-          --head "$BRANCH" \
-          --base main \
-          --label "dependencies" \
-          --label "automated"
+          **Generated automatically on:** ${{ steps.date.outputs.date }}
+        branch: dependency-updates-${{ steps.date.outputs.short-date }}
+        base: main
+        labels: |
+          dependencies
+          automated
+        delete-branch: true
 
   license-check:
     name: License Compliance Check
