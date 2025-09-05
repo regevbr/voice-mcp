@@ -7,9 +7,17 @@ from typing import Any
 
 import structlog
 import torch
-from RealtimeSTT import AudioToTextRecorder
 
 from ..config import config
+
+# Check if RealtimeSTT is available
+try:
+    from RealtimeSTT import AudioToTextRecorder  # type: ignore
+
+    REALTIMESTT_AVAILABLE = True
+except ImportError:
+    REALTIMESTT_AVAILABLE = False
+    AudioToTextRecorder = None
 
 logger = structlog.get_logger(__name__)
 
@@ -18,7 +26,7 @@ class TranscriptionHandler:
     """Simplified transcription handler with singleton pattern and preloading."""
 
     _instance: "TranscriptionHandler | None" = None
-    _recorder: AudioToTextRecorder | None = None
+    _recorder: Any = None  # AudioToTextRecorder when available, None when not
     _is_initialized = False
 
     def __new__(cls) -> "TranscriptionHandler":
@@ -75,6 +83,10 @@ class TranscriptionHandler:
         Returns:
             True if preloading successful, False otherwise
         """
+        if not REALTIMESTT_AVAILABLE:
+            logger.warning("RealtimeSTT not available - STT functionality disabled")
+            return False
+
         if self._is_initialized:
             logger.debug("STT model already preloaded")
             return True
@@ -126,7 +138,15 @@ class TranscriptionHandler:
 
     def is_ready(self) -> bool:
         """Check if STT model is ready for use."""
-        return self._is_initialized and self._recorder is not None
+        return (
+            REALTIMESTT_AVAILABLE
+            and self._is_initialized
+            and self._recorder is not None
+        )
+
+    def is_available(self) -> bool:
+        """Check if STT functionality is available (RealtimeSTT installed)."""
+        return REALTIMESTT_AVAILABLE
 
     def enable(self) -> bool:
         """Enable STT by loading model if not already loaded."""
