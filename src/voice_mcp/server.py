@@ -33,12 +33,12 @@ def cleanup_resources():
             logger.info("Cleaning up hotkey monitoring...")
             result = VoiceTools.stop_hotkey_monitoring()
             logger.info(f"Hotkey cleanup: {result}")
-        
+
         # Cleanup STT resources
         logger.info("Cleaning up STT resources...")
         stt_handler = get_transcription_handler()
         stt_handler.cleanup()
-        
+
     except Exception as e:
         logger.debug(f"Error during cleanup: {e}")
 

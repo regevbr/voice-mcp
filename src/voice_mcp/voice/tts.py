@@ -34,7 +34,7 @@ class CoquiTTSEngine:
     def _init_engine(self) -> None:
         """Initialize the Coqui TTS engine."""
         try:
-            from TTS.api import TTS
+            from TTS.api import TTS  # type: ignore
 
             logger.info(f"Initializing Coqui TTS with model: {self._model_name}")
             self._tts = TTS(self._model_name, progress_bar=False, gpu=False)
@@ -48,13 +48,17 @@ class CoquiTTSEngine:
     def speak(
         self,
         text: str,
-        voice: str | None = None,
-        rate: float | None = None,
-        volume: float | None = None,
+        voice: str | None = None,  # noqa: ARG002
+        rate: float | None = None,  # noqa: ARG002
+        volume: float | None = None,  # noqa: ARG002
     ) -> bool:
         """Convert text to speech using Coqui TTS."""
         if not self.is_available():
             logger.error("Coqui TTS engine not available")
+            return False
+
+        if self._tts is None:
+            logger.error("TTS engine not initialized")
             return False
 
         try:
@@ -78,7 +82,7 @@ class CoquiTTSEngine:
             logger.error(f"Error during speech synthesis: {e}")
             return False
 
-    def _play_audio_data_directly(self, audio_data) -> bool:
+    def _play_audio_data_directly(self, audio_data: Any) -> bool:
         """
         Play audio data directly without saving to file.
 
@@ -257,4 +261,3 @@ class TTSManager:
     def is_available(self) -> bool:
         """Check if TTS engine is available."""
         return self._engine.is_available()
-

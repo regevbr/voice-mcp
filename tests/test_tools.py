@@ -59,7 +59,7 @@ class TestVoiceTools:
 
 
 @pytest.mark.parametrize(
-    "text,expected_in_result",
+    "text,_expected_in_result",
     [
         ("", ""),
         ("Hello", "Hello"),
@@ -67,7 +67,7 @@ class TestVoiceTools:
         ("Very long text " * 50, "Very long text"),
     ],
 )
-def test_speak_text_handling(text, expected_in_result, mock_tts_manager):
+def test_speak_text_handling(text, _expected_in_result, mock_tts_manager):
     """Test speak tool with various text inputs."""
     result = VoiceTools.speak(text)
 

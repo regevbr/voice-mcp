@@ -1,0 +1,107 @@
+repos:
+  # Local hooks for project-specific tools
+  - repo: local
+    hooks:
+      # Black code formatting
+      - id: black
+        name: black
+        entry: uv run black
+        language: system
+        types: [python]
+        require_serial: true
+        args: [--check, --diff]
+
+      # isort import sorting
+      - id: isort
+        name: isort
+        entry: uv run isort
+        language: system
+        types: [python]
+        args: [--check-only, --diff]
+
+      # Ruff linting
+      - id: ruff-check
+        name: ruff check
+        entry: uv run ruff check
+        language: system
+        types: [python]
+        args: [--fix]
+
+      # Ruff formatting (additional to black for newer features)
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format
+        language: system
+        types: [python]
+        args: [--check, --diff]
+
+      # MyPy type checking
+      - id: mypy
+        name: mypy
+        entry: uv run mypy
+        language: system
+        types: [python]
+        pass_filenames: false
+        args: [src/, --config-file=pyproject.toml]
+
+      # Pytest testing
+      - id: pytest-fast
+        name: pytest (fast tests only)
+        entry: uv run pytest
+        language: system
+        pass_filenames: false
+        args: [-x, -v, --tb=short, -m, "not slow and not voice"]
+        stages: [pre-push]
+
+  # Pre-commit hooks from external repos
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      # Basic file checks
+      - id: check-added-large-files
+        args: [--maxkb=1000]
+      - id: check-case-conflict
+      - id: check-merge-conflict
+      - id: check-symlinks
+      - id: check-toml
+      - id: check-yaml
+        args: [--multi]
+      - id: check-json
+      - id: pretty-format-json
+        args: [--autofix, --no-sort-keys]
+        exclude: "bandit-report.json"
+
+      # Python-specific checks
+      - id: check-ast
+      - id: check-builtin-literals
+      - id: check-docstring-first
+      - id: debug-statements
+
+      # General file cleanup
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: mixed-line-ending
+        args: [--fix=lf]
+
+  # Security scanning
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.10
+    hooks:
+      - id: bandit
+        args: [-r, src/, -f, json, -o, bandit-report.json, --severity-level, medium]
+        pass_filenames: false
+
+  # Note: flake8 disabled to avoid conflicts with ruff which provides equivalent coverage
+
+default_language_version:
+  python: python3.11
+
+# Configuration for different stages
+default_stages: [pre-commit]
+
+# Skip hooks for specific scenarios
+ci:
+  skip: [mypy, pytest-fast]  # Skip expensive checks in CI, run them separately
+
+# Fail fast - stop on first failure
+fail_fast: true

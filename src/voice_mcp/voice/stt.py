@@ -3,7 +3,6 @@ Simplified speech-to-text functionality with singleton pattern and preloading.
 """
 
 import contextlib
-from collections.abc import Callable
 from typing import Any
 
 import structlog
@@ -30,13 +29,13 @@ class TranscriptionHandler:
 
     def __init__(self):
         """Initialize the transcription handler (called only once due to singleton)."""
-        if hasattr(self, '_initialized'):
+        if hasattr(self, "_initialized"):
             return
-        
+
         self._initialized = True
         self.device: str | None = None
         self.compute_type: str | None = None
-        
+
         logger.info(
             "TranscriptionHandler initialized (singleton)",
             model=config.stt_model,
@@ -52,7 +51,7 @@ class TranscriptionHandler:
                 return "cuda", "float16"
             else:
                 return "cpu", "int8"
-        
+
         if not torch:
             logger.warning("PyTorch not available, defaulting to CPU")
             return "cpu", "int8"
@@ -82,9 +81,11 @@ class TranscriptionHandler:
 
         try:
             self.device, self.compute_type = self._get_optimal_device()
-            
-            logger.info("Preloading STT model", model=config.stt_model, device=self.device)
-            
+
+            logger.info(
+                "Preloading STT model", model=config.stt_model, device=self.device
+            )
+
             recorder_config = {
                 # Model configuration
                 "model": config.stt_model,
@@ -110,7 +111,7 @@ class TranscriptionHandler:
 
             self._recorder = AudioToTextRecorder(**recorder_config)
             self._is_initialized = True
-            
+
             logger.info(
                 "STT model preloaded successfully",
                 model=config.stt_model,
@@ -118,7 +119,7 @@ class TranscriptionHandler:
                 compute_type=self.compute_type,
             )
             return True
-            
+
         except Exception as e:
             logger.error("Failed to preload STT model", error=str(e))
             return False
@@ -181,16 +182,18 @@ class TranscriptionHandler:
                 logger.info("No recorder available, preloading STT model first")
                 if not self.preload():
                     raise Exception("Failed to preload STT model")
-            
+
             logger.info("Using preloaded STT model for transcription")
             recorder_to_use = self._recorder
-            
+
             # Configure callbacks for this session on the preloaded recorder
             # Note: RealtimeSTT allows dynamic callback configuration
-            if hasattr(recorder_to_use, 'set_on_recording_stop'):
-                recorder_to_use.set_on_recording_stop(on_recording_stop)
-            if hasattr(recorder_to_use, 'set_on_realtime_transcription_stabilized'):
-                recorder_to_use.set_on_realtime_transcription_stabilized(on_transcription_update)
+            if hasattr(recorder_to_use, "set_on_recording_stop"):
+                recorder_to_use.set_on_recording_stop(on_recording_stop)  # type: ignore
+            if hasattr(recorder_to_use, "set_on_realtime_transcription_stabilized"):
+                recorder_to_use.set_on_realtime_transcription_stabilized(  # type: ignore
+                    on_transcription_update
+                )
 
             logger.info("Starting transcription session", max_duration=duration)
 
@@ -198,10 +201,10 @@ class TranscriptionHandler:
             if duration:
                 # Record for specified duration
                 with self._timeout_context(duration):
-                    recorder_to_use.listen()
+                    recorder_to_use.listen()  # type: ignore
             else:
                 # Record until silence
-                recorder_to_use.listen()
+                recorder_to_use.listen()  # type: ignore
 
             end_time = time.time()
             actual_duration = end_time - start_time
@@ -233,7 +236,10 @@ class TranscriptionHandler:
             }
 
     def transcribe_with_realtime_output(
-        self, text_output_controller, duration: float | None = None, language: str | None = None
+        self,
+        text_output_controller,
+        duration: float | None = None,
+        language: str | None = None,
     ) -> dict[str, Any]:
         """
         Perform transcription with real-time text output for hotkey usage.
@@ -266,7 +272,7 @@ class TranscriptionHandler:
             nonlocal transcription_result
             transcription_result = text
             logger.debug("Real-time transcription update", text_length=len(text))
-            
+
             # Output text in real-time using the typing mode
             try:
                 result = text_output_controller.output_text(text, "typing")
@@ -279,10 +285,12 @@ class TranscriptionHandler:
             nonlocal transcription_result
             transcription_result = text
             logger.info("Recording stopped with final text", final_text=text)
-            
+
             # Final output to ensure we have the complete text
             try:
-                result = text_output_controller.output_text(text, "typing", force_update=True)
+                result = text_output_controller.output_text(
+                    text, "typing", force_update=True
+                )
                 if not result["success"]:
                     logger.warning("Final typing failed", error=result.get("error"))
             except Exception as e:
@@ -294,24 +302,28 @@ class TranscriptionHandler:
                 logger.info("No recorder available, preloading STT model first")
                 if not self.preload():
                     raise Exception("Failed to preload STT model")
-            
+
             logger.info("Using preloaded STT model for real-time transcription")
             recorder_to_use = self._recorder
-            
-            # Configure callbacks for real-time output
-            if hasattr(recorder_to_use, 'set_on_recording_stop'):
-                recorder_to_use.set_on_recording_stop(on_recording_stop)
-            if hasattr(recorder_to_use, 'set_on_realtime_transcription_stabilized'):
-                recorder_to_use.set_on_realtime_transcription_stabilized(on_realtime_transcription_update)
 
-            logger.info("Starting real-time transcription session", max_duration=duration)
+            # Configure callbacks for real-time output
+            if hasattr(recorder_to_use, "set_on_recording_stop"):
+                recorder_to_use.set_on_recording_stop(on_recording_stop)  # type: ignore
+            if hasattr(recorder_to_use, "set_on_realtime_transcription_stabilized"):
+                recorder_to_use.set_on_realtime_transcription_stabilized(  # type: ignore
+                    on_realtime_transcription_update
+                )
+
+            logger.info(
+                "Starting real-time transcription session", max_duration=duration
+            )
 
             # Start recording
             if duration:
                 with self._timeout_context(duration):
-                    recorder_to_use.listen()
+                    recorder_to_use.listen()  # type: ignore
             else:
-                recorder_to_use.listen()
+                recorder_to_use.listen()  # type: ignore
 
             end_time = time.time()
             actual_duration = end_time - start_time
@@ -333,7 +345,9 @@ class TranscriptionHandler:
         except Exception as e:
             end_time = time.time()
             logger.error(
-                "Real-time transcription failed", error=str(e), duration=end_time - start_time
+                "Real-time transcription failed",
+                error=str(e),
+                duration=end_time - start_time,
             )
             return {
                 "success": False,
@@ -350,7 +364,7 @@ class TranscriptionHandler:
         class TimeoutError(Exception):
             pass
 
-        def timeout_handler(signum, frame):
+        def timeout_handler(_signum, _frame):
             raise TimeoutError(f"Recording timeout after {duration} seconds")
 
         # Set the signal handler

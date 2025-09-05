@@ -57,7 +57,6 @@ class TestAudioManager:
     def test_resolve_assets_path_default(self):
         """Test default assets path resolution."""
         audio_manager = AudioManager()
-        expected_path = Path(__file__).parent.parent / "src" / "voice_mcp" / "assets"
         assert audio_manager._assets_path.name == "assets"
 
     def test_resolve_assets_path_custom(self, tmp_path):

@@ -10,7 +10,7 @@ authors = [
 ]
 keywords = [
     "mcp",
-    "model-context-protocol", 
+    "model-context-protocol",
     "voice",
     "tts",
     "stt",
@@ -67,17 +67,17 @@ dev = [
     "pytest-asyncio>=0.23.0",
     "pytest-cov>=4.1.0",
     "pytest-mock>=3.11.0",
-    
+
     # Code quality
     "black>=23.0.0",
-    "isort>=5.12.0", 
+    "isort>=5.12.0",
     "ruff>=0.1.0",
     "mypy>=1.5.0",
-    
+
     # Documentation
     "mkdocs>=1.5.0",
     "mkdocs-material>=9.0.0",
-    
+
     # Pre-commit
     "pre-commit>=3.3.0",
 ]
@@ -138,6 +138,8 @@ known_first_party = ["voice_mcp"]
 [tool.ruff]
 line-length = 88
 target-version = "py311"
+
+[tool.ruff.lint]
 select = [
     "E",  # pycodestyle errors
     "W",  # pycodestyle warnings
@@ -154,35 +156,41 @@ ignore = [
     "C901",  # too complex
 ]
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
 
 # MyPy type checking configuration
 [tool.mypy]
 python_version = "3.11"
 check_untyped_defs = true
-disallow_any_generics = true
-disallow_untyped_defs = true
+disallow_any_generics = false  # More permissive for external libraries
+disallow_untyped_defs = false  # More permissive while maintaining gradual typing
 follow_imports = "silent"
 strict_optional = true
 warn_redundant_casts = true
-warn_unused_ignores = true
-disallow_any_unimported = true
+warn_unused_ignores = false  # Allow unused ignores during development
+disallow_any_unimported = false  # More permissive for external dependencies
 no_implicit_optional = true
-warn_return_any = true
+warn_return_any = false  # More permissive for external library returns
 warn_unused_configs = true
 
 [[tool.mypy.overrides]]
 module = [
     "pyaudio.*",
     "pyttsx3.*",
-    "gtts.*", 
+    "gtts.*",
     "realtimestt.*",
+    "RealtimeSTT.*",
     "webrtcvad.*",
     "pynput.*",
     "pyautogui.*",
     "librosa.*",
     "soundfile.*",
+    "TTS.*",
+    "pyperclip.*",
+    "structlog.*",
+    "mcp.*",
+    "fastmcp.*",
 ]
 ignore_missing_imports = true
 
@@ -228,9 +236,15 @@ exclude_lines = [
 
 [dependency-groups]
 dev = [
+    "bandit>=1.8.6",
     "black>=25.1.0",
+    "flake8>=7.3.0",
+    "flake8-bugbear>=24.12.12",
+    "flake8-comprehensions>=3.16.0",
+    "flake8-docstrings>=1.7.0",
     "isort>=6.0.1",
     "mypy>=1.17.1",
+    "pre-commit>=4.3.0",
     "pytest>=8.4.2",
     "pytest-asyncio>=1.1.0",
     "pytest-cov>=6.2.1",

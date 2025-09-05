@@ -66,23 +66,23 @@ def _on_hotkey_pressed() -> None:
             # Use real-time transcription with live typing
             stt_handler = get_transcription_handler()
             text_controller = get_text_output_controller()
-            
+
             # Play "on" sound to indicate recording start
             audio_manager = get_audio_manager()
             if audio_manager.is_available:
                 audio_manager.play_on_sound()
-            
+
             # Perform real-time transcription with live typing
             result = stt_handler.transcribe_with_realtime_output(
                 text_output_controller=text_controller,
                 duration=None,  # Use silence-based stopping
                 language=config.stt_language,
             )
-            
+
             # Play "off" sound to indicate recording stop
             if audio_manager.is_available:
                 audio_manager.play_off_sound()
-            
+
             # Log the result
             if result.get("success"):
                 logger.info(
@@ -130,7 +130,7 @@ class VoiceTools:
     def speak(
         text: str,
         voice: str | None = None,
-        rate: int | None = None,
+        rate: float | None = None,
         volume: float | None = None,
     ) -> str:
         """
@@ -226,7 +226,9 @@ class VoiceTools:
             # Handle output mode
             if output_mode != "return" and transcribed_text:
                 text_controller = get_text_output_controller()
-                output_result = text_controller.output_text(transcribed_text, output_mode)
+                output_result = text_controller.output_text(
+                    transcribed_text, output_mode
+                )
 
                 if not output_result["success"]:
                     logger.warning(

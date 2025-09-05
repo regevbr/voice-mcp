@@ -9,7 +9,7 @@ is not available.
 import threading
 import wave
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import structlog
 
@@ -17,7 +17,7 @@ logger = structlog.get_logger(__name__)
 
 # Check if PyAudio is available
 try:
-    import pyaudio
+    import pyaudio  # type: ignore
 
     PYAUDIO_AVAILABLE = True
 except ImportError:
@@ -60,7 +60,7 @@ class AudioManager:
         """Context manager entry."""
         return self
 
-    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> bool:
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> Literal[False]:
         """Context manager exit with cleanup."""
         self.cleanup()
         return False
@@ -123,6 +123,11 @@ class AudioManager:
 
             try:
                 with wave.open(str(file_path), "rb") as wf:
+                    if self.audio is None:
+                        logger.warning(
+                            "Audio not initialized, skipping file", filename=filename
+                        )
+                        continue
                     self.audio_data[filename] = {
                         "frames": wf.readframes(wf.getnframes()),
                         "format": self.audio.get_format_from_width(wf.getsampwidth()),

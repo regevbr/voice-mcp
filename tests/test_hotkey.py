@@ -87,7 +87,7 @@ class TestHotkeyManager:
         assert not hotkey_manager.is_monitoring()
         assert hotkey_manager.get_status()["active"] is False
 
-    def test_parse_single_key(self, hotkey_manager, mock_pynput):
+    def test_parse_single_key(self, hotkey_manager, mock_pynput):  # noqa: ARG002
         """Test parsing single key names."""
         # Test special keys
         parse_result = hotkey_manager._parse_hotkey("menu")
@@ -105,7 +105,7 @@ class TestHotkeyManager:
         assert parse_result["success"] is True
         assert "mock_char_s" in parse_result["keys"]
 
-    def test_parse_combination_keys(self, hotkey_manager, mock_pynput):
+    def test_parse_combination_keys(self, hotkey_manager, mock_pynput):  # noqa: ARG002
         """Test parsing key combinations."""
         parse_result = hotkey_manager._parse_hotkey("ctrl+alt+s")
         assert parse_result["success"] is True
@@ -136,7 +136,11 @@ class TestHotkeyManager:
         # Verify listener was created and started
         mock_pynput.Listener.assert_called_once()
 
-    def test_start_monitoring_already_active(self, hotkey_manager, mock_pynput):
+    def test_start_monitoring_already_active(
+        self,
+        hotkey_manager,
+        mock_pynput,  # noqa: ARG002
+    ):
         """Test starting monitoring when already active."""
         # Start monitoring first time
         hotkey_manager.start_monitoring("f12")
@@ -146,7 +150,7 @@ class TestHotkeyManager:
         assert result["success"] is False
         assert "Already monitoring" in result["error"]
 
-    def test_stop_monitoring(self, hotkey_manager, mock_pynput):
+    def test_stop_monitoring(self, hotkey_manager, mock_pynput):  # noqa: ARG002
         """Test stopping hotkey monitoring."""
         # Start monitoring first
         hotkey_manager.start_monitoring("f12")
@@ -163,7 +167,7 @@ class TestHotkeyManager:
         assert result["success"] is True
         assert "was not active" in result["message"]
 
-    def test_get_status(self, hotkey_manager, mock_pynput):
+    def test_get_status(self, hotkey_manager, mock_pynput):  # noqa: ARG002
         """Test getting status information."""
         # Initially not monitoring
         status = hotkey_manager.get_status()
@@ -177,7 +181,7 @@ class TestHotkeyManager:
         assert status["hotkey"] == "menu"
         assert status["is_combination"] is False
 
-    def test_key_press_callback(self, mock_pynput):
+    def test_key_press_callback(self, mock_pynput):  # noqa: ARG002
         """Test hotkey press callback functionality."""
         callback = Mock()
         manager = HotkeyManager(on_hotkey_pressed=callback)
@@ -194,7 +198,7 @@ class TestHotkeyManager:
         # Verify callback was called
         callback.assert_called_once()
 
-    def test_combination_key_press(self, mock_pynput):
+    def test_combination_key_press(self, mock_pynput):  # noqa: ARG002
         """Test combination key press detection."""
         callback = Mock()
         manager = HotkeyManager(on_hotkey_pressed=callback)
@@ -219,7 +223,7 @@ class TestHotkeyManager:
         # Now callback should be triggered
         callback.assert_called_once()
 
-    def test_thread_cleanup(self, hotkey_manager, mock_pynput):
+    def test_thread_cleanup(self, hotkey_manager, mock_pynput):  # noqa: ARG002
         """Test proper thread cleanup on stop."""
         hotkey_manager.start_monitoring("f12")
 
@@ -313,7 +317,13 @@ class TestHotkeyCallback:
     @patch("voice_mcp.tools.get_text_output_controller")
     @patch("voice_mcp.tools.get_transcription_handler")
     @patch("voice_mcp.tools.config")
-    def test_on_hotkey_pressed_success(self, mock_config, mock_handler_getter, mock_text_controller_getter, mock_audio_manager_getter):
+    def test_on_hotkey_pressed_success(
+        self,
+        mock_config,
+        mock_handler_getter,
+        mock_text_controller_getter,
+        mock_audio_manager_getter,
+    ):
         """Test successful hotkey callback execution with typing mode (real-time)."""
         from voice_mcp.tools import _on_hotkey_pressed
 
@@ -343,9 +353,7 @@ class TestHotkeyCallback:
 
         # Verify real-time transcription was called
         mock_handler.transcribe_with_realtime_output.assert_called_once_with(
-            text_output_controller=mock_text_controller,
-            duration=None,
-            language="en"
+            text_output_controller=mock_text_controller, duration=None, language="en"
         )
 
         # Verify audio feedback
@@ -403,7 +411,13 @@ class TestHotkeyCallback:
     @patch("voice_mcp.tools.get_text_output_controller")
     @patch("voice_mcp.tools.get_transcription_handler")
     @patch("voice_mcp.tools.config")
-    def test_on_hotkey_pressed_exception(self, mock_config, mock_handler_getter, mock_text_controller_getter, mock_audio_manager_getter):
+    def test_on_hotkey_pressed_exception(
+        self,
+        mock_config,
+        mock_handler_getter,
+        mock_text_controller_getter,
+        mock_audio_manager_getter,
+    ):
         """Test hotkey callback with exception handling."""
         from voice_mcp.tools import _on_hotkey_pressed
 
@@ -412,7 +426,9 @@ class TestHotkeyCallback:
 
         # Mock the transcription handler to raise exception
         mock_handler = Mock()
-        mock_handler.transcribe_with_realtime_output.side_effect = Exception("Test exception")
+        mock_handler.transcribe_with_realtime_output.side_effect = Exception(
+            "Test exception"
+        )
         mock_handler_getter.return_value = mock_handler
 
         # Mock text controller
@@ -434,7 +450,7 @@ class TestHotkeyCallback:
 class TestHotkeyKeyParsing:
     """Test comprehensive key parsing scenarios."""
 
-    def test_all_function_keys(self, hotkey_manager, mock_pynput):
+    def test_all_function_keys(self, hotkey_manager, mock_pynput):  # noqa: ARG002
         """Test parsing all function keys F1-F12."""
         for i in range(1, 13):
             key_name = f"f{i}"
@@ -444,7 +460,7 @@ class TestHotkeyKeyParsing:
             assert result["success"] is True, f"Failed for {key_name}"
             assert expected_key in result["keys"]
 
-    def test_special_key_aliases(self, hotkey_manager, mock_pynput):
+    def test_special_key_aliases(self, hotkey_manager, mock_pynput):  # noqa: ARG002
         """Test special key aliases."""
         test_cases = [
             ("alt", "mock_alt_l_key"),
@@ -460,7 +476,7 @@ class TestHotkeyKeyParsing:
             assert result["success"] is True, f"Failed for {key_name}"
             assert expected_key in result["keys"]
 
-    def test_complex_combinations(self, hotkey_manager, mock_pynput):
+    def test_complex_combinations(self, hotkey_manager, mock_pynput):  # noqa: ARG002
         """Test complex key combinations."""
         result = hotkey_manager._parse_hotkey("ctrl+shift+alt+s")
         assert result["success"] is True
@@ -480,7 +496,7 @@ class TestErrorHandling:
         assert result["success"] is False
         assert "Failed to start monitoring" in result["error"]
 
-    def test_stop_monitoring_error(self, hotkey_manager, mock_pynput):
+    def test_stop_monitoring_error(self, hotkey_manager, mock_pynput):  # noqa: ARG002
         """Test error handling during monitoring stop."""
         # Start monitoring successfully first
         hotkey_manager.start_monitoring("f12")
@@ -493,7 +509,7 @@ class TestErrorHandling:
         assert result["success"] is False
         assert "Failed to stop monitoring" in result["error"]
 
-    def test_key_press_exception(self, mock_pynput):
+    def test_key_press_exception(self, mock_pynput):  # noqa: ARG002
         """Test exception handling in key press callback."""
         callback = Mock(side_effect=Exception("Callback failed"))
         manager = HotkeyManager(on_hotkey_pressed=callback)

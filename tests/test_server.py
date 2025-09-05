@@ -56,7 +56,6 @@ def test_server_tools_registration():
     from voice_mcp.server import mcp
 
     # Check that FastMCP has our tools registered
-    tools = [tool for tool in dir(mcp) if not tool.startswith("_")]
     assert "tools" in str(mcp.__dict__)  # Basic check that tools are registered
 
 

@@ -114,7 +114,7 @@ def mock_stt_handler():
         mock_handler = Mock()
         mock_handler.is_available = True
 
-        def mock_transcribe(duration=None, language="en"):
+        def mock_transcribe(_duration=None, language="en"):
             return {
                 "success": True,
                 "transcription": "Hello world",

@@ -6,7 +6,7 @@ import difflib
 import time
 from typing import Any, Literal
 
-import pyperclip
+import pyperclip  # type: ignore
 import structlog
 from pynput import keyboard
 
@@ -27,11 +27,13 @@ class TextOutputController:
         Args:
             debounce_delay: Delay between text updates to avoid rapid firing
         """
-        self.debounce_delay = debounce_delay or getattr(
-            config, "typing_debounce_delay", 0.1
+        self.debounce_delay: float = (
+            debounce_delay
+            if debounce_delay is not None
+            else getattr(config, "typing_debounce_delay", 0.1)
         )
         self.last_typed_text = ""
-        self.last_update_time = 0
+        self.last_update_time = 0.0
         self._keyboard_controller: Any | None = None
 
         logger.info(
@@ -354,5 +356,5 @@ class TextOutputController:
     def reset(self) -> None:
         """Reset typing state for new session."""
         self.last_typed_text = ""
-        self.last_update_time = 0
+        self.last_update_time = 0.0
         logger.debug("TextOutputController state reset")

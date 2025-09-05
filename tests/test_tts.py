@@ -9,7 +9,7 @@ from unittest.mock import Mock, patch
 sys.modules["TTS"] = Mock()
 sys.modules["TTS.api"] = Mock()
 
-from voice_mcp.voice.tts import CoquiTTSEngine, TTSManager, Voice
+from voice_mcp.voice.tts import CoquiTTSEngine, TTSManager, Voice  # noqa: E402
 
 
 class TestVoice:
@@ -302,4 +302,3 @@ class TestTTSManager:
 
         mock_engine_instance.is_available.return_value = False
         assert manager.is_available() is False
-

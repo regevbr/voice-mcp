@@ -42,7 +42,6 @@ class ServerConfig:
     sample_rate: int = 16000
     chunk_size: int = 1024
 
-
     @classmethod
     def from_env(cls) -> "ServerConfig":
         """Create configuration from environment variables."""

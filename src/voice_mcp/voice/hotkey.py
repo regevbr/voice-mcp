@@ -359,7 +359,7 @@ class HotkeyManager:
         with self._lock:
             return self._is_monitoring
 
-    def __del__(self):
+    def __del__(self) -> None:
         """Cleanup resources when object is destroyed."""
         try:
             self.stop_monitoring()

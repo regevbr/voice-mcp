@@ -110,8 +110,8 @@ def handle_test_command(args: argparse.Namespace) -> int:
         try:
             from .tools import VoiceTools
 
-            result = VoiceTools.listen(5.0)  # 5 second test
-            print(f"STT Result: {result}")
+            stt_result = VoiceTools.listen(5.0)  # 5 second test
+            print(f"STT Result: {stt_result}")
         except Exception as e:
             print(f"STT Error: {e}")
 
