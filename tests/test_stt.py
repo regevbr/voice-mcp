@@ -380,38 +380,55 @@ class TestTranscriptionHandler:
         """Test timeout context manager when timeout is triggered."""
         handler = TranscriptionHandler()
 
-        # Mock the signal handling
-        with patch("signal.alarm") as mock_alarm:
-            with patch("signal.signal") as mock_signal:
-                original_handler = Mock()
-                mock_signal.return_value = original_handler
+        # Mock platform detection to test both paths
+        import platform
 
-                timeout_occurred = False
+        if platform.system() == "Windows":
+            # Test Windows threading-based timeout
+            with patch("threading.Timer") as mock_timer:
+                mock_timer_instance = Mock()
+                mock_timer.return_value = mock_timer_instance
 
-                try:
-                    with handler._timeout_context(1.0):
-                        # Simulate what the signal handler would do by accessing
-                        # the timeout handler from the patched signal call
-                        signal_calls = mock_signal.call_args_list
-                        if signal_calls:
-                            # Get the timeout handler that was registered
-                            timeout_handler = signal_calls[0][0][
-                                1
-                            ]  # Second argument to signal.signal
-                            # Simulate the signal being triggered
-                            timeout_handler(14, None)  # SIGALRM = 14
-                except Exception:
-                    # The TimeoutError should be caught by the context manager
-                    # so we shouldn't reach here, but if we do, that means
-                    # the context manager didn't catch it properly
-                    timeout_occurred = True
+                with handler._timeout_context(0.001):  # Very short timeout
+                    pass
 
-                # The test should complete without exception (timeout should be caught)
-                assert timeout_occurred is False
+                # Verify timer was created and started
+                mock_timer.assert_called_once()
+                mock_timer_instance.start.assert_called_once()
+                mock_timer_instance.cancel.assert_called_once()
+        else:
+            # Test Unix signal-based timeout
+            with patch("signal.alarm") as mock_alarm:
+                with patch("signal.signal") as mock_signal:
+                    original_handler = Mock()
+                    mock_signal.return_value = original_handler
 
-                # Verify alarm was set and cleared
-                mock_alarm.assert_any_call(1)
-                mock_alarm.assert_any_call(0)
+                    timeout_occurred = False
+
+                    try:
+                        with handler._timeout_context(1.0):
+                            # Simulate what the signal handler would do by accessing
+                            # the timeout handler from the patched signal call
+                            signal_calls = mock_signal.call_args_list
+                            if signal_calls:
+                                # Get the timeout handler that was registered
+                                timeout_handler = signal_calls[0][0][
+                                    1
+                                ]  # Second argument to signal.signal
+                                # Simulate the signal being triggered
+                                timeout_handler(14, None)  # SIGALRM = 14
+                    except Exception:
+                        # The TimeoutError should be caught by the context manager
+                        # so we shouldn't reach here, but if we do, that means
+                        # the context manager didn't catch it properly
+                        timeout_occurred = True
+
+                    # The test should complete without exception (timeout should be caught)
+                    assert timeout_occurred is False
+
+                    # Verify alarm was set and cleared
+                    mock_alarm.assert_any_call(1)
+                    mock_alarm.assert_any_call(0)
 
     def test_transcribe_once_with_duration(self):
         """Test transcribe_once with specified duration."""

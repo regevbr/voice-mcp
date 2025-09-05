@@ -370,26 +370,49 @@ class TranscriptionHandler:
     @contextlib.contextmanager
     def _timeout_context(self, duration: float):
         """Context manager for handling recording timeout."""
+        import platform
         import signal
+        import threading
+        import time
 
         class TimeoutError(Exception):
             pass
 
-        def timeout_handler(_signum, _frame):
-            raise TimeoutError(f"Recording timeout after {duration} seconds")
+        if platform.system() == "Windows":
+            # Use threading-based timeout for Windows
+            timeout_occurred = False
 
-        # Set the signal handler
-        old_handler = signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(int(duration))
+            def timeout_handler():
+                nonlocal timeout_occurred
+                time.sleep(duration)
+                timeout_occurred = True
 
-        try:
-            yield
-        except TimeoutError:
-            logger.info("Recording stopped due to timeout", duration=duration)
-        finally:
-            # Restore the old signal handler
-            signal.alarm(0)
-            signal.signal(signal.SIGALRM, old_handler)
+            timer = threading.Timer(duration, timeout_handler)
+            timer.start()
+
+            try:
+                yield
+            finally:
+                timer.cancel()
+                if timeout_occurred:
+                    logger.info("Recording stopped due to timeout", duration=duration)
+        else:
+            # Use signal-based timeout for Unix systems
+            def signal_timeout_handler(_signum, _frame):
+                raise TimeoutError(f"Recording timeout after {duration} seconds")
+
+            # Set the signal handler
+            old_handler = signal.signal(signal.SIGALRM, signal_timeout_handler)
+            signal.alarm(int(duration))
+
+            try:
+                yield
+            except TimeoutError:
+                logger.info("Recording stopped due to timeout", duration=duration)
+            finally:
+                # Restore the old signal handler
+                signal.alarm(0)
+                signal.signal(signal.SIGALRM, old_handler)
 
     def cleanup(self) -> None:
         """Clean up resources."""
