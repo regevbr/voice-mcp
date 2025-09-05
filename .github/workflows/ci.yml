@@ -295,7 +295,7 @@ jobs:
       run: |
         echo "🔗 Running integration tests..."
         # Run integration tests with longer timeout
-        uv run pytest -v -m "integration" --tb=long --timeout=300 tests/integration/
+        uv run pytest -v -m "integration" --tb=long --timeout=300
 
     - name: Test MCP server startup
       run: |
