@@ -21,7 +21,7 @@ Convert text to speech using the configured TTS engine.
 **Features:**
 - **GPU Acceleration**: Automatically uses CUDA GPU if available and enabled
 - **High-Quality Rate Control**: Speed adjustment maintains natural pitch
-- **Model Preloading**: Optimized for instant first-call performance
+- **Model Preloading**: First TTS call is optimized for instant response via background loading
 
 **Returns:**
 - `str`: Status message indicating success or failure
@@ -31,9 +31,9 @@ Convert text to speech using the configured TTS engine.
 result = VoiceTools.speak("Hello from Voice MCP!")
 # Returns: "✅ Successfully spoke: 'Hello from Voice MCP!'"
 
-# With speed control
-result = VoiceTools.speak("Faster speech", rate=1.3)  # 30% faster
-result = VoiceTools.speak("Slower speech", rate=0.8)  # 20% slower
+# With custom parameters
+result = VoiceTools.speak("Faster speech", rate=1.3)  # 30% faster speech
+result = VoiceTools.speak("Slower speech", rate=0.8)  # 20% slower speech
 
 # With custom parameters
 result = VoiceTools.speak("Custom message", rate=1.2, volume=0.8)
@@ -126,6 +126,8 @@ High-quality neural text-to-speech using Coqui TTS.
 
 **Configuration:**
 - Model: `VOICE_MCP_TTS_MODEL`
+- Preload: `VOICE_MCP_TTS_PRELOAD_ENABLED`
+- GPU: `VOICE_MCP_TTS_GPU_ENABLED`
 - Rate: `VOICE_MCP_TTS_RATE`
 - Volume: `VOICE_MCP_TTS_VOLUME`
 
@@ -226,7 +228,7 @@ Environment-based configuration management using Pydantic.
 - `stt_model`: Whisper model size (default: "base")
 - `stt_device`: Processing device (default: "auto")
 - `stt_language`: Default language (default: "en")
-- `stt_silence_threshold`: Silence detection threshold (default: 4.0)
+- `stt_silence_threshold`: Silence detection threshold (default: 2.0, reduced from 3.0s)
 
 **Hotkey Settings:**
 - `enable_hotkey`: Enable hotkey monitoring (default: True)

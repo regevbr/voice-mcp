@@ -11,6 +11,6 @@ else
 fi
 
 echo "  🏃 Running pytest with args: $TEST_ARGS"
-uv run pytest ${TEST_ARGS} -v --tb=short
+eval "uv run pytest $TEST_ARGS -v --tb=short"
 
 echo "✅ Tests complete!"
