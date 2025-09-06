@@ -44,6 +44,18 @@ class ServerConfig:
     clipboard_enabled: bool = True
     typing_debounce_delay: float = 0.1
 
+    # Hotkey lock settings
+    hotkey_lock_enabled: bool = True  # Enable/disable cross-process hotkey locking
+    hotkey_lock_timeout: float = (
+        1.0  # Lock acquisition timeout (not used for immediate forfeit)
+    )
+    hotkey_lock_directory: str | None = (
+        None  # Custom lock directory (auto-detect if None)
+    )
+    hotkey_lock_fallback_semaphore: bool = (
+        True  # Allow semaphore fallback if file locks fail
+    )
+
     # Audio settings
     sample_rate: int = 16000
     chunk_size: int = 1024
@@ -86,6 +98,18 @@ class ServerConfig:
             typing_debounce_delay=float(
                 os.getenv("VOICE_MCP_TYPING_DEBOUNCE_DELAY", "0.1")
             ),
+            hotkey_lock_enabled=os.getenv(
+                "VOICE_MCP_HOTKEY_LOCK_ENABLED", "true"
+            ).lower()
+            == "true",
+            hotkey_lock_timeout=float(
+                os.getenv("VOICE_MCP_HOTKEY_LOCK_TIMEOUT", "1.0")
+            ),
+            hotkey_lock_directory=os.getenv("VOICE_MCP_HOTKEY_LOCK_DIRECTORY"),
+            hotkey_lock_fallback_semaphore=os.getenv(
+                "VOICE_MCP_HOTKEY_LOCK_FALLBACK_SEMAPHORE", "true"
+            ).lower()
+            == "true",
             sample_rate=int(os.getenv("VOICE_MCP_SAMPLE_RATE", "16000")),
             chunk_size=int(os.getenv("VOICE_MCP_CHUNK_SIZE", "1024")),
         )

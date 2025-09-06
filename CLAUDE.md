@@ -51,11 +51,12 @@ src/voice_mcp/
 4. **Speech Rate Control**: User-configurable speech rate (speed) control
 5. **STT System**: faster-whisper implementation with real-time transcription
 6. **Hotkey System**: Global keyboard shortcuts with voice-to-text activation
-7. **Real-time Processing**: Live typing during speech recognition with audio feedback
-8. **Text Output Modes**: Multiple output options (typing, clipboard, return)
-9. **Audio Pipeline**: Advanced processing with VAD, noise filtering, and effects
-10. **Configuration**: Rich environment-based configuration system
-11. **Testing**: Comprehensive pytest suite covering all voice functionality
+7. **Multi-Instance Coordination**: Cross-process locking prevents hotkey conflicts between server instances  
+8. **Real-time Processing**: Live typing during speech recognition with audio feedback
+9. **Text Output Modes**: Multiple output options (typing, clipboard, return)
+10. **Audio Pipeline**: Advanced processing with VAD, noise filtering, and effects
+11. **Configuration**: Rich environment-based configuration system
+12. **Testing**: Comprehensive pytest suite covering all voice functionality
 
 ## Development Setup
 
@@ -133,6 +134,12 @@ All configurable via environment variables:
 - `VOICE_MCP_CLIPBOARD_ENABLED` - Enable clipboard output (default: true)
 - `VOICE_MCP_TYPING_DEBOUNCE_DELAY` - Typing delay (default: 0.1s)
 
+**Hotkey Lock Configuration:**
+- `VOICE_MCP_HOTKEY_LOCK_ENABLED` - Enable cross-process hotkey locking (default: true)
+- `VOICE_MCP_HOTKEY_LOCK_TIMEOUT` - Lock timeout (default: 1.0s, not used for immediate forfeit)
+- `VOICE_MCP_HOTKEY_LOCK_DIRECTORY` - Custom lock directory (default: auto-detect)
+- `VOICE_MCP_HOTKEY_LOCK_FALLBACK_SEMAPHORE` - Allow semaphore fallback (default: true)
+
 **General Configuration:**
 - `VOICE_MCP_LOG_LEVEL` - Logging verbosity (default: INFO)
 - `VOICE_MCP_DEBUG` - Debug mode (default: false)
@@ -161,8 +168,9 @@ uv run pytest -m "not voice"
 4. **Build Requirements**: NumPy, PyAudio, and other native dependencies need build tools
 5. **GPU Acceleration**: CUDA support available but optional for STT processing
 6. **Real-time Performance**: STT with live typing requires low-latency audio pipeline
-7. **Hotkey Conflicts**: Global hotkeys may conflict with system shortcuts
+7. **Hotkey Conflicts**: Global hotkeys may conflict with system shortcuts (now resolved with cross-process locking)
 8. **Model Downloads**: First-time TTS/STT usage downloads large model files
+9. **Multi-Instance Coordination**: Hotkey locking prevents conflicts between multiple server instances
 
 ## Development Commands
 
