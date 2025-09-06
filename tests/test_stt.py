@@ -868,10 +868,6 @@ class TestTranscriptionHandlerErrorConditions:
 
             # Capture the callback function
 
-            def capture_callback(text):
-                # Test logging of long text (>50 chars)
-                long_text = "a" * 60  # 60 characters
-                return long_text
 
             with patch("voice_mcp.voice.stt.config") as mock_config:
                 mock_config.stt_model = "base"
