@@ -284,7 +284,7 @@ class TextOutputController:
                 for _ in range(chars_to_delete):
                     kb.press(keyboard.Key.backspace)
                     kb.release(keyboard.Key.backspace)
-                    time.sleep(0.01)  # Small delay between keystrokes
+                    time.sleep(0.1)  # Small delay between keystrokes
 
             elif diff["type"] == "delete_suffix":
                 # Delete suffix only
@@ -294,7 +294,7 @@ class TextOutputController:
                 for _ in range(chars_to_delete):
                     kb.press(keyboard.Key.backspace)
                     kb.release(keyboard.Key.backspace)
-                    time.sleep(0.01)
+                    time.sleep(0.1)
 
             elif diff["type"] in ["replace_suffix", "replace_all"]:
                 # Delete and replace
@@ -316,20 +316,15 @@ class TextOutputController:
             if new_text_to_type:
                 if self._check_clipboard_availability():
                     # Use clipboard for efficiency (cross-platform)
-                    original_clipboard = pyperclip.paste()
                     pyperclip.copy(new_text_to_type)
 
                     # Small delay to ensure clipboard is set
-                    time.sleep(0.02)
+                    time.sleep(0.1)
 
                     # Paste using Ctrl+V (cross-platform)
                     with kb.pressed(keyboard.Key.ctrl):
                         kb.press("v")
                         kb.release("v")
-
-                    # Restore original clipboard content
-                    time.sleep(0.05)
-                    pyperclip.copy(original_clipboard)
                 else:
                     # Fallback to direct typing (slower but always works)
                     kb.type(new_text_to_type)

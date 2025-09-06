@@ -3804,14 +3804,14 @@ wheels = [
 
 [[package]]
 name = "tqdm"
-version = "4.67.1"
+version = "4.66.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "colorama", marker = "sys_platform == 'win32'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a8/4b/29b4ef32e036bb34e4ab51796dd745cdba7ed47ad142a9f4a1eb8e0c744d/tqdm-4.67.1.tar.gz", hash = "sha256:f8aef9c52c08c13a65f30ea34f4e5aac3fd1a34959879d7e59e63027286627f2", size = 169737, upload-time = "2024-11-24T20:12:22.481Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e9/34/bef135b27fe1864993a5284ad001157ee9b5538e859ac90f5b0e8cc8c9ec/tqdm-4.66.6.tar.gz", hash = "sha256:4bdd694238bef1485ce839d67967ab50af8f9272aab687c0d7702a01da0be090", size = 169533, upload-time = "2024-10-28T12:49:58.611Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d0/30/dc54f88dd4a2b5dc8a0279bdd7270e735851848b762aeb1c1184ed1f6b14/tqdm-4.67.1-py3-none-any.whl", hash = "sha256:26445eca388f82e72884e0d580d5464cd801a3ea01e63e5601bdff9ba6a48de2", size = 78540, upload-time = "2024-11-24T20:12:19.698Z" },
+    { url = "https://files.pythonhosted.org/packages/41/73/02342de9c2d20922115f787e101527b831c0cffd2105c946c4a4826bcfd4/tqdm-4.66.6-py3-none-any.whl", hash = "sha256:223e8b5359c2efc4b30555531f09e9f2f3589bcd7fdd389271191031b49b7a63", size = 78326, upload-time = "2024-10-28T12:49:56.931Z" },
 ]
 
 [[package]]
@@ -3980,6 +3980,7 @@ dependencies = [
     { name = "soundfile" },
     { name = "structlog" },
     { name = "torch" },
+    { name = "tqdm" },
     { name = "typing-extensions" },
     { name = "webrtcvad" },
 ]
@@ -4065,6 +4066,7 @@ requires-dist = [
     { name = "soundfile", specifier = ">=0.12.1" },
     { name = "structlog", specifier = ">=23.1.0" },
     { name = "torch", specifier = ">=2.0.0" },
+    { name = "tqdm", specifier = ">=4.66.0,<4.67.0" },
     { name = "typing-extensions", specifier = ">=4.5.0" },
     { name = "voice-mcp", extras = ["audio"], marker = "extra == 'full'" },
     { name = "webrtcvad", specifier = ">=2.0.10" },

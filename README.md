@@ -274,26 +274,26 @@ Claude: I'll start the global hotkey monitoring for you.
 
 ### Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `VOICE_MCP_HOST` | `localhost` | Server host |
-| `VOICE_MCP_PORT` | `8000` | Server port |
-| `VOICE_MCP_DEBUG` | `false` | Enable debug mode |
-| `VOICE_MCP_LOG_LEVEL` | `INFO` | Logging level |
+| Variable | Default                                | Description |
+|----------|----------------------------------------|-------------|
+| `VOICE_MCP_HOST` | `localhost`                            | Server host |
+| `VOICE_MCP_PORT` | `8000`                                 | Server port |
+| `VOICE_MCP_DEBUG` | `false`                                | Enable debug mode |
+| `VOICE_MCP_LOG_LEVEL` | `INFO`                                 | Logging level |
 | `VOICE_MCP_TTS_MODEL` | `tts_models/en/ljspeech/tacotron2-DDC` | Coqui TTS model |
-| `VOICE_MCP_TTS_RATE` | `1.0` | Speech rate multiplier |
-| `VOICE_MCP_TTS_VOLUME` | `0.9` | Volume level (0.0 to 1.0) |
-| `VOICE_MCP_STT_ENABLED` | `true` | Enable STT preloading on startup |
-| `VOICE_MCP_STT_MODEL` | `base` | Whisper model (`tiny`, `base`, `small`, `medium`, `large`) |
-| `VOICE_MCP_STT_DEVICE` | `auto` | Processing device (`auto`, `cuda`, `cpu`) |
-| `VOICE_MCP_STT_LANGUAGE` | `en` | Default STT language |
-| `VOICE_MCP_STT_SILENCE_THRESHOLD` | `4.0` | Silence detection threshold (seconds) |
-| `VOICE_MCP_ENABLE_HOTKEY` | `true` | Enable hotkey activation |
-| `VOICE_MCP_HOTKEY_NAME` | `menu` | Hotkey to monitor |
-| `VOICE_MCP_HOTKEY_OUTPUT_MODE` | `typing` | Default hotkey output mode (`typing`, `clipboard`, `return`) |
-| `VOICE_MCP_TYPING_ENABLED` | `true` | Enable real-time typing output |
-| `VOICE_MCP_CLIPBOARD_ENABLED` | `true` | Enable clipboard output |
-| `VOICE_MCP_TYPING_DEBOUNCE_DELAY` | `0.1` | Typing debounce delay (seconds) |
+| `VOICE_MCP_TTS_RATE` | `1.0`                                  | Speech rate multiplier |
+| `VOICE_MCP_TTS_VOLUME` | `0.9`                                  | Volume level (0.0 to 1.0) |
+| `VOICE_MCP_STT_ENABLED` | `true`                                 | Enable STT preloading on startup |
+| `VOICE_MCP_STT_MODEL` | `base`                                 | Whisper model (`tiny`, `base`, `small`, `medium`, `large`) |
+| `VOICE_MCP_STT_DEVICE` | `auto`                                 | Processing device (`auto`, `cuda`, `cpu`) |
+| `VOICE_MCP_STT_LANGUAGE` | `en`                                   | Default STT language |
+| `VOICE_MCP_STT_SILENCE_THRESHOLD` | `3.0`                                  | Silence detection threshold (seconds) |
+| `VOICE_MCP_ENABLE_HOTKEY` | `true`                                 | Enable hotkey activation |
+| `VOICE_MCP_HOTKEY_NAME` | `menu`                                 | Hotkey to monitor |
+| `VOICE_MCP_HOTKEY_OUTPUT_MODE` | `typing`                               | Default hotkey output mode (`typing`, `clipboard`, `return`) |
+| `VOICE_MCP_TYPING_ENABLED` | `true`                                 | Enable real-time typing output |
+| `VOICE_MCP_CLIPBOARD_ENABLED` | `true`                                 | Enable clipboard output |
+| `VOICE_MCP_TYPING_DEBOUNCE_DELAY` | `0.1`                                  | Typing debounce delay (seconds) |
 
 ### Example Configuration
 

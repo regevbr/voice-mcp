@@ -57,6 +57,7 @@ dependencies = [
     "typing-extensions>=4.5.0",
     "setuptools-rust>=1.12.0",
     "huggingface-hub>=0.26.0",
+    "tqdm>=4.66.0,<4.67.0",
 ]
 
 # Optional dependencies for development only

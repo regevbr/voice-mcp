@@ -203,6 +203,8 @@ class TestTranscriptionHandler:
         with patch("voice_mcp.voice.stt.REALTIMESTT_AVAILABLE", True):
             handler._is_initialized = True
             handler._recorder = Mock()
+            handler._recorder.start = Mock()
+            handler._recorder.text = Mock(return_value="test transcription")
             handler.device = "cpu"
             handler.compute_type = "int8"
 
@@ -263,7 +265,8 @@ class TestTranscriptionHandler:
             handler._recorder = Mock()
             handler._recorder.set_on_recording_stop = Mock()
             handler._recorder.set_on_realtime_transcription_stabilized = Mock()
-            handler._recorder.listen = Mock()
+            handler._recorder.start = Mock()
+            handler._recorder.text = Mock(return_value="test transcription")
 
             with patch("voice_mcp.voice.stt.config") as mock_config:
                 mock_config.stt_model = "base"
@@ -280,7 +283,8 @@ class TestTranscriptionHandler:
                     assert result["duration"] == 5.0
                     assert result["language"] == "en"
                     assert result["model"] == "base"
-                    handler._recorder.listen.assert_called_once()
+                    handler._recorder.start.assert_called_once()
+                    handler._recorder.text.assert_called_once()
 
     def test_transcribe_with_realtime_output_callback_error(self):
         """Test real-time transcription with callback errors."""
@@ -293,7 +297,8 @@ class TestTranscriptionHandler:
             handler._recorder = Mock()
             handler._recorder.set_on_recording_stop = Mock()
             handler._recorder.set_on_realtime_transcription_stabilized = Mock()
-            handler._recorder.listen = Mock()
+            handler._recorder.start = Mock()
+            handler._recorder.text = Mock(return_value="test transcription")
 
             callback_called = []
 
@@ -331,7 +336,8 @@ class TestTranscriptionHandler:
             handler._recorder = Mock()
             handler._recorder.set_on_recording_stop = Mock()
             handler._recorder.set_on_realtime_transcription_stabilized = Mock()
-            handler._recorder.listen.side_effect = Exception("Recorder error")
+            handler._recorder.start.side_effect = Exception("Recorder error")
+            handler._recorder.text = Mock(return_value="test transcription")
 
             with patch("voice_mcp.voice.stt.config") as mock_config:
                 mock_config.stt_model = "base"
@@ -355,6 +361,8 @@ class TestTranscriptionHandler:
         with patch("voice_mcp.voice.stt.REALTIMESTT_AVAILABLE", True):
             handler._is_initialized = True
             handler._recorder = Mock()
+            handler._recorder.start = Mock()
+            handler._recorder.text = Mock(return_value="test transcription")
 
             with patch.object(handler, "_timeout_context") as mock_timeout:
                 with patch("time.time", side_effect=[0.0, 3.0]):
@@ -437,6 +445,8 @@ class TestTranscriptionHandler:
         with patch("voice_mcp.voice.stt.REALTIMESTT_AVAILABLE", True):
             handler._is_initialized = True
             handler._recorder = Mock()
+            handler._recorder.start = Mock()
+            handler._recorder.text = Mock(return_value="test transcription")
 
             with patch.object(handler, "_timeout_context") as mock_timeout:
                 with patch("voice_mcp.voice.stt.config") as mock_config:
@@ -459,7 +469,8 @@ class TestTranscriptionHandler:
             mock_recorder = Mock()
             mock_recorder.set_on_recording_stop = Mock()
             mock_recorder.set_on_realtime_transcription_stabilized = Mock()
-            mock_recorder.listen = Mock()
+            mock_recorder.start = Mock()
+            mock_recorder.text = Mock(return_value="test transcription")
 
             def mock_preload():
                 handler._recorder = mock_recorder
@@ -515,8 +526,8 @@ class TestTranscriptionHandler:
                 nonlocal recording_stop_callback
                 recording_stop_callback = callback
 
-            def mock_listen():
-                # Simulate callbacks being called during listen
+            def mock_start():
+                # Simulate callbacks being called during start
                 if transcription_callback:
                     transcription_callback("partial text")
                 if recording_stop_callback:
@@ -528,7 +539,8 @@ class TestTranscriptionHandler:
             handler._recorder.set_on_recording_stop.side_effect = (
                 capture_recording_stop_callback
             )
-            handler._recorder.listen.side_effect = mock_listen
+            handler._recorder.start.side_effect = mock_start
+            handler._recorder.text.return_value = "final transcribed text"
 
             with patch("voice_mcp.voice.stt.config") as mock_config:
                 mock_config.stt_model = "base"

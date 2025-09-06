@@ -10,6 +10,78 @@ import torch
 
 from ..config import config
 
+# Fix for tqdm compatibility issue with huggingface_hub
+try:
+    from contextlib import nullcontext
+
+    import tqdm  # type: ignore
+    import tqdm.contrib.concurrent  # type: ignore
+    import tqdm.std  # type: ignore
+
+    # Patch the tqdm class to handle disabled_tqdm properly
+    original_tqdm_new = tqdm.std.tqdm.__new__
+
+    def patched_tqdm_new(cls, *args, **kwargs):
+        """Patched __new__ that handles get_lock properly."""
+        try:
+            # Get the lock with proper error handling
+            lock = cls.get_lock()
+            if lock is None:
+                # If get_lock returns None, create a proper lock
+                import threading
+
+                cls._lock = threading.RLock()
+        except (AttributeError, TypeError):
+            # If there's any issue with locking, create a proper lock
+            import threading
+
+            cls._lock = threading.RLock()
+
+        return original_tqdm_new(cls, *args, **kwargs)
+
+    # Apply the tqdm patch
+    tqdm.std.tqdm.__new__ = staticmethod(patched_tqdm_new)
+
+    # Patch the ensure_lock function to handle disabled_tqdm properly
+    original_ensure_lock = tqdm.contrib.concurrent.ensure_lock
+
+    def patched_ensure_lock(tqdm_class, lock_name=""):
+        """Patched ensure_lock that handles disabled_tqdm properly."""
+        try:
+            # Check if the class has the _lock attribute before trying to access it
+            if not hasattr(tqdm_class, "_lock"):
+                # For disabled_tqdm or other classes without _lock, return nullcontext
+                return nullcontext()
+            return original_ensure_lock(tqdm_class, lock_name)
+        except AttributeError as e:
+            if "_lock" in str(e) or "disabled_tqdm" in str(e):
+                # Create a no-op context manager for disabled_tqdm
+                return nullcontext()
+            raise
+
+    # Apply the patch globally before any imports that might use huggingface_hub
+    tqdm.contrib.concurrent.ensure_lock = patched_ensure_lock
+
+    # Also patch directly in tqdm.contrib.concurrent module for safety
+    if hasattr(tqdm.contrib.concurrent, "_executor_map"):
+        original_executor_map = tqdm.contrib.concurrent._executor_map
+
+        def patched_executor_map(executor_class, fn, *iterables, **kwargs):
+            """Patched _executor_map that handles disabled_tqdm properly."""
+            try:
+                return original_executor_map(executor_class, fn, *iterables, **kwargs)
+            except (AttributeError, TypeError) as e:
+                if "_lock" in str(e) or "context manager" in str(e):
+                    # If we encounter lock/context manager issues, fall back to simpler execution
+                    with executor_class() as executor:
+                        return list(executor.map(fn, *iterables))
+                raise
+
+        tqdm.contrib.concurrent._executor_map = patched_executor_map
+
+except ImportError:
+    pass
+
 if TYPE_CHECKING:
     from .text_output import TextOutputController
 
@@ -198,11 +270,6 @@ class TranscriptionHandler:
                 text=text[:50] + "..." if len(text) > 50 else text,
             )
 
-        def on_recording_stop(text: str) -> None:
-            nonlocal transcription_result
-            transcription_result = text
-            logger.info("Recording stopped", final_text=text)
-
         try:
             logger.info("Using preloaded STT model for transcription")
             recorder_to_use = self._recorder
@@ -212,7 +279,6 @@ class TranscriptionHandler:
 
             # Configure callbacks by directly setting the instance attributes
             logger.debug("Setting recorder callbacks for single transcription")
-            recorder_to_use.on_recording_stop = on_recording_stop
             recorder_to_use.on_realtime_transcription_stabilized = (
                 on_transcription_update
             )
@@ -223,10 +289,16 @@ class TranscriptionHandler:
             if duration:
                 # Record for specified duration
                 with self._timeout_context(duration):
-                    recorder_to_use.listen()  # type: ignore
+                    recorder_to_use.start()  # type: ignore
+                    transcription_result = recorder_to_use.text()  # type: ignore
             else:
                 # Record until silence
-                recorder_to_use.listen()  # type: ignore
+                recorder_to_use.start()  # type: ignore
+                transcription_result = recorder_to_use.text()  # type: ignore
+
+            recorder_to_use.shutdown()
+
+            logger.info("Recording stopped", final_text=transcription_result)
 
             end_time = time.time()
             actual_duration = end_time - start_time
@@ -323,38 +395,6 @@ class TranscriptionHandler:
                     exc_info=True,
                 )
 
-        def on_recording_stop(text: str) -> None:
-            nonlocal transcription_result
-            transcription_result = text
-            logger.info(
-                "Recording stopped with final text",
-                final_text=text[:100] + "..." if len(text) > 100 else text,
-                text_length=len(text),
-            )
-
-            # Final output to ensure we have the complete text
-            try:
-                result = text_output_controller.output_text(
-                    text, "typing", force_update=True
-                )
-                if result["success"]:
-                    logger.info(
-                        "Final typing successful", operation=result.get("operation", "")
-                    )
-                else:
-                    logger.error(
-                        "Final typing failed",
-                        error=result.get("error"),
-                        text_length=len(text),
-                    )
-            except Exception as e:
-                logger.error(
-                    "Final typing error",
-                    error=str(e),
-                    text_length=len(text),
-                    exc_info=True,
-                )
-
         try:
             logger.info("Using preloaded STT model for real-time transcription")
             recorder_to_use = self._recorder
@@ -364,7 +404,6 @@ class TranscriptionHandler:
 
             # Configure callbacks by directly setting the instance attributes
             logger.debug("Setting up recorder callbacks for real-time transcription")
-            recorder_to_use.on_recording_stop = on_recording_stop
             recorder_to_use.on_realtime_transcription_stabilized = (
                 on_realtime_transcription_update
             )
@@ -374,12 +413,50 @@ class TranscriptionHandler:
                 "Starting real-time transcription session", max_duration=duration
             )
 
+            text_output_controller.reset()
+
             # Start recording
             if duration:
                 with self._timeout_context(duration):
-                    recorder_to_use.listen()  # type: ignore
+                    recorder_to_use.start()  # type: ignore
+                    transcription_result = recorder_to_use.text()  # type: ignore
             else:
-                recorder_to_use.listen()  # type: ignore
+                recorder_to_use.start()  # type: ignore
+                transcription_result = recorder_to_use.text()  # type: ignore
+
+            recorder_to_use.shutdown()
+            logger.info(
+                "Recording stopped with final text",
+                final_text=(
+                    transcription_result[:100] + "..."
+                    if len(transcription_result) > 100
+                    else transcription_result
+                ),
+                text_length=len(transcription_result),
+            )
+
+            # Final output to ensure we have the complete text
+            try:
+                result = text_output_controller.output_text(
+                    transcription_result, "typing", force_update=True
+                )
+                if result["success"]:
+                    logger.info(
+                        "Final typing successful", operation=result.get("operation", "")
+                    )
+                else:
+                    logger.error(
+                        "Final typing failed",
+                        error=result.get("error"),
+                        text_length=len(transcription_result),
+                    )
+            except Exception as e:
+                logger.error(
+                    "Final typing error",
+                    error=str(e),
+                    text_length=len(transcription_result),
+                    exc_info=True,
+                )
 
             end_time = time.time()
             actual_duration = end_time - start_time
