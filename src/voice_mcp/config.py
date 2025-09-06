@@ -60,6 +60,13 @@ class ServerConfig:
     sample_rate: int = 16000
     chunk_size: int = 1024
 
+    # Audio quality settings
+    audio_quality_validation_enabled: bool = True  # Enable audio quality validation
+    audio_quality_mode: str = "balanced"  # fast, balanced, high_quality
+    audio_normalization_headroom: float = (
+        0.95  # Headroom for audio normalization (0.0-1.0)
+    )
+
     @classmethod
     def from_env(cls) -> "ServerConfig":
         """Create configuration from environment variables."""
@@ -112,6 +119,14 @@ class ServerConfig:
             == "true",
             sample_rate=int(os.getenv("VOICE_MCP_SAMPLE_RATE", "16000")),
             chunk_size=int(os.getenv("VOICE_MCP_CHUNK_SIZE", "1024")),
+            audio_quality_validation_enabled=os.getenv(
+                "VOICE_MCP_AUDIO_QUALITY_VALIDATION_ENABLED", "true"
+            ).lower()
+            == "true",
+            audio_quality_mode=os.getenv("VOICE_MCP_AUDIO_QUALITY_MODE", "balanced"),
+            audio_normalization_headroom=float(
+                os.getenv("VOICE_MCP_AUDIO_NORMALIZATION_HEADROOM", "0.95")
+            ),
         )
 
 

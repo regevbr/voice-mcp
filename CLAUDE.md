@@ -48,7 +48,7 @@ src/voice_mcp/
 1. **MCP Server**: FastMCP-based server with comprehensive voice tool set
 2. **TTS System**: Coqui TTS neural models with high-quality speech synthesis
 3. **GPU Acceleration**: Optional CUDA GPU support for faster TTS processing
-4. **Speech Rate Control**: User-configurable speech rate (speed) control
+4. **Speech Rate Control**: High-quality time-stretching for natural speech rate adjustment (maintains pitch)
 5. **STT System**: faster-whisper implementation with real-time transcription
 6. **Hotkey System**: Global keyboard shortcuts with voice-to-text activation
 7. **Multi-Instance Coordination**: Cross-process locking prevents hotkey conflicts between server instances  

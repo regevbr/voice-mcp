@@ -19,8 +19,16 @@ Voice MCP Server is configured through environment variables for maximum flexibi
 | `VOICE_MCP_TTS_MODEL` | `tts_models/en/ljspeech/tacotron2-DDC` | Coqui TTS model |
 | `VOICE_MCP_TTS_PRELOAD_ENABLED` | `true` | Enable TTS model preloading on startup |
 | `VOICE_MCP_TTS_GPU_ENABLED` | `false` | Enable GPU acceleration for TTS (requires CUDA) |
-| `VOICE_MCP_TTS_RATE` | `1.0` | Speech rate multiplier (>1.0 = faster, <1.0 = slower) |
+| `VOICE_MCP_TTS_RATE` | `1.0` | Speech rate multiplier (>1.0 = faster, <1.0 = slower, uses time-stretching) |
 | `VOICE_MCP_TTS_VOLUME` | `0.9` | Volume level (0.0 to 1.0) |
+
+## Audio Quality Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `VOICE_MCP_AUDIO_QUALITY_VALIDATION_ENABLED` | `true` | Enable audio quality validation |
+| `VOICE_MCP_AUDIO_QUALITY_MODE` | `balanced` | Quality mode (`fast`, `balanced`, `high_quality`) |
+| `VOICE_MCP_AUDIO_NORMALIZATION_HEADROOM` | `0.95` | Headroom for audio normalization (0.0-1.0) |
 
 ### Available TTS Models
 
@@ -127,6 +135,11 @@ VOICE_MCP_HOTKEY_NAME=menu
 VOICE_MCP_HOTKEY_OUTPUT_MODE=typing
 VOICE_MCP_TYPING_ENABLED=true
 VOICE_MCP_TYPING_DEBOUNCE_DELAY=0.05
+
+# Audio Quality Settings
+VOICE_MCP_AUDIO_QUALITY_VALIDATION_ENABLED=true
+VOICE_MCP_AUDIO_QUALITY_MODE=balanced
+VOICE_MCP_AUDIO_NORMALIZATION_HEADROOM=0.95
 ```
 
 ### Production Configuration
@@ -156,6 +169,11 @@ VOICE_MCP_ENABLE_HOTKEY=true
 VOICE_MCP_HOTKEY_NAME=ctrl+shift+v
 VOICE_MCP_HOTKEY_OUTPUT_MODE=clipboard
 VOICE_MCP_TYPING_ENABLED=false
+
+# Audio Quality Settings - High Performance
+VOICE_MCP_AUDIO_QUALITY_VALIDATION_ENABLED=true
+VOICE_MCP_AUDIO_QUALITY_MODE=high_quality
+VOICE_MCP_AUDIO_NORMALIZATION_HEADROOM=0.90
 ```
 
 ### Multi-Language Configuration
@@ -266,7 +284,7 @@ VOICE_MCP_STT_ENABLED=true
 
 ### Speech Rate Control
 
-Fine-tune speech speed for different use cases:
+Fine-tune speech speed using high-quality time-stretching that maintains natural pitch:
 
 ```bash
 # Presentations (clear and slow)
@@ -288,3 +306,8 @@ VOICE_MCP_TTS_RATE=1.5
 - `1.1-1.3`: Slightly faster for efficiency
 - `1.4-1.6`: Fast speech for quick notifications
 - `>1.6`: May sound unnatural depending on model
+
+**Technical Details:**
+- Uses librosa time-stretching for pitch-preserving speed adjustment
+- No audio distortion or "chipmunk effect"
+- Maintains natural speech characteristics at all rates
