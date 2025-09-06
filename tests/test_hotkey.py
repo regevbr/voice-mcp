@@ -550,6 +550,8 @@ class TestErrorHandling:
 
     def test_key_press_exception(self, mock_pynput):  # noqa: ARG002
         """Test exception handling in key press callback."""
+        import time
+
         callback = Mock(side_effect=Exception("Callback failed"))
         manager = HotkeyManager(on_hotkey_pressed=callback)
 
@@ -557,6 +559,9 @@ class TestErrorHandling:
 
         # This should not raise an exception
         manager._on_key_press("mock_f12_key")
+
+        # Wait for the callback thread to complete
+        time.sleep(0.1)
 
         # Callback should have been called despite the exception
         callback.assert_called_once()
