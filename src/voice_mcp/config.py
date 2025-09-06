@@ -6,6 +6,8 @@ import logging
 import os
 from dataclasses import dataclass
 
+import structlog
+
 
 @dataclass
 class ServerConfig:
@@ -81,11 +83,33 @@ class ServerConfig:
 
 def setup_logging(log_level: str = "INFO") -> None:
     """Setup logging configuration."""
+    # Configure Python's standard logging
     logging.basicConfig(
         level=getattr(logging, log_level.upper()),
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+
+    # Configure structlog to use Python's standard logging
+    structlog.configure(
+        processors=[
+            structlog.stdlib.filter_by_level,
+            structlog.stdlib.add_logger_name,
+            structlog.stdlib.add_log_level,
+            structlog.stdlib.PositionalArgumentsFormatter(),
+            structlog.processors.StackInfoRenderer(),
+            structlog.processors.format_exc_info,
+            structlog.processors.UnicodeDecoder(),
+            structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
+        ],
+        context_class=dict,
+        logger_factory=structlog.stdlib.LoggerFactory(),
+        wrapper_class=structlog.stdlib.BoundLogger,
+        cache_logger_on_first_use=True,
+    )
+
+    # Set the root logger level to ensure structlog respects it
+    logging.getLogger().setLevel(getattr(logging, log_level.upper()))
 
 
 # Global configuration instance
