@@ -397,6 +397,8 @@ class TestAdditionalCoverage:
 
     def test_file_lock_cleanup_failure(self, tmp_path):
         """Test FileBasedLock cleanup when file operations fail."""
+        import platform
+
         lock_file = tmp_path / "cleanup_fail.lock"
         lock = FileBasedLock(lock_file)
 
@@ -406,8 +408,23 @@ class TestAdditionalCoverage:
             file_obj = mock_open.return_value.__enter__.return_value
             file_obj.close.side_effect = Exception("Close failed")
 
+            # Mock the appropriate platform-specific lock method to return False
+            system = platform.system().lower()
+            if system in ("linux", "darwin"):
+                lock_method_patch = patch.object(
+                    lock, "_try_unix_lock", return_value=False
+                )
+            elif system == "windows":
+                lock_method_patch = patch.object(
+                    lock, "_try_windows_lock", return_value=False
+                )
+            else:
+                lock_method_patch = patch.object(
+                    lock, "_try_unix_lock", return_value=False
+                )
+
             # Attempt to acquire (will fail due to mocked conditions)
-            with patch.object(lock, "_try_unix_lock", return_value=False):
+            with lock_method_patch:
                 result = lock.try_acquire_immediate()
                 # Should handle exception gracefully
                 assert result is False
@@ -422,6 +439,8 @@ class TestAdditionalCoverage:
 
     def test_file_lock_close_exception_handling(self, tmp_path):
         """Test FileBasedLock handles file close exceptions."""
+        import platform
+
         lock_file = tmp_path / "close_exception.lock"
         lock = FileBasedLock(lock_file)
 
@@ -430,10 +449,23 @@ class TestAdditionalCoverage:
             file_obj = mock_open.return_value.__enter__.return_value
             file_obj.close.side_effect = Exception("Close failed")
 
+            # Mock the appropriate platform-specific lock method to raise OSError
+            system = platform.system().lower()
+            if system in ("linux", "darwin"):
+                lock_method_patch = patch.object(
+                    lock, "_try_unix_lock", side_effect=OSError("Lock failed")
+                )
+            elif system == "windows":
+                lock_method_patch = patch.object(
+                    lock, "_try_windows_lock", side_effect=OSError("Lock failed")
+                )
+            else:
+                lock_method_patch = patch.object(
+                    lock, "_try_unix_lock", side_effect=OSError("Lock failed")
+                )
+
             # This should trigger the exception handling in the OSError block
-            with patch.object(
-                lock, "_try_unix_lock", side_effect=OSError("Lock failed")
-            ):
+            with lock_method_patch:
                 result = lock.try_acquire_immediate()
                 assert result is False
 

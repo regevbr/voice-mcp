@@ -600,3 +600,106 @@ class TestHotkeyIntegration:
             assert sample_config.hotkey_name == "f12"
             assert sample_config.hotkey_output_mode == "typing"
             assert sample_config.stt_language == "en"
+
+    def test_parse_hotkey_invalid_key_error(self):
+        """Test parse_hotkey with invalid key names."""
+        manager = HotkeyManager()
+
+        # Test invalid single key
+        result = manager._parse_hotkey("invalid_key_name")
+        assert result["success"] is False
+        assert "Unknown key" in result["error"]
+
+        # Test invalid key in combination
+        result = manager._parse_hotkey("ctrl+invalid_key")
+        assert result["success"] is False
+        assert "Unknown key" in result["error"]
+
+    def test_parse_hotkey_exception_handling(self):
+        """Test parse_hotkey exception handling."""
+        manager = HotkeyManager()
+
+        # Mock _parse_single_key to raise an exception
+        with patch.object(
+            manager, "_parse_single_key", side_effect=Exception("Test error")
+        ):
+            result = manager._parse_hotkey("menu")
+            assert result["success"] is False
+            assert "error" in result
+
+    def test_stop_monitoring_exception_handling(self):
+        """Test stop_monitoring exception handling."""
+        manager = HotkeyManager()
+        manager._is_monitoring = True
+        manager._hotkey_name = "test_key"
+
+        # Mock thread and listener to raise exception
+        mock_thread = Mock()
+        mock_thread.join.side_effect = Exception("Thread join error")
+        manager._monitoring_thread = mock_thread
+
+        mock_listener = Mock()
+        mock_listener.stop.side_effect = Exception("Stop error")
+        manager._listener = mock_listener
+
+        # Mock lock manager that will also raise exception during cleanup
+        mock_lock_manager = Mock()
+        mock_lock_manager.cleanup.side_effect = Exception("Cleanup error")
+        manager._lock_manager = mock_lock_manager
+
+        with patch("voice_mcp.voice.hotkey.logger") as mock_logger:
+            result = manager.stop_monitoring()
+            assert result["success"] is False
+            assert "Failed to stop monitoring" in result["error"]
+            mock_logger.error.assert_called()
+
+            # Should still mark as not monitoring
+            assert manager._is_monitoring is False
+
+    def test_lock_manager_cleanup_error(self):
+        """Test lock manager cleanup error handling in stop_monitoring."""
+        manager = HotkeyManager()
+        manager._is_monitoring = True
+        manager._hotkey_name = "test_key"
+
+        # Mock lock manager that raises exception during cleanup
+        mock_lock_manager = Mock()
+        mock_lock_manager.cleanup.side_effect = Exception("Cleanup error")
+        manager._lock_manager = mock_lock_manager
+
+        with patch("voice_mcp.voice.hotkey.logger") as mock_logger:
+            result = manager.stop_monitoring()
+            assert result["success"] is True  # Should succeed despite cleanup error
+            mock_logger.warning.assert_called_with(
+                "Error cleaning up lock manager: Cleanup error"
+            )
+
+    def test_on_key_release(self):
+        """Test key release handling."""
+        manager = HotkeyManager()
+
+        # Add a key to pressed_keys and then test release
+        mock_key = "test_key"
+        manager._pressed_keys.add(mock_key)
+
+        # Test key release
+        manager._on_key_release(mock_key)
+
+        # Key should be removed from pressed_keys
+        assert mock_key not in manager._pressed_keys
+
+    def test_process_hotkey_with_lock(self):
+        """Test hotkey processing with lock manager."""
+        callback_called = False
+
+        def test_callback():
+            nonlocal callback_called
+            callback_called = True
+
+        manager = HotkeyManager(on_hotkey_pressed=test_callback)
+
+        # Test processing hotkey with lock (method just calls callback)
+        manager._process_hotkey_with_lock()
+
+        # Verify callback was called
+        assert callback_called is True
