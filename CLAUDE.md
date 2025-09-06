@@ -8,7 +8,7 @@ Voice MCP Server is a comprehensive Python implementation of a Model Context Pro
 
 ## Current Status
 
-✅ **Completed (Phase 1-5):**
+✅ **Completed (Phase 1-6):**
 - Complete MCP server foundation using FastMCP framework
 - Advanced TTS implementation with Coqui TTS neural models
 - Full STT implementation with faster-whisper and real-time processing
@@ -16,8 +16,11 @@ Voice MCP Server is a comprehensive Python implementation of a Model Context Pro
 - Advanced text output system (typing, clipboard, return modes)
 - Comprehensive audio processing pipeline (NumPy, LibROSA, WebRTC VAD)
 - Production-ready configuration management with environment variables
-- Rich testing suite covering all voice functionality
-- Updated documentation reflecting full implementation
+- Rich testing suite covering all voice functionality (92% coverage achieved)
+- Enhanced stability with thread-safe operations and robust cleanup
+- Security improvements with CodeQL scanning and vulnerability testing
+- Performance optimizations (STT silence threshold: 4.0s → 3.0s)
+- Updated documentation reflecting latest improvements
 
 ## Architecture
 
@@ -56,11 +59,11 @@ src/voice_mcp/
 **Required Python**: 3.12+ (due to dependency constraints)
 
 ```bash
-# Install with uv (recommended)
-uv sync --dev
+# Install with uv (recommended) - includes audio extras
+uv sync --extra audio --dev --upgrade
 
 # Alternative with pip
-pip install -e .
+pip install -e .[audio]
 
 # Run tests
 uv run pytest -v

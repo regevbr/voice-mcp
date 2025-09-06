@@ -37,7 +37,8 @@ Popular Coqui TTS models:
 | `VOICE_MCP_STT_MODEL` | `base`  | Whisper model size |
 | `VOICE_MCP_STT_DEVICE` | `auto`  | Processing device (`auto`, `cuda`, `cpu`) |
 | `VOICE_MCP_STT_LANGUAGE` | `en`    | Default STT language |
-| `VOICE_MCP_STT_SILENCE_THRESHOLD` | `3.0`   | Silence detection threshold (seconds) |
+| `VOICE_MCP_STT_SILENCE_THRESHOLD` | `3.0`   | Silence detection threshold (seconds)
+
 
 ### Available STT Models
 
