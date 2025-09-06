@@ -163,7 +163,7 @@ class TestCleanupResources:
 
     @patch("voice_mcp.server.config")
     @patch("voice_mcp.server.VoiceTools")
-    @patch("voice_mcp.server.get_transcription_handler")
+    @patch("voice_mcp.voice.stt.get_transcription_handler")
     def test_cleanup_resources_with_hotkey_enabled(
         self, _mock_get_stt, _mock_voice_tools, mock_config
     ):
@@ -184,7 +184,7 @@ class TestCleanupResources:
 
     @patch("voice_mcp.server.config")
     @patch("voice_mcp.server.VoiceTools")
-    @patch("voice_mcp.server.get_transcription_handler")
+    @patch("voice_mcp.voice.stt.get_transcription_handler")
     def test_cleanup_resources_with_hotkey_disabled(
         self, _mock_get_stt, _mock_voice_tools, mock_config
     ):
@@ -204,7 +204,7 @@ class TestCleanupResources:
 
     @patch("voice_mcp.server.config")
     @patch("voice_mcp.server.VoiceTools")
-    @patch("voice_mcp.server.get_transcription_handler")
+    @patch("voice_mcp.voice.stt.get_transcription_handler")
     def test_cleanup_resources_with_exception(
         self, _mock_get_stt, _mock_voice_tools, mock_config
     ):
@@ -230,7 +230,7 @@ class TestMainFunction:
     @patch("voice_mcp.server.parse_args")
     @patch("voice_mcp.server.setup_logging")
     @patch("voice_mcp.server.config")
-    @patch("voice_mcp.server.get_transcription_handler")
+    @patch("voice_mcp.voice.stt.get_transcription_handler")
     @patch("voice_mcp.server.VoiceTools")
     @patch("voice_mcp.server.mcp")
     def test_main_stdio_transport(
@@ -261,7 +261,7 @@ class TestMainFunction:
     @patch("voice_mcp.server.parse_args")
     @patch("voice_mcp.server.setup_logging")
     @patch("voice_mcp.server.config")
-    @patch("voice_mcp.server.get_transcription_handler")
+    @patch("voice_mcp.voice.stt.get_transcription_handler")
     @patch("voice_mcp.server.VoiceTools")
     @patch("voice_mcp.server.mcp")
     def test_main_sse_transport(
@@ -294,7 +294,7 @@ class TestMainFunction:
     @patch("voice_mcp.server.parse_args")
     @patch("voice_mcp.server.setup_logging")
     @patch("voice_mcp.server.config")
-    @patch("voice_mcp.server.get_transcription_handler")
+    @patch("voice_mcp.voice.stt.get_transcription_handler")
     @patch("voice_mcp.server.VoiceTools")
     @patch("voice_mcp.server.mcp")
     @patch("voice_mcp.server.cleanup_resources")
@@ -328,14 +328,14 @@ class TestMainFunction:
     @patch("voice_mcp.server.parse_args")
     @patch("voice_mcp.server.setup_logging")
     @patch("voice_mcp.server.config")
-    @patch("voice_mcp.server.get_transcription_handler")
+    @patch("voice_mcp.server.get_loading_manager")
     @patch("voice_mcp.server.VoiceTools")
     @patch("voice_mcp.server.mcp")
     def test_main_with_stt_enabled_success(
         self,
         _mock_mcp,
         _mock_voice_tools,
-        _mock_get_stt,
+        _mock_get_loading_manager,
         mock_config,
         _mock_setup_logging,
         mock_parse_args,
@@ -350,26 +350,25 @@ class TestMainFunction:
         mock_config.stt_enabled = True
         mock_config.enable_hotkey = False
 
-        mock_stt_handler = Mock()
-        mock_stt_handler.preload.return_value = True
-        _mock_get_stt.return_value = mock_stt_handler
+        mock_loading_manager = Mock()
+        _mock_get_loading_manager.return_value = mock_loading_manager
 
         main()
 
-        mock_stt_handler.preload.assert_called_once()
+        mock_loading_manager.start_background_loading.assert_called_once()
         _mock_mcp.run.assert_called_once_with(transport="stdio")
 
     @patch("voice_mcp.server.parse_args")
     @patch("voice_mcp.server.setup_logging")
     @patch("voice_mcp.server.config")
-    @patch("voice_mcp.server.get_transcription_handler")
+    @patch("voice_mcp.server.get_loading_manager")
     @patch("voice_mcp.server.VoiceTools")
     @patch("voice_mcp.server.mcp")
     def test_main_with_stt_enabled_failure(
         self,
         _mock_mcp,
         _mock_voice_tools,
-        _mock_get_stt,
+        _mock_get_loading_manager,
         mock_config,
         _mock_setup_logging,
         mock_parse_args,
@@ -384,26 +383,25 @@ class TestMainFunction:
         mock_config.stt_enabled = True
         mock_config.enable_hotkey = False
 
-        mock_stt_handler = Mock()
-        mock_stt_handler.preload.return_value = False
-        _mock_get_stt.return_value = mock_stt_handler
+        mock_loading_manager = Mock()
+        _mock_get_loading_manager.return_value = mock_loading_manager
 
         main()
 
-        mock_stt_handler.preload.assert_called_once()
+        mock_loading_manager.start_background_loading.assert_called_once()
         _mock_mcp.run.assert_called_once_with(transport="stdio")
 
     @patch("voice_mcp.server.parse_args")
     @patch("voice_mcp.server.setup_logging")
     @patch("voice_mcp.server.config")
-    @patch("voice_mcp.server.get_transcription_handler")
+    @patch("voice_mcp.server.get_loading_manager")
     @patch("voice_mcp.server.VoiceTools")
     @patch("voice_mcp.server.mcp")
     def test_main_with_hotkey_enabled(
         self,
         _mock_mcp,
         _mock_voice_tools,
-        _mock_get_stt,
+        _mock_get_loading_manager,
         mock_config,
         _mock_setup_logging,
         mock_parse_args,
@@ -418,17 +416,18 @@ class TestMainFunction:
         mock_config.stt_enabled = False
         mock_config.enable_hotkey = True
 
-        _mock_voice_tools.start_hotkey_monitoring.return_value = "Started"
+        mock_loading_manager = Mock()
+        _mock_get_loading_manager.return_value = mock_loading_manager
 
         main()
 
-        _mock_voice_tools.start_hotkey_monitoring.assert_called_once()
+        mock_loading_manager.start_background_loading.assert_called_once()
         _mock_mcp.run.assert_called_once_with(transport="stdio")
 
     @patch("voice_mcp.server.parse_args")
     @patch("voice_mcp.server.setup_logging")
     @patch("voice_mcp.server.config")
-    @patch("voice_mcp.server.get_transcription_handler")
+    @patch("voice_mcp.voice.stt.get_transcription_handler")
     @patch("voice_mcp.server.VoiceTools")
     @patch("voice_mcp.server.mcp")
     @patch("voice_mcp.server.cleanup_resources")
@@ -461,7 +460,7 @@ class TestMainFunction:
     @patch("voice_mcp.server.parse_args")
     @patch("voice_mcp.server.setup_logging")
     @patch("voice_mcp.server.config")
-    @patch("voice_mcp.server.get_transcription_handler")
+    @patch("voice_mcp.voice.stt.get_transcription_handler")
     @patch("voice_mcp.server.VoiceTools")
     @patch("voice_mcp.server.mcp")
     @patch("voice_mcp.server.cleanup_resources")
@@ -497,7 +496,7 @@ class TestMainFunction:
     @patch("voice_mcp.server.parse_args")
     @patch("voice_mcp.server.setup_logging")
     @patch("voice_mcp.server.config")
-    @patch("voice_mcp.server.get_transcription_handler")
+    @patch("voice_mcp.voice.stt.get_transcription_handler")
     @patch("voice_mcp.server.VoiceTools")
     @patch("voice_mcp.server.mcp")
     @patch("voice_mcp.server.cleanup_resources")
@@ -705,7 +704,7 @@ class TestUtilityFunctions:
                 return_value="Stopped",
             ):
                 with patch(
-                    "voice_mcp.server.get_transcription_handler"
+                    "voice_mcp.voice.stt.get_transcription_handler"
                 ) as mock_get_stt:
                     mock_stt = Mock()
                     mock_get_stt.return_value = mock_stt
