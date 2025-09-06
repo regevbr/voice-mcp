@@ -4,8 +4,11 @@ Voice MCP Server - Simplified version with only essential tools.
 
 import argparse
 import atexit
+import os
 import signal
 import sys
+import threading
+import time
 from typing import Any
 
 import structlog
@@ -24,6 +27,37 @@ mcp = FastMCP(
     instructions="A Model Context Protocol server providing text-to-speech (TTS) capabilities and hotkey monitoring for AI assistants.",
     version="3.0.0",
 )
+
+
+def log_active_threads():
+    """Log all currently active threads for debugging."""
+    threads = threading.enumerate()
+    logger.debug(f"Active threads count: {len(threads)}")
+    for thread in threads:
+        logger.debug(
+            "Active thread",
+            name=thread.name,
+            daemon=thread.daemon,
+            alive=thread.is_alive(),
+            ident=thread.ident,
+        )
+
+
+def force_exit_after_timeout(timeout_seconds: int = 5):
+    """Force exit after timeout if the process is still hanging."""
+
+    def timeout_handler():
+        time.sleep(timeout_seconds)
+        logger.warning(
+            f"Process still hanging after {timeout_seconds}s, forcing exit..."
+        )
+        log_active_threads()
+        logger.warning("Using os._exit(1) to force termination")
+        os._exit(1)
+
+    # Start timeout handler in daemon thread
+    timer_thread = threading.Thread(target=timeout_handler, daemon=True)
+    timer_thread.start()
 
 
 # Cleanup function for hotkey monitoring and STT
@@ -169,7 +203,26 @@ def setup_signal_handlers():
 
     def signal_handler(signum, _frame):
         logger.info(f"Received signal {signum}, shutting down gracefully...")
+
+        # Log threads before cleanup
+        logger.debug("Threads before cleanup:")
+        log_active_threads()
+
+        # Start force exit timer
+        force_exit_after_timeout(8)
+
+        # Perform cleanup
         cleanup_resources()
+
+        # Log threads after cleanup
+        logger.debug("Threads after cleanup:")
+        log_active_threads()
+
+        # Give threads a moment to finish naturally
+        logger.info("Allowing 2 seconds for remaining threads to finish...")
+        time.sleep(2)
+
+        logger.info("Graceful shutdown complete")
         sys.exit(0)
 
     # Handle termination signals
