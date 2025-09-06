@@ -99,10 +99,11 @@ Here are the commits to analyze:"
     fi
 
     print_status "Successfully generated changelog"
-    cat "$changelog_file"
 
     # Clean up temp files
     rm -f "$temp_file"
+
+    # Return only the file path
     echo "$changelog_file"
 }
 
