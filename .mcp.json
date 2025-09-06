@@ -4,12 +4,8 @@
       "command": "bash",
       "args": [
         "-c",
-        "uv run python -m voice_mcp.server 2> /tmp/voice-mcp.log"
-      ],
-      "env": {
-        "VOICE_MCP_DEBUG": "true",
-        "VOICE_MCP_LOG_LEVEL": "DEBUG"
-      }
+        "uv run python -m voice_mcp.server"
+      ]
     }
   }
 }
