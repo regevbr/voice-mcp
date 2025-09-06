@@ -142,10 +142,20 @@ multi_line_output = 3
 line_length = 88
 known_first_party = ["voice_mcp"]
 
-# Ruff linting configuration
+# Ruff linting and formatting configuration
 [tool.ruff]
 line-length = 88
 target-version = "py312"
+
+[tool.ruff.format]
+# Use double quotes for strings
+quote-style = "double"
+# Use spaces for indentation
+indent-style = "space"
+# Respect magic trailing comma
+skip-magic-trailing-comma = false
+# Automatically detect line ending
+line-ending = "auto"
 
 [tool.ruff.lint]
 select = [

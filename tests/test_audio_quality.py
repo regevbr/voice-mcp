@@ -115,9 +115,9 @@ class TestAudioQuality:
             if max_val > headroom:
                 normalized_audio = audio * (headroom / max_val)
                 new_peak = np.abs(normalized_audio).max()
-                assert (
-                    new_peak <= headroom
-                ), f"Normalized peak ({new_peak}) should be <= headroom ({headroom})"
+                assert new_peak <= headroom, (
+                    f"Normalized peak ({new_peak}) should be <= headroom ({headroom})"
+                )
 
         finally:
             # Restore original config
@@ -164,9 +164,9 @@ class TestAudioProcessingIntegration:
             is_valid, error_msg = engine._validate_audio_quality(audio_array)
 
             if should_pass:
-                assert (
-                    is_valid
-                ), f"{description} should pass validation but failed: {error_msg}"
+                assert is_valid, (
+                    f"{description} should pass validation but failed: {error_msg}"
+                )
             else:
                 assert not is_valid, f"{description} should fail validation but passed"
 
@@ -187,4 +187,3 @@ class TestTTSAudioQuality:
 
         # Test rate adjustment doesn't cause distortion
         # This test would validate actual TTS output quality at different rates
-

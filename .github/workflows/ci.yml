@@ -72,7 +72,7 @@ jobs:
     - name: Check formatting
       run: |
         echo "🎨 Checking code formatting..."
-        uv run black --check --diff src/ tests/
+        uv run ruff format --check --diff src/ tests/
 
     - name: Check import sorting
       run: |

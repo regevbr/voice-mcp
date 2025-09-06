@@ -2,14 +2,6 @@ repos:
   # Local hooks for project-specific tools
   - repo: local
     hooks:
-      # Black code formatting
-      - id: black
-        name: black
-        entry: uv run black
-        language: system
-        types: [python]
-        require_serial: true
-        args: [--check, --diff]
 
       # isort import sorting
       - id: isort
