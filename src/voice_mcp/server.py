@@ -285,8 +285,9 @@ def main():
     """Main entry point for the MCP server."""
     args = parse_args()
 
-    # Setup logging based on arguments
-    setup_logging(args.log_level)
+    # Setup logging based on arguments - use DEBUG level when debug flag is set
+    log_level = "DEBUG" if args.debug else args.log_level
+    setup_logging(log_level)
 
     # Setup signal handlers for graceful shutdown
     setup_signal_handlers()
@@ -294,6 +295,7 @@ def main():
     logger.info("Starting Voice MCP Server...")
     logger.info(f"Transport: {args.transport}")
     logger.info(f"Debug mode: {args.debug}")
+    logger.info(f"Log level: {log_level}")
 
     # Start background preloading for faster subsequent calls
     loading_manager = get_loading_manager()
