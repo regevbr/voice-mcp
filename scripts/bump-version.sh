@@ -147,7 +147,10 @@ update_version_file() {
 
 # Get the latest git tag
 get_latest_tag() {
-    git describe --tags --abbrev=0 2>/dev/null || echo "HEAD~50"
+    git describe --tags --abbrev=0 2>/dev/null || {
+        # If no tags exist, use the first commit as reference
+        git rev-list --max-parents=0 HEAD 2>/dev/null || echo "HEAD"
+    }
 }
 
 # Create git tag and commit
