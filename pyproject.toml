@@ -1,6 +1,6 @@
 [project]
 name = "voice-mcp"
-version = "0.1.0"
+version = "0.1.1"
 description = "A modern MCP server providing text-to-speech and speech-to-text capabilities"
 readme = "README.md"
 license = {text = "Apache-2.0"}
