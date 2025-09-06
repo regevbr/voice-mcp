@@ -924,14 +924,13 @@ class TestHotkeyIntegration:
 
     def test_del_method(self):
         """Test __del__ method cleanup."""
-        import gc
         manager = HotkeyManager()
         manager._is_monitoring = True
 
         with patch.object(manager, "stop_monitoring") as mock_stop:
-            # Delete the manager and force garbage collection
-            del manager
-            gc.collect()
+            # Directly call __del__ method since Python's garbage collection
+            # doesn't guarantee __del__ will be called in test environments
+            manager.__del__()
             mock_stop.assert_called_once()
 
     def test_del_method_exception(self):

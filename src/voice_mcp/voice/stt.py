@@ -10,6 +10,8 @@ import torch
 
 from ..config import config
 
+logger = structlog.get_logger(__name__)
+
 # Fix for tqdm compatibility issue with RealtimeSTT/huggingface_hub
 # This addresses tqdm locking issues when used with disabled_tqdm classes
 try:
@@ -81,9 +83,6 @@ except ImportError:
     # Create a placeholder type for type checking
     class AudioToTextRecorder:  # type: ignore
         pass
-
-
-logger = structlog.get_logger(__name__)
 
 
 class TranscriptionHandler:
