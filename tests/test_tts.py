@@ -579,7 +579,7 @@ class TestAdditionalTTSCoverage:
             engine = CoquiTTSEngine("test_model", False)
 
             result = engine.speak("Hello world")
-            assert result is None
+            assert result is False
 
     @patch("voice_mcp.voice.tts.AudioManager")
     def test_speak_tts_to_file_failure(self, mock_audio_manager_class):
@@ -589,13 +589,15 @@ class TestAdditionalTTSCoverage:
 
         with patch("TTS.api.TTS") as mock_tts_class:
             mock_tts_instance = Mock()
-            mock_tts_instance.tts_to_file.side_effect = Exception("TTS synthesis failed")
+            mock_tts_instance.tts_to_file.side_effect = Exception(
+                "TTS synthesis failed"
+            )
             mock_tts_class.return_value = mock_tts_instance
 
             engine = CoquiTTSEngine("test_model", False)
 
             result = engine.speak("Hello world")
-            assert result is None
+            assert result is False
 
     @patch("voice_mcp.voice.tts.AudioManager")
     def test_speak_audio_processing_failure(self, mock_audio_manager_class):
@@ -604,12 +606,15 @@ class TestAdditionalTTSCoverage:
         mock_audio_manager_class.return_value = mock_audio_manager
 
         # Mock audio manager to fail during processing
-        mock_audio_manager.apply_time_stretch_effects.side_effect = Exception("Audio processing failed")
+        mock_audio_manager.apply_time_stretch_effects.side_effect = Exception(
+            "Audio processing failed"
+        )
 
-        with patch("TTS.api.TTS") as mock_tts_class, \
-             patch("tempfile.NamedTemporaryFile") as mock_temp_file, \
-             patch("os.path.exists", return_value=True):
-
+        with (
+            patch("TTS.api.TTS") as mock_tts_class,
+            patch("tempfile.NamedTemporaryFile") as mock_temp_file,
+            patch("os.path.exists", return_value=True),
+        ):
             mock_tts_instance = Mock()
             mock_tts_class.return_value = mock_tts_instance
 
@@ -621,7 +626,7 @@ class TestAdditionalTTSCoverage:
             engine = CoquiTTSEngine("test_model", False)
 
             result = engine.speak("Hello world", rate=1.2)
-            assert result is None
+            assert result is False
 
     @patch("voice_mcp.voice.tts.AudioManager")
     def test_speak_file_cleanup_failure(self, mock_audio_manager_class):
@@ -629,11 +634,12 @@ class TestAdditionalTTSCoverage:
         mock_audio_manager = Mock()
         mock_audio_manager_class.return_value = mock_audio_manager
 
-        with patch("TTS.api.TTS") as mock_tts_class, \
-             patch("tempfile.NamedTemporaryFile") as mock_temp_file, \
-             patch("os.path.exists", return_value=True), \
-             patch("os.unlink", side_effect=OSError("Permission denied")):
-
+        with (
+            patch("TTS.api.TTS") as mock_tts_class,
+            patch("tempfile.NamedTemporaryFile") as mock_temp_file,
+            patch("os.path.exists", return_value=True),
+            patch("os.unlink", side_effect=OSError("Permission denied")),
+        ):
             mock_tts_instance = Mock()
             mock_tts_class.return_value = mock_tts_instance
 
@@ -672,7 +678,7 @@ class TestAdditionalTTSCoverage:
         manager = TTSManager("test_model")
         result = manager.speak("Hello world")
 
-        assert result is None
+        assert "TTS error: Synthesis error" in result
 
     @patch("voice_mcp.voice.tts.CoquiTTSEngine")
     def test_tts_manager_stop_exception_handled(self, mock_engine_class):
@@ -687,4 +693,6 @@ class TestAdditionalTTSCoverage:
             manager.stop()
         except Exception as err:
             # If it raises, that means it's not handling the exception properly
-            raise AssertionError("TTSManager.stop() should handle engine stop exceptions") from err
+            raise AssertionError(
+                "TTSManager.stop() should handle engine stop exceptions"
+            ) from err

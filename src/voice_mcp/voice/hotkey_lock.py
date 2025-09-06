@@ -379,17 +379,21 @@ class HotkeyLockManager:
             logger.warning("No lock implementation available, processing anyway")
             return True
 
-        success = self.lock.try_acquire_immediate()
-        if success:
-            logger.info(f"Acquired hotkey processing lock for '{self.hotkey_name}'")
-            # Start background thread to release lock after processing duration
-            self._start_lock_release_timer()
-        else:
-            logger.debug(
-                f"Hotkey lock for '{self.hotkey_name}' held by another process, forfeiting"
-            )
+        try:
+            success = self.lock.try_acquire_immediate()
+            if success:
+                logger.info(f"Acquired hotkey processing lock for '{self.hotkey_name}'")
+                # Start background thread to release lock after processing duration
+                self._start_lock_release_timer()
+            else:
+                logger.debug(
+                    f"Hotkey lock for '{self.hotkey_name}' held by another process, forfeiting"
+                )
 
-        return success
+            return success
+        except Exception as e:
+            logger.error(f"Error acquiring hotkey lock: {e}")
+            return False
 
     def _start_lock_release_timer(self) -> None:
         """Start background timer to release lock after processing duration."""
@@ -445,13 +449,19 @@ class HotkeyLockManager:
 
         # Release the actual lock
         if self.lock:
-            success = self.lock.release_immediate()
-            if success:
-                logger.info(f"Released hotkey processing lock for '{self.hotkey_name}'")
-            else:
-                logger.warning(
-                    f"Failed to release hotkey lock for '{self.hotkey_name}'"
-                )
+            try:
+                success = self.lock.release_immediate()
+                if success:
+                    logger.info(
+                        f"Released hotkey processing lock for '{self.hotkey_name}'"
+                    )
+                else:
+                    logger.warning(
+                        f"Failed to release hotkey lock for '{self.hotkey_name}'"
+                    )
+            except Exception as e:
+                logger.error(f"Error releasing hotkey lock: {e}")
+                success = False
 
         return success
 

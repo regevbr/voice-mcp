@@ -22,6 +22,7 @@ class TestLoadingStateManager:
         # Clear singleton instance for clean test isolation
         LoadingStateManager._instance = None
         import voice_mcp.loading
+
         voice_mcp.loading._loading_manager = None
 
     def test_singleton_pattern(self):
@@ -48,7 +49,7 @@ class TestLoadingStateManager:
         # Mock the executor to simulate already started
         manager._executor = Mock()
 
-        with patch.object(manager, '_start_component_loading') as mock_start:
+        with patch.object(manager, "_start_component_loading") as mock_start:
             manager.start_background_loading()
             # Should not call _start_component_loading since executor already exists
             mock_start.assert_not_called()
@@ -77,7 +78,9 @@ class TestLoadingStateManager:
 
         # Should set status to FAILED and record error
         assert manager._component_status[ComponentType.TTS] == ComponentStatus.FAILED
-        assert "Executor not initialized" in manager._component_errors[ComponentType.TTS]
+        assert (
+            "Executor not initialized" in manager._component_errors[ComponentType.TTS]
+        )
 
     def test_load_component_safely_success(self):
         """Test _load_component_safely with successful loading."""
@@ -114,19 +117,24 @@ class TestLoadingStateManager:
         manager._load_component_safely(ComponentType.TTS, mock_loader)
 
         assert manager._component_status[ComponentType.TTS] == ComponentStatus.FAILED
-        assert "Error during tts preloading: Test error" in manager._component_errors[ComponentType.TTS]
+        assert (
+            "Error during tts preloading: Test error"
+            in manager._component_errors[ComponentType.TTS]
+        )
 
     def test_load_tts_exception(self):
         """Test _load_tts with exception."""
         manager = LoadingStateManager()
 
-        with patch.object(manager, '_load_tts') as mock_load:
+        with patch.object(manager, "_load_tts") as mock_load:
             mock_load.side_effect = Exception("TTS error")
             with pytest.raises(Exception, match="TTS error"):
                 manager._load_tts()
 
         # Test the real method with mock
-        with patch('voice_mcp.tools.get_tts_manager', side_effect=Exception("TTS error")):
+        with patch(
+            "voice_mcp.tools.get_tts_manager", side_effect=Exception("TTS error")
+        ):
             result = manager._load_tts()
             assert result is False
 
@@ -138,7 +146,7 @@ class TestLoadingStateManager:
         mock_tts_manager = Mock()
         mock_tts_manager.is_available.return_value = False
 
-        with patch('voice_mcp.tools.get_tts_manager', return_value=mock_tts_manager):
+        with patch("voice_mcp.tools.get_tts_manager", return_value=mock_tts_manager):
             result = manager._load_tts()
             assert result is False
 
@@ -146,7 +154,10 @@ class TestLoadingStateManager:
         """Test _load_stt with exception."""
         manager = LoadingStateManager()
 
-        with patch('voice_mcp.voice.stt.get_transcription_handler', side_effect=Exception("STT error")):
+        with patch(
+            "voice_mcp.voice.stt.get_transcription_handler",
+            side_effect=Exception("STT error"),
+        ):
             result = manager._load_stt()
             assert result is False
 
@@ -158,7 +169,10 @@ class TestLoadingStateManager:
         mock_stt_handler = Mock()
         mock_stt_handler.preload.return_value = False
 
-        with patch('voice_mcp.voice.stt.get_transcription_handler', return_value=mock_stt_handler):
+        with patch(
+            "voice_mcp.voice.stt.get_transcription_handler",
+            return_value=mock_stt_handler,
+        ):
             result = manager._load_stt()
             assert result is False
 
@@ -166,7 +180,10 @@ class TestLoadingStateManager:
         """Test _load_hotkey with exception."""
         manager = LoadingStateManager()
 
-        with patch('voice_mcp.tools.VoiceTools.start_hotkey_monitoring', side_effect=Exception("Hotkey error")):
+        with patch(
+            "voice_mcp.tools.VoiceTools.start_hotkey_monitoring",
+            side_effect=Exception("Hotkey error"),
+        ):
             result = manager._load_hotkey()
             assert result is False
 
@@ -175,7 +192,10 @@ class TestLoadingStateManager:
         manager = LoadingStateManager()
 
         # Mock VoiceTools to return failure result (no ✅)
-        with patch('voice_mcp.tools.VoiceTools.start_hotkey_monitoring', return_value="❌ Failed to start"):
+        with patch(
+            "voice_mcp.tools.VoiceTools.start_hotkey_monitoring",
+            return_value="❌ Failed to start",
+        ):
             result = manager._load_hotkey()
             assert result is False
 
@@ -231,7 +251,7 @@ class TestLoadingStateManager:
         result = manager.wait_for_ready(ComponentType.TTS, timeout=0.01)
         assert result is False
 
-    @patch('voice_mcp.loading.config')
+    @patch("voice_mcp.loading.config")
     def test_get_overall_status(self, mock_config):
         """Test get_overall_status returns comprehensive status."""
         mock_config.tts_preload_enabled = True
@@ -289,7 +309,7 @@ class TestLoadingStateManager:
         # Should cleanup
         assert manager._executor is None
 
-    @patch('voice_mcp.loading.config')
+    @patch("voice_mcp.loading.config")
     def test_background_loading_with_disabled_components(self, mock_config):
         """Test background loading when some components are disabled."""
         mock_config.tts_preload_enabled = False
@@ -298,17 +318,20 @@ class TestLoadingStateManager:
 
         manager = LoadingStateManager()
 
-        with patch.object(manager, '_start_component_loading') as mock_start:
+        with patch.object(manager, "_start_component_loading") as mock_start:
             manager.start_background_loading()
 
             # Should only start hotkey loading
-            mock_start.assert_called_once_with(ComponentType.HOTKEY, manager._load_hotkey)
+            mock_start.assert_called_once_with(
+                ComponentType.HOTKEY, manager._load_hotkey
+            )
 
 
 def test_get_loading_manager_singleton():
     """Test get_loading_manager returns singleton instance."""
     # Clear any existing instance first
     import voice_mcp.loading
+
     voice_mcp.loading._loading_manager = None
 
     manager1 = get_loading_manager()

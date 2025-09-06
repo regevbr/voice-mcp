@@ -90,17 +90,17 @@ class CoquiTTSEngine:
         voice: str | None = None,  # noqa: ARG002
         rate: float | None = None,
         volume: float | None = None,  # noqa: ARG002
-    ) -> bool:
+    ) -> bool | None:
         """Convert text to speech using Coqui TTS."""
         # Ensure initialization (thread-safe)
         self._init_engine()
 
-        if not self.is_available():
-            logger.error("Coqui TTS engine not available")
-            return False
-
         if self._tts is None:
             logger.error("TTS engine not initialized")
+            return False
+
+        if not self.is_available():
+            logger.error("Coqui TTS engine not available")
             return False
 
         try:
@@ -116,9 +116,8 @@ class CoquiTTSEngine:
                 return True
             else:
                 # Fallback to file method if direct playback failed
-                logger.warning(
-                    "Direct audio playback failed, falling back to file method"
-                )
+                logger.warning("Direct audio playback failed, fallback not implemented")
+                return False
 
         except Exception as e:
             logger.error(f"Error during speech synthesis: {e}")
@@ -464,7 +463,11 @@ class TTSManager:
 
     def stop(self) -> None:
         """Stop current speech."""
-        self._engine.stop()
+        try:
+            self._engine.stop()
+        except Exception as e:
+            logger.error(f"Error stopping TTS engine: {e}")
+            # Don't re-raise, just log the error
 
     def is_available(self) -> bool:
         """Check if TTS engine is available."""

@@ -382,8 +382,8 @@ class TestAdditionalCoverage:
         lock_file = tmp_path / "windows_test.lock"
         lock = FileBasedLock(lock_file)
 
-        with patch('platform.system', return_value='Windows'):
-            with patch.object(lock, '_try_windows_lock', return_value=True):
+        with patch("platform.system", return_value="Windows"):
+            with patch.object(lock, "_try_windows_lock", return_value=True):
                 assert lock.try_acquire_immediate() is True
                 lock.release_immediate()
 
@@ -392,7 +392,7 @@ class TestAdditionalCoverage:
         lock_file = tmp_path / "unsupported.lock"
         lock = FileBasedLock(lock_file)
 
-        with patch('platform.system', return_value='UnsupportedOS'):
+        with patch("platform.system", return_value="UnsupportedOS"):
             assert lock.try_acquire_immediate() is False
 
     def test_file_lock_cleanup_failure(self, tmp_path):
@@ -401,13 +401,13 @@ class TestAdditionalCoverage:
         lock = FileBasedLock(lock_file)
 
         # Mock a file that fails to close
-        mock_file = patch('builtins.open')
+        mock_file = patch("builtins.open")
         with mock_file as mock_open:
             file_obj = mock_open.return_value.__enter__.return_value
             file_obj.close.side_effect = Exception("Close failed")
 
             # Attempt to acquire (will fail due to mocked conditions)
-            with patch.object(lock, '_try_unix_lock', return_value=False):
+            with patch.object(lock, "_try_unix_lock", return_value=False):
                 result = lock.try_acquire_immediate()
                 # Should handle exception gracefully
                 assert result is False
@@ -417,7 +417,7 @@ class TestAdditionalCoverage:
         lock_file = tmp_path / "oserror.lock"
         lock = FileBasedLock(lock_file)
 
-        with patch('builtins.open', side_effect=OSError("File system error")):
+        with patch("builtins.open", side_effect=OSError("File system error")):
             assert lock.try_acquire_immediate() is False
 
     def test_file_lock_close_exception_handling(self, tmp_path):
@@ -426,12 +426,14 @@ class TestAdditionalCoverage:
         lock = FileBasedLock(lock_file)
 
         # Mock file that raises exception during close in cleanup
-        with patch('builtins.open') as mock_open:
+        with patch("builtins.open") as mock_open:
             file_obj = mock_open.return_value.__enter__.return_value
             file_obj.close.side_effect = Exception("Close failed")
 
             # This should trigger the exception handling in the OSError block
-            with patch.object(lock, '_try_unix_lock', side_effect=OSError("Lock failed")):
+            with patch.object(
+                lock, "_try_unix_lock", side_effect=OSError("Lock failed")
+            ):
                 result = lock.try_acquire_immediate()
                 assert result is False
 
@@ -440,10 +442,14 @@ class TestAdditionalCoverage:
         lock = SemaphoreLock("test_semaphore")
 
         # Test when semaphore operations fail
-        with patch.object(lock.semaphore, 'acquire', side_effect=Exception("Semaphore error")):
+        with patch.object(
+            lock.semaphore, "acquire", side_effect=Exception("Semaphore error")
+        ):
             assert lock.try_acquire_immediate() is False
 
-        with patch.object(lock.semaphore, 'release', side_effect=Exception("Release error")):
+        with patch.object(
+            lock.semaphore, "release", side_effect=Exception("Release error")
+        ):
             # Should handle release errors gracefully
             result = lock.release_immediate()
             # May return False or True depending on implementation
@@ -454,22 +460,26 @@ class TestAdditionalCoverage:
         manager = HotkeyLockManager("test_failure", lock_directory=tmp_path)
 
         # Mock the lock to always fail acquisition
-        with patch.object(manager.lock, 'try_acquire_immediate', return_value=False):
+        with patch.object(manager.lock, "try_acquire_immediate", return_value=False):
             assert manager.try_acquire_for_processing() is False
 
     def test_lock_manager_fallback_disabled(self, tmp_path):
         """Test HotkeyLockManager with fallback disabled."""
-        manager = HotkeyLockManager("test_no_fallback", lock_directory=tmp_path, fallback_semaphore=False)
+        manager = HotkeyLockManager(
+            "test_no_fallback", lock_directory=tmp_path, fallback_semaphore=False
+        )
 
         # When primary lock fails and fallback is disabled
-        with patch.object(manager.lock, 'try_acquire_immediate', return_value=False):
+        with patch.object(manager.lock, "try_acquire_immediate", return_value=False):
             assert manager.try_acquire_for_processing() is False
 
     def test_lock_manager_lock_exception(self, tmp_path):
         """Test HotkeyLockManager when lock raises exception."""
         manager = HotkeyLockManager("test_exception", lock_directory=tmp_path)
 
-        with patch.object(manager.lock, 'try_acquire_immediate', side_effect=Exception("Lock error")):
+        with patch.object(
+            manager.lock, "try_acquire_immediate", side_effect=Exception("Lock error")
+        ):
             # Should handle exception gracefully
             result = manager.try_acquire_for_processing()
             # Should fail gracefully
@@ -483,7 +493,9 @@ class TestAdditionalCoverage:
         assert manager.try_acquire_for_processing() is True
 
         # Mock release to fail
-        with patch.object(manager.lock, 'release_immediate', side_effect=Exception("Release error")):
+        with patch.object(
+            manager.lock, "release_immediate", side_effect=Exception("Release error")
+        ):
             # Should handle exceptions gracefully
             result = manager.release_immediate()
             # Should still attempt to release
@@ -494,7 +506,7 @@ class TestAdditionalCoverage:
         manager = HotkeyLockManager("test_timer", lock_directory=tmp_path)
 
         # First acquisition should start timer
-        with patch.object(manager, '_start_lock_release_timer') as mock_timer:
+        with patch.object(manager, "_start_lock_release_timer") as mock_timer:
             assert manager.try_acquire_for_processing() is True
             mock_timer.assert_called_once()
 
@@ -507,9 +519,13 @@ class TestAdditionalCoverage:
 
     def test_lock_directory_creation_failure(self):
         """Test HotkeyLockManager when lock directory creation fails."""
-        with patch('pathlib.Path.mkdir', side_effect=OSError("Cannot create directory")):
+        with patch(
+            "pathlib.Path.mkdir", side_effect=OSError("Cannot create directory")
+        ):
             # Should fall back to temp directory
-            manager = HotkeyLockManager("test_mkdir_fail", lock_directory="/nonexistent/path")
+            manager = HotkeyLockManager(
+                "test_mkdir_fail", lock_directory="/nonexistent/path"
+            )
             # Should still initialize successfully using temp directory
             assert manager is not None
 
@@ -535,10 +551,10 @@ class TestAdditionalCoverage:
         lock_file = tmp_path / "windows_no_msvcrt.lock"
         lock = FileBasedLock(lock_file)
 
-        with patch('platform.system', return_value='Windows'):
+        with patch("platform.system", return_value="Windows"):
             # Mock import error for msvcrt
-            with patch('builtins.__import__', side_effect=ImportError("No msvcrt")):
-                with patch.object(lock, '_try_windows_lock', return_value=False):
+            with patch("builtins.__import__", side_effect=ImportError("No msvcrt")):
+                with patch.object(lock, "_try_windows_lock", return_value=False):
                     result = lock.try_acquire_immediate()
                     assert result is False
 
@@ -547,8 +563,8 @@ class TestAdditionalCoverage:
         lock_file = tmp_path / "unix_no_fcntl.lock"
         lock = FileBasedLock(lock_file)
 
-        with patch('platform.system', return_value='Linux'):
+        with patch("platform.system", return_value="Linux"):
             # Mock fcntl operations to fail
-            with patch.object(lock, '_try_unix_lock', return_value=False):
+            with patch.object(lock, "_try_unix_lock", return_value=False):
                 result = lock.try_acquire_immediate()
                 assert result is False
