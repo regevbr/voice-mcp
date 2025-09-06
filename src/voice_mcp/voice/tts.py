@@ -3,6 +3,7 @@ Text-to-Speech engine implementation using Coqui TTS.
 """
 
 import logging
+import threading
 from dataclasses import dataclass
 from typing import Any
 
@@ -34,41 +35,53 @@ class CoquiTTSEngine:
         self._tts = None
         self._initialized = False
         self._audio_manager = AudioManager()
+        self._init_lock = threading.RLock()  # Thread safety for initialization
         self._init_engine()
 
     def _init_engine(self) -> None:
-        """Initialize the Coqui TTS engine."""
-        try:
-            from TTS.api import TTS  # type: ignore
+        """Initialize the Coqui TTS engine with thread safety."""
+        # Return early if already initialized (fast path)
+        if self._initialized:
+            return
 
-            # Determine GPU usage
-            use_gpu = False
-            if self._gpu_enabled:
-                try:
-                    import torch
+        with self._init_lock:
+            # Double-check after acquiring lock
+            if self._initialized:
+                return
 
-                    use_gpu = torch.cuda.is_available()
-                    if use_gpu:
-                        logger.info("CUDA available, enabling GPU acceleration for TTS")
-                    else:
+            try:
+                from TTS.api import TTS  # type: ignore
+
+                # Determine GPU usage
+                use_gpu = False
+                if self._gpu_enabled:
+                    try:
+                        import torch
+
+                        use_gpu = torch.cuda.is_available()
+                        if use_gpu:
+                            logger.info(
+                                "CUDA available, enabling GPU acceleration for TTS"
+                            )
+                        else:
+                            logger.warning(
+                                "GPU requested but CUDA not available, falling back to CPU"
+                            )
+                    except ImportError:
                         logger.warning(
-                            "GPU requested but CUDA not available, falling back to CPU"
+                            "GPU requested but PyTorch not available, falling back to CPU"
                         )
-                except ImportError:
-                    logger.warning(
-                        "GPU requested but PyTorch not available, falling back to CPU"
-                    )
 
-            logger.info(
-                f"Initializing Coqui TTS with model: {self._model_name}, GPU: {use_gpu}"
-            )
-            self._tts = TTS(self._model_name, progress_bar=False, gpu=use_gpu)
-            self._initialized = True
-            logger.info("Coqui TTS engine initialized successfully")
-        except Exception as e:
-            logger.error(f"Failed to initialize Coqui TTS engine: {e}")
-            self._tts = None
-            self._initialized = False
+                logger.info(
+                    f"Initializing Coqui TTS with model: {self._model_name}, GPU: {use_gpu}"
+                )
+                self._tts = TTS(self._model_name, progress_bar=False, gpu=use_gpu)
+                self._initialized = True
+                logger.info("Coqui TTS engine initialized successfully")
+            except Exception as e:
+                logger.error(f"Failed to initialize Coqui TTS engine: {e}")
+                self._tts = None
+                self._initialized = False
 
     def speak(
         self,
@@ -78,6 +91,9 @@ class CoquiTTSEngine:
         volume: float | None = None,  # noqa: ARG002
     ) -> bool:
         """Convert text to speech using Coqui TTS."""
+        # Ensure initialization (thread-safe)
+        self._init_engine()
+
         if not self.is_available():
             logger.error("Coqui TTS engine not available")
             return False
@@ -185,6 +201,9 @@ class CoquiTTSEngine:
 
     def get_voices(self) -> list[Voice]:
         """Get available Coqui TTS models."""
+        # Ensure initialization (thread-safe)
+        self._init_engine()
+
         if not self.is_available():
             return []
 

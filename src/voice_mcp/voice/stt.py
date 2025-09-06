@@ -91,6 +91,7 @@ class TranscriptionHandler:
     _instance: "TranscriptionHandler | None" = None
     _recorder: AudioToTextRecorder | None = None
     _is_initialized = False
+    _preload_lock = threading.RLock()  # Thread safety for preloading
 
     def __new__(cls) -> "TranscriptionHandler":
         """Ensure singleton instance."""
@@ -141,7 +142,7 @@ class TranscriptionHandler:
 
     def preload(self) -> bool:
         """
-        Preload the STT model on server startup.
+        Preload the STT model on server startup with thread safety.
 
         Returns:
             True if preloading successful, False otherwise
@@ -150,54 +151,61 @@ class TranscriptionHandler:
             logger.warning("RealtimeSTT not available - STT functionality disabled")
             return False
 
+        # Fast path: already initialized
         if self._is_initialized:
             logger.debug("STT model already preloaded")
             return True
 
-        try:
-            self.device, self.compute_type = self._get_optimal_device()
+        with self._preload_lock:
+            # Double-check after acquiring lock
+            if self._is_initialized:
+                logger.debug("STT model already preloaded (double-check)")
+                return True
 
-            logger.info(
-                "Preloading STT model", model=config.stt_model, device=self.device
-            )
+            try:
+                self.device, self.compute_type = self._get_optimal_device()
 
-            recorder_config = {
-                # Model configuration
-                "model": config.stt_model,
-                "language": config.stt_language,
-                "device": self.device,
-                "compute_type": self.compute_type,
-                # VAD Configuration for better speech detection
-                "silero_sensitivity": 0.4,  # Silero VAD sensitivity (0.0-1.0)
-                "webrtc_sensitivity": 2,  # WebRTC VAD aggressiveness (0-3)
-                # Recording behavior
-                "post_speech_silence_duration": config.stt_silence_threshold,
-                "min_length_of_recording": 0.5,  # Minimum recording duration
-                # Real-time transcription settings
-                "enable_realtime_transcription": True,
-                "realtime_processing_pause": 0.1,  # Update every 100ms
-                "realtime_model_type": config.stt_model,
-                # Performance settings
-                "use_microphone": True,
-                "no_log_file": True,
-                "spinner": False,  # Disable spinner for cleaner output
-                "early_transcription_on_silence": 1,  # Faster transcription
-            }
+                logger.info(
+                    "Preloading STT model", model=config.stt_model, device=self.device
+                )
 
-            self._recorder = AudioToTextRecorder(**recorder_config)
-            self._is_initialized = True
+                recorder_config = {
+                    # Model configuration
+                    "model": config.stt_model,
+                    "language": config.stt_language,
+                    "device": self.device,
+                    "compute_type": self.compute_type,
+                    # VAD Configuration for better speech detection
+                    "silero_sensitivity": 0.4,  # Silero VAD sensitivity (0.0-1.0)
+                    "webrtc_sensitivity": 2,  # WebRTC VAD aggressiveness (0-3)
+                    # Recording behavior
+                    "post_speech_silence_duration": config.stt_silence_threshold,
+                    "min_length_of_recording": 0.5,  # Minimum recording duration
+                    # Real-time transcription settings
+                    "enable_realtime_transcription": True,
+                    "realtime_processing_pause": 0.1,  # Update every 100ms
+                    "realtime_model_type": config.stt_model,
+                    # Performance settings
+                    "use_microphone": True,
+                    "no_log_file": True,
+                    "spinner": False,  # Disable spinner for cleaner output
+                    "early_transcription_on_silence": 1,  # Faster transcription
+                }
 
-            logger.info(
-                "STT model preloaded successfully",
-                model=config.stt_model,
-                device=self.device,
-                compute_type=self.compute_type,
-            )
-            return True
+                self._recorder = AudioToTextRecorder(**recorder_config)
+                self._is_initialized = True
 
-        except Exception as e:
-            logger.error("Failed to preload STT model", error=str(e))
-            return False
+                logger.info(
+                    "STT model preloaded successfully",
+                    model=config.stt_model,
+                    device=self.device,
+                    compute_type=self.compute_type,
+                )
+                return True
+
+            except Exception as e:
+                logger.error("Failed to preload STT model", error=str(e))
+                return False
 
     def is_ready(self) -> bool:
         """Check if STT model is ready for use."""

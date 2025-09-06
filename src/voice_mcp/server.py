@@ -15,9 +15,9 @@ import structlog
 from fastmcp import FastMCP
 
 from .config import config, setup_logging
+from .loading import get_loading_manager
 from .prompts import VoicePrompts
 from .tools import VoiceTools
-from .voice.stt import get_transcription_handler
 
 logger = structlog.get_logger(__name__)
 
@@ -86,6 +86,7 @@ def cleanup_resources():
 
     # Define cleanup operations in priority order
     cleanup_operations = [
+        ("loading_manager", _cleanup_loading_manager),
         ("hotkey_monitoring", _cleanup_hotkey_monitoring),
         ("stt_resources", _cleanup_stt_resources),
         ("module_instances", _cleanup_module_instances),
@@ -102,6 +103,12 @@ def cleanup_resources():
     logger.info("Resource cleanup completed")
 
 
+def _cleanup_loading_manager():
+    """Cleanup loading manager resources."""
+    loading_manager = get_loading_manager()
+    loading_manager.shutdown()
+
+
 def _cleanup_hotkey_monitoring():
     """Cleanup hotkey monitoring resources."""
     if config.enable_hotkey:
@@ -111,6 +118,8 @@ def _cleanup_hotkey_monitoring():
 
 def _cleanup_stt_resources():
     """Cleanup STT handler resources."""
+    from .voice.stt import get_transcription_handler
+
     stt_handler = get_transcription_handler()
     stt_handler.cleanup()
 
@@ -191,6 +200,18 @@ def get_hotkey_status() -> dict[str, Any]:
         output mode settings, and any error conditions for debugging purposes.
     """
     return VoiceTools.get_hotkey_status()
+
+
+@mcp.tool()
+def get_loading_status() -> dict[str, Any]:
+    """
+    Get current background preloading status for all voice components.
+
+    Returns:
+        Dictionary containing the loading status of TTS, STT, and hotkey components,
+        including progress information and any error conditions for debugging.
+    """
+    return VoiceTools.get_loading_status()
 
 
 # Setup cleanup on exit
@@ -274,34 +295,10 @@ def main():
     logger.info(f"Transport: {args.transport}")
     logger.info(f"Debug mode: {args.debug}")
 
-    # Preload STT model if enabled
-    if config.stt_enabled:
-        logger.info("Preloading STT model on startup...")
-        stt_handler = get_transcription_handler()
-        if stt_handler.preload():
-            logger.info("STT model preloaded successfully")
-        else:
-            logger.warning("STT model preload failed, will load on first use")
-
-    # Preload TTS model if enabled
-    if config.tts_preload_enabled:
-        logger.info("Preloading TTS model on startup...")
-        try:
-            from .tools import get_tts_manager
-
-            tts_manager = get_tts_manager()
-            if tts_manager.is_available():
-                logger.info("TTS model preloaded successfully")
-            else:
-                logger.warning("TTS model preload failed, will load on first use")
-        except Exception as e:
-            logger.warning(f"TTS model preload failed: {e}, will load on first use")
-
-    # Start hotkey monitoring if enabled
-    if config.enable_hotkey:
-        logger.info("Starting hotkey monitoring on startup...")
-        result = VoiceTools.start_hotkey_monitoring()
-        logger.info(f"Hotkey startup: {result}")
+    # Start background preloading for faster subsequent calls
+    loading_manager = get_loading_manager()
+    loading_manager.start_background_loading()
+    logger.info("Background preloading initiated - server ready immediately")
 
     try:
         if args.transport == "stdio":

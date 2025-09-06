@@ -2,11 +2,13 @@
 MCP tools for voice functionality.
 """
 
+import threading
 from typing import Any
 
 import structlog
 
 from .config import config
+from .loading import ComponentType, get_loading_manager
 from .voice.audio import AudioManager
 from .voice.hotkey import HotkeyManager
 from .voice.stt import get_transcription_handler
@@ -15,47 +17,135 @@ from .voice.tts import TTSManager
 
 logger = structlog.get_logger(__name__)
 
-# Initialize managers
+# Initialize managers with thread safety
 _tts_manager = None
 _audio_manager = None
 _text_output_controller = None
 _hotkey_manager = None
 
+# Thread safety locks for singleton initialization
+_tts_lock = threading.RLock()
+_audio_lock = threading.RLock()
+_text_output_lock = threading.RLock()
+_hotkey_lock = threading.RLock()
+
 
 def get_tts_manager() -> TTSManager:
-    """Get or create TTS manager instance."""
+    """Get or create TTS manager instance with thread safety and loading coordination."""
     global _tts_manager
-    if _tts_manager is None:
+
+    # Fast path: already initialized
+    if _tts_manager is not None:
+        return _tts_manager
+
+    with _tts_lock:
+        # Double-check after acquiring lock
+        if _tts_manager is not None:
+            return _tts_manager
+
+        # Check if background loading is in progress
+        loading_manager = get_loading_manager()
+        if loading_manager.is_loading(ComponentType.TTS):
+            # Wait briefly for background loading to complete
+            if loading_manager.wait_for_ready(ComponentType.TTS, timeout=2.0):
+                logger.debug(
+                    "TTS background loading completed, using preloaded instance"
+                )
+            else:
+                logger.debug("TTS background loading timeout, creating on-demand")
+
+        # Create TTS manager (either first time or after background loading)
+        logger.info("Initializing TTS manager")
         _tts_manager = TTSManager(
             model_name=config.tts_model, gpu_enabled=config.tts_gpu_enabled
         )
-    return _tts_manager
+
+        return _tts_manager
 
 
 def get_audio_manager() -> AudioManager:
-    """Get or create AudioManager instance."""
+    """Get or create AudioManager instance with thread safety."""
     global _audio_manager
-    if _audio_manager is None:
+
+    # Fast path: already initialized
+    if _audio_manager is not None:
+        return _audio_manager
+
+    with _audio_lock:
+        # Double-check after acquiring lock
+        if _audio_manager is not None:
+            return _audio_manager
+
+        logger.debug("Initializing AudioManager")
         _audio_manager = AudioManager()
-    return _audio_manager
+        return _audio_manager
 
 
 def get_text_output_controller() -> TextOutputController:
-    """Get or create text output controller instance."""
+    """Get or create text output controller instance with thread safety."""
     global _text_output_controller
-    if _text_output_controller is None:
+
+    # Fast path: already initialized
+    if _text_output_controller is not None:
+        return _text_output_controller
+
+    with _text_output_lock:
+        # Double-check after acquiring lock
+        if _text_output_controller is not None:
+            return _text_output_controller
+
+        logger.debug("Initializing TextOutputController")
         _text_output_controller = TextOutputController(
             debounce_delay=config.typing_debounce_delay
         )
-    return _text_output_controller
+        return _text_output_controller
 
 
 def get_hotkey_manager() -> HotkeyManager:
-    """Get or create hotkey manager instance."""
+    """Get or create hotkey manager instance with thread safety and loading coordination."""
     global _hotkey_manager
-    if _hotkey_manager is None:
+
+    # Fast path: already initialized
+    if _hotkey_manager is not None:
+        return _hotkey_manager
+
+    with _hotkey_lock:
+        # Double-check after acquiring lock
+        if _hotkey_manager is not None:
+            return _hotkey_manager
+
+        # Check if background loading is in progress
+        loading_manager = get_loading_manager()
+        if loading_manager.is_loading(ComponentType.HOTKEY):
+            # Wait briefly for background loading to complete
+            if loading_manager.wait_for_ready(ComponentType.HOTKEY, timeout=1.0):
+                logger.debug(
+                    "Hotkey background loading completed, using preloaded instance"
+                )
+            else:
+                logger.debug("Hotkey background loading timeout, creating on-demand")
+
+        # Create hotkey manager (either first time or after background loading)
+        logger.info("Initializing HotkeyManager")
         _hotkey_manager = HotkeyManager(on_hotkey_pressed=_on_hotkey_pressed)
-    return _hotkey_manager
+        return _hotkey_manager
+
+
+def get_transcription_handler_with_coordination():
+    """Get transcription handler with loading coordination."""
+    loading_manager = get_loading_manager()
+
+    # If STT is loading in background, wait briefly for it to complete
+    if loading_manager.is_loading(ComponentType.STT):
+        if loading_manager.wait_for_ready(ComponentType.STT, timeout=2.0):
+            logger.debug("STT background loading completed, using preloaded handler")
+        else:
+            logger.debug(
+                "STT background loading timeout, using handler with on-demand loading"
+            )
+
+    # Get the handler (which will handle its own initialization if needed)
+    return get_transcription_handler()
 
 
 def _on_hotkey_pressed() -> None:
@@ -66,7 +156,7 @@ def _on_hotkey_pressed() -> None:
         # Use typing mode for real-time display during hotkey usage
         if config.hotkey_output_mode == "typing":
             # Use real-time transcription with live typing
-            stt_handler = get_transcription_handler()
+            stt_handler = get_transcription_handler_with_coordination()
             text_controller = get_text_output_controller()
 
             # Reset text controller state for new session
@@ -200,8 +290,8 @@ class VoiceTools:
         )
 
         try:
-            # Get the singleton transcription handler
-            stt_handler = get_transcription_handler()
+            # Get the singleton transcription handler with coordination
+            stt_handler = get_transcription_handler_with_coordination()
 
             # Play "on" sound to indicate recording start
             audio_manager = get_audio_manager()
@@ -383,4 +473,50 @@ class VoiceTools:
                 },
             }
             logger.error("Error getting hotkey status", error=str(e))
+            return error_info
+
+    @staticmethod
+    def get_loading_status() -> dict[str, Any]:
+        """
+        Get current background loading status for all components.
+
+        Returns:
+            Dictionary with loading status and progress information
+        """
+        try:
+            loading_manager = get_loading_manager()
+            status = loading_manager.get_overall_status()
+
+            # Add summary information
+            ready_count = sum(
+                1 for comp in status.values() if comp["status"] == "ready"
+            )
+            loading_count = sum(
+                1 for comp in status.values() if comp["status"] == "loading"
+            )
+            failed_count = sum(
+                1 for comp in status.values() if comp["status"] == "failed"
+            )
+
+            status["summary"] = {
+                "ready_components": ready_count,
+                "loading_components": loading_count,
+                "failed_components": failed_count,
+                "all_ready": ready_count == 3 and loading_count == 0,
+            }
+
+            logger.debug("Loading status requested", summary=status["summary"])
+            return status
+
+        except Exception as e:
+            error_info = {
+                "error": str(e),
+                "summary": {
+                    "ready_components": 0,
+                    "loading_components": 0,
+                    "failed_components": 0,
+                    "all_ready": False,
+                },
+            }
+            logger.error("Error getting loading status", error=str(e))
             return error_info
