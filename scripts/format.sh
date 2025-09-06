@@ -3,9 +3,6 @@ set -e
 
 echo "🎨 Running code formatting..."
 
-echo "  📏 Running Black..."
-uv run black src/ tests/ examples/
-
 echo "  🗂️  Running isort..."
 uv run isort src/ tests/ examples/
 

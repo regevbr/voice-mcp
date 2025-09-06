@@ -41,15 +41,25 @@ Do NOT use the speak tool for:
 - Repetitive updates during long-running processes
 
 **Parameters**: You can customize the speech with optional parameters:
-- voice: Select different voice options
-- rate: Control speech rate (words per minute)
+- voice: Select different voice options (system-dependent)
+- rate: Speech rate multiplier (1.0 = normal, >1.0 = faster, <1.0 = slower)
 - volume: Adjust volume level (0.0 to 1.0)
+
+**Performance Features**:
+- GPU Acceleration: Automatically uses CUDA GPU if available for faster processing
+- High-Quality Rate Control: Speed adjustment maintains natural pitch and clarity
+- Model Preloading: First TTS call is optimized for instant response
 
 **Examples**:
 - speak("Build completed successfully")
-- speak("Found 3 errors to fix", rate=150)
+- speak("Processing faster now", rate=1.3)  # 30% faster speech
 - speak("Task finished", volume=0.8)
+- speak("Slow and clear instructions", rate=0.8)  # 20% slower speech
 
 Use your judgment to balance being helpful with being appropriately selective about when to speak but make sure the users always know that you are either done or waiting for his input
 
-Please continue the conversation from the previous message."""
+Always speak once a task is done, and you are waiting for user input. Summarise what was done.
+
+Always speak once a user input is required, explaining what is needed from him.
+
+Shortly greet the user with your voice."""

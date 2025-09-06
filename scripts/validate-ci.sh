@@ -147,8 +147,8 @@ else
     REQUIRED_SECTIONS=(
         "\[project\]"
         "\[tool\.pytest\.ini_options\]"
-        "\[tool\.black\]"
         "\[tool\.ruff\]"
+        "\[tool\.isort\]"
         "\[tool\.mypy\]"
         "\[tool\.coverage"
     )

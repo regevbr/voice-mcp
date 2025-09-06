@@ -4,7 +4,7 @@
       "command": "bash",
       "args": [
         "-c",
-        "uv run python -m voice_mcp.server 2> /tmp/voice-mcp.log"
+        "uv run python -m voice_mcp.server"
       ]
     }
   }

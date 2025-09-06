@@ -2,11 +2,8 @@
   "permissions": {
     "allow": []
   },
-  "deny": [
-  ],
-  "ask": [
-  ],
+  "deny": [],
+  "ask": [],
   "enableAllProjectMcpServers": true,
-  "enabledMcpjsonServers": [
-  ]
+  "enabledMcpjsonServers": []
 }
