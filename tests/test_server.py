@@ -622,15 +622,22 @@ class TestUtilityFunctions:
             mock_timer_thread.start.assert_called_once()
 
     @patch("signal.signal")
-    @patch("signal.SIGHUP", 1)  # Mock SIGHUP signal
     def test_setup_signal_handlers_with_sighup(self, mock_signal):
         """Test signal handler setup with SIGHUP support."""
+        import signal
+
         from voice_mcp.server import setup_signal_handlers
 
-        setup_signal_handlers()
+        # Only test SIGHUP if it exists on this platform
+        if hasattr(signal, "SIGHUP"):
+            setup_signal_handlers()
+            # Should register handlers for SIGINT, SIGTERM, and SIGHUP
+            assert mock_signal.call_count >= 3
+        else:
+            # On platforms without SIGHUP (like Windows), skip this test
+            import pytest
 
-        # Should register handlers for SIGINT, SIGTERM, and SIGHUP
-        assert mock_signal.call_count >= 3
+            pytest.skip("SIGHUP not available on this platform")
 
     @patch("signal.signal")
     def test_setup_signal_handlers_without_sighup(self, mock_signal):
