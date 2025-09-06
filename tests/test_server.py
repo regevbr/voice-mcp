@@ -5,11 +5,7 @@ Tests for the simplified MCP server functionality.
 from unittest.mock import Mock, patch
 
 from voice_mcp.config import setup_logging
-from voice_mcp.server import (
-    cleanup_resources,
-    main,
-    parse_args,
-)
+from voice_mcp.server import cleanup_resources, main, parse_args
 
 
 def test_parse_args_default():

@@ -11,7 +11,7 @@ This directory contains the CI/CD workflows for the Voice MCP Server project. Th
 **Features:**
 - **Multi-Python Testing:** Tests on Python 3.12 and 3.13
 - **Multi-OS Support:** Ubuntu, Windows, and macOS
-- **Quality Checks:** Black, isort, Ruff, MyPy, Bandit security scanning
+- **Quality Checks:** Ruff (format + lint), isort, MyPy, Bandit security scanning
 - **Fast Testing:** Excludes slow and hardware-dependent tests for quick feedback
 - **Code Coverage:** Comprehensive coverage reporting with Codecov integration
 - **Build Verification:** Ensures package builds correctly

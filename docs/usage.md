@@ -242,7 +242,7 @@ uv run pytest -m "not voice" -v
 
 ```bash
 # Format code
-uv run black src/ tests/
+uv run ruff format src/ tests/
 uv run isort src/ tests/
 
 # Lint code

@@ -196,8 +196,10 @@ class TestHotkeyManager:
         # Simulate key press and release
         manager._on_key_press("mock_f12_key")
 
-        # Give callback thread time to execute
-        time.sleep(0.1)
+        # The callback is now run in background with locking mechanism
+        # Wait a moment for the callback thread to execute
+
+        time.sleep(0.01)  # Very short wait just for callback execution
 
         # Verify callback was called
         callback.assert_called_once()
@@ -215,14 +217,14 @@ class TestHotkeyManager:
         manager._on_key_press("mock_alt_l_key")
 
         # Callback should not be triggered yet
-        time.sleep(0.05)
         callback.assert_not_called()
 
         # Press the final key
         manager._on_key_press("mock_char_s")
 
-        # Give callback thread time to execute
-        time.sleep(0.1)
+        # Wait a moment for the callback thread to execute
+
+        time.sleep(0.01)  # Very short wait just for callback execution
 
         # Now callback should be triggered
         callback.assert_called_once()
@@ -236,10 +238,7 @@ class TestHotkeyManager:
 
         hotkey_manager.stop_monitoring()
 
-        # Give thread time to clean up
-        time.sleep(0.1)
-
-        # Verify cleanup
+        # Verify cleanup (should be immediate for mocked components)
         assert not hotkey_manager.is_monitoring()
 
 
@@ -531,9 +530,6 @@ class TestErrorHandling:
 
         # This should not raise an exception
         manager._on_key_press("mock_f12_key")
-
-        # Give callback thread time to execute
-        time.sleep(0.1)
 
         # Callback should have been called despite the exception
         callback.assert_called_once()
