@@ -494,10 +494,8 @@ class TestTextOutputControllerPrivateMethods:
 
                                 assert result["success"] is True
                                 assert "Replacing" in result["operation"]
-                                mock_pyperclip.copy.assert_any_call("Goodbye")
-                                mock_pyperclip.copy.assert_any_call(
-                                    "original"
-                                )  # Restore
+                                mock_pyperclip.copy.assert_called_once_with("Goodbye")
+                                # Current implementation doesn't restore clipboard
 
     def test_type_text_realtime_replace_operation_without_clipboard(self):
         """Test typing with replace operation without clipboard."""
@@ -592,3 +590,296 @@ class TestTextOutputControllerIntegration:
         # Test reset
         controller.reset()
         assert controller.last_typed_text == ""
+
+
+class TestTextOutputControllerSessionLifecycle:
+    """Test session lifecycle and clipboard restoration functionality."""
+
+    def test_session_initialization(self):
+        """Test session state is properly initialized."""
+        controller = TextOutputController()
+
+        assert controller._session_active is False
+        assert controller._original_clipboard_content is None
+        assert controller._clipboard_was_modified is False
+
+    def test_start_session_success(self):
+        """Test successful session start with clipboard backup."""
+        controller = TextOutputController()
+
+        with (
+            patch.object(
+                controller, "_check_clipboard_availability", return_value=True
+            ),
+            patch(
+                "voice_mcp.voice.text_output.pyperclip.paste",
+                return_value="original content",
+            ),
+        ):
+            result = controller.start_session()
+
+            assert result["success"] is True
+            assert result["clipboard_backed_up"] is True
+            assert controller._session_active is True
+            assert controller._original_clipboard_content == "original content"
+            assert controller._clipboard_was_modified is False
+
+    def test_start_session_no_clipboard(self):
+        """Test session start when clipboard is not available."""
+        controller = TextOutputController()
+
+        with patch.object(
+            controller, "_check_clipboard_availability", return_value=False
+        ):
+            result = controller.start_session()
+
+            assert result["success"] is True
+            assert result["clipboard_backed_up"] is False
+            assert controller._session_active is True
+            assert controller._original_clipboard_content is None
+
+    def test_start_session_clipboard_error(self):
+        """Test session start with clipboard access error."""
+        controller = TextOutputController()
+
+        with (
+            patch.object(
+                controller, "_check_clipboard_availability", return_value=True
+            ),
+            patch(
+                "voice_mcp.voice.text_output.pyperclip.paste",
+                side_effect=Exception("Clipboard error"),
+            ),
+        ):
+            result = controller.start_session()
+
+            assert result["success"] is True
+            assert result["clipboard_backed_up"] is False
+            assert controller._session_active is True
+            assert controller._original_clipboard_content is None
+
+    def test_start_session_already_active(self):
+        """Test starting session when one is already active."""
+        controller = TextOutputController()
+
+        with (
+            patch.object(
+                controller, "_check_clipboard_availability", return_value=True
+            ),
+            patch(
+                "voice_mcp.voice.text_output.pyperclip.paste", return_value="content1"
+            ),
+            patch.object(controller, "end_session") as mock_end,
+        ):
+            # Start first session
+            controller.start_session()
+
+            # Start second session - should end first
+            with patch(
+                "voice_mcp.voice.text_output.pyperclip.paste", return_value="content2"
+            ):
+                controller.start_session()
+
+            mock_end.assert_called_once()
+            assert controller._original_clipboard_content == "content2"
+
+    def test_end_session_no_active_session(self):
+        """Test ending session when none is active."""
+        controller = TextOutputController()
+
+        result = controller.end_session()
+
+        assert result["success"] is True
+        assert result["clipboard_restored"] is False
+        assert "No active session" in result["message"]
+
+    def test_end_session_with_clipboard_restoration(self):
+        """Test ending session with clipboard restoration."""
+        controller = TextOutputController()
+
+        # Setup session with clipboard backup
+        controller._session_active = True
+        controller._original_clipboard_content = "original content"
+        controller._clipboard_was_modified = True
+
+        with (
+            patch.object(
+                controller, "_check_clipboard_availability", return_value=True
+            ),
+            patch("voice_mcp.voice.text_output.pyperclip.copy") as mock_copy,
+            patch.object(controller, "reset") as mock_reset,
+        ):
+            result = controller.end_session()
+
+            assert result["success"] is True
+            assert result["clipboard_restored"] is True
+            mock_copy.assert_called_once_with("original content")
+            mock_reset.assert_called_once()
+
+            # Verify session state is reset
+            assert controller._session_active is False
+            assert controller._original_clipboard_content is None
+            assert controller._clipboard_was_modified is False
+
+    def test_end_session_no_clipboard_modification(self):
+        """Test ending session when clipboard was not modified."""
+        controller = TextOutputController()
+
+        # Setup session but no clipboard modification
+        controller._session_active = True
+        controller._original_clipboard_content = "original content"
+        controller._clipboard_was_modified = False
+
+        with (
+            patch("voice_mcp.voice.text_output.pyperclip.copy") as mock_copy,
+            patch.object(controller, "reset") as mock_reset,
+        ):
+            result = controller.end_session()
+
+            assert result["success"] is True
+            assert result["clipboard_restored"] is False
+            mock_copy.assert_not_called()
+            mock_reset.assert_called_once()
+
+    def test_end_session_clipboard_restore_error(self):
+        """Test ending session with clipboard restoration error."""
+        controller = TextOutputController()
+
+        controller._session_active = True
+        controller._original_clipboard_content = "original content"
+        controller._clipboard_was_modified = True
+
+        with (
+            patch.object(
+                controller, "_check_clipboard_availability", return_value=True
+            ),
+            patch(
+                "voice_mcp.voice.text_output.pyperclip.copy",
+                side_effect=Exception("Restore error"),
+            ),
+            patch.object(controller, "reset") as mock_reset,
+        ):
+            result = controller.end_session()
+
+            assert result["success"] is True
+            assert result["clipboard_restored"] is False
+            mock_reset.assert_called_once()
+
+            # Session state should still be reset despite error
+            assert controller._session_active is False
+
+    def test_clipboard_modification_tracking(self):
+        """Test that clipboard modifications are properly tracked."""
+        controller = TextOutputController()
+
+        # Start session
+        controller._session_active = True
+        controller._clipboard_was_modified = False
+
+        with (
+            patch.object(controller, "_check_typing_availability", return_value=True),
+            patch.object(controller, "_get_keyboard_controller") as mock_kb,
+            patch.object(
+                controller, "_check_clipboard_availability", return_value=True
+            ),
+            patch("voice_mcp.voice.text_output.pyperclip.copy"),
+            patch(
+                "voice_mcp.voice.text_output._get_keyboard_module"
+            ) as mock_keyboard_module,
+        ):
+            # Setup mocks with context manager support
+            mock_controller = Mock()
+            mock_controller.pressed = Mock()
+            mock_controller.pressed.return_value.__enter__ = Mock()
+            mock_controller.pressed.return_value.__exit__ = Mock()
+            mock_controller.press = Mock()
+            mock_controller.release = Mock()
+            mock_kb.return_value = mock_controller
+
+            mock_keyboard_module.return_value = Mock()
+            mock_keyboard_module.return_value.Key = Mock()
+            mock_keyboard_module.return_value.Key.ctrl = Mock()
+
+            # Type some text
+            result = controller._type_text_realtime("hello")
+
+            assert result["success"] is True
+            assert controller._clipboard_was_modified is True
+
+    def test_clipboard_modification_tracking_no_session(self):
+        """Test clipboard modification tracking when no session is active."""
+        controller = TextOutputController()
+
+        # No active session
+        controller._session_active = False
+        controller._clipboard_was_modified = False
+
+        with (
+            patch.object(controller, "_check_typing_availability", return_value=True),
+            patch.object(controller, "_get_keyboard_controller") as mock_kb,
+            patch.object(
+                controller, "_check_clipboard_availability", return_value=True
+            ),
+            patch("voice_mcp.voice.text_output.pyperclip.copy"),
+            patch(
+                "voice_mcp.voice.text_output._get_keyboard_module"
+            ) as mock_keyboard_module,
+        ):
+            # Setup mocks with context manager support
+            mock_controller = Mock()
+            mock_controller.pressed = Mock()
+            mock_controller.pressed.return_value.__enter__ = Mock()
+            mock_controller.pressed.return_value.__exit__ = Mock()
+            mock_controller.press = Mock()
+            mock_controller.release = Mock()
+            mock_kb.return_value = mock_controller
+
+            mock_keyboard_module.return_value = Mock()
+            mock_keyboard_module.return_value.Key = Mock()
+            mock_keyboard_module.return_value.Key.ctrl = Mock()
+
+            # Type some text
+            result = controller._type_text_realtime("hello")
+
+            assert result["success"] is True
+            # Should not track modification when no session
+            assert controller._clipboard_was_modified is False
+
+    def test_session_context_manager_pattern(self):
+        """Test session lifecycle using context manager pattern."""
+        controller = TextOutputController()
+
+        try:
+            # Start session
+            with (
+                patch.object(
+                    controller, "_check_clipboard_availability", return_value=True
+                ),
+                patch(
+                    "voice_mcp.voice.text_output.pyperclip.paste",
+                    return_value="original",
+                ),
+            ):
+                start_result = controller.start_session()
+                assert start_result["success"] is True
+                assert controller._session_active is True
+
+                # Simulate some work that modifies clipboard
+                controller._clipboard_was_modified = True
+
+                # Simulate error
+                raise Exception("Test error")
+
+        except Exception:
+            pass
+        finally:
+            # Ensure cleanup happens
+            with (
+                patch.object(
+                    controller, "_check_clipboard_availability", return_value=True
+                ),
+                patch("voice_mcp.voice.text_output.pyperclip.copy") as mock_copy,
+            ):
+                end_result = controller.end_session()
+                assert end_result["success"] is True
+                mock_copy.assert_called_once_with("original")

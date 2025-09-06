@@ -18,7 +18,7 @@ def test_default_config():
     assert config.tts_volume == 0.9
     assert config.stt_model == "base"
     assert config.stt_language == "en"
-    assert config.stt_silence_threshold == 4.0
+    assert config.stt_silence_threshold == 2.0
     assert config.typing_enabled is True
     assert config.clipboard_enabled is True
     assert config.enable_hotkey is True  # Default is now True
@@ -39,7 +39,7 @@ def test_config_from_env(monkeypatch):
     monkeypatch.setenv("VOICE_MCP_TTS_RATE", "1.5")
     monkeypatch.setenv("VOICE_MCP_TTS_VOLUME", "0.7")
     monkeypatch.setenv("VOICE_MCP_STT_MODEL", "base")
-    monkeypatch.setenv("VOICE_MCP_STT_SILENCE_THRESHOLD", "3.0")
+    monkeypatch.setenv("VOICE_MCP_STT_SILENCE_THRESHOLD", "2.0")
     monkeypatch.setenv("VOICE_MCP_ENABLE_HOTKEY", "true")  # Enable for this test
     monkeypatch.setenv("VOICE_MCP_HOTKEY_NAME", "f11")
     monkeypatch.setenv("VOICE_MCP_HOTKEY_OUTPUT_MODE", "clipboard")
@@ -54,7 +54,7 @@ def test_config_from_env(monkeypatch):
     assert config.tts_rate == 1.5
     assert config.tts_volume == 0.7
     assert config.stt_model == "base"
-    assert config.stt_silence_threshold == 3.0
+    assert config.stt_silence_threshold == 2.0
     assert config.enable_hotkey is True  # Should be True from env var
     assert config.hotkey_name == "f11"
     assert config.hotkey_output_mode == "clipboard"

@@ -4,10 +4,10 @@
       "command": "bash",
       "args": [
         "-c",
-        "uv run python -m voice_mcp.server"
+        "uv run python -m voice_mcp.server 2> /tmp/voice-mcp.log"
       ],
       "env": {
-        "VOICE_MCP_TTS_RATE": "1.15"
+        "VOICE_MCP_LOG_LEVEL": "DEBUG"
       }
     }
   }

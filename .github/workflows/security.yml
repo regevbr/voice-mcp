@@ -30,14 +30,14 @@ jobs:
     - name: Install uv
       uses: astral-sh/setup-uv@v4
       with:
-        version: "0.5.13"
+        version: "0.8.13"
 
     - name: Set up Python 3.12
       run: uv python install 3.12
 
     - name: Install dependencies
       run: |
-        uv sync --dev --no-install-workspace
+        uv sync --extra audio --dev --no-install-workspace
         uv pip install -e .
 
     - name: Run Bandit security scan
@@ -82,14 +82,14 @@ jobs:
     - name: Install uv
       uses: astral-sh/setup-uv@v4
       with:
-        version: "0.5.13"
+        version: "0.8.13"
 
     - name: Set up Python 3.12
       run: uv python install 3.12
 
     - name: Install dependencies
       run: |
-        uv sync --dev --no-install-workspace
+        uv sync --extra audio --dev --no-install-workspace
 
     - name: Install safety
       run: |
@@ -139,7 +139,7 @@ jobs:
     - name: Install uv
       uses: astral-sh/setup-uv@v4
       with:
-        version: "0.5.13"
+        version: "0.8.13"
 
     - name: Set up Python 3.12
       run: uv python install 3.12
@@ -176,7 +176,7 @@ jobs:
         echo "🧪 Testing updated dependencies..."
 
         # Install updated dependencies
-        uv sync --dev --no-install-workspace
+        uv sync --extra audio --dev --no-install-workspace
         uv pip install -e .
 
         # Run basic tests
@@ -257,14 +257,14 @@ jobs:
     - name: Install uv
       uses: astral-sh/setup-uv@v4
       with:
-        version: "0.5.13"
+        version: "0.8.13"
 
     - name: Set up Python 3.12
       run: uv python install 3.12
 
     - name: Install dependencies
       run: |
-        uv sync --dev --no-install-workspace
+        uv sync --extra audio --dev --no-install-workspace
         uv pip install pip-licenses
 
     - name: Check licenses

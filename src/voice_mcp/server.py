@@ -4,16 +4,20 @@ Voice MCP Server - Simplified version with only essential tools.
 
 import argparse
 import atexit
+import os
+import signal
 import sys
+import threading
+import time
 from typing import Any
 
 import structlog
 from fastmcp import FastMCP
 
 from .config import config, setup_logging
+from .loading import get_loading_manager
 from .prompts import VoicePrompts
 from .tools import VoiceTools
-from .voice.stt import get_transcription_handler
 
 logger = structlog.get_logger(__name__)
 
@@ -25,20 +29,112 @@ mcp = FastMCP(
 )
 
 
-# Cleanup function for hotkey monitoring and STT
+def log_active_threads():
+    """Log all currently active threads for debugging."""
+    threads = threading.enumerate()
+    logger.debug(f"Active threads count: {len(threads)}")
+    for thread in threads:
+        logger.debug(
+            "Active thread",
+            name=thread.name,
+            daemon=thread.daemon,
+            alive=thread.is_alive(),
+            ident=thread.ident,
+        )
+
+
+def force_exit_after_timeout(timeout_seconds: int = 5):
+    """Force exit after timeout if the process is still hanging."""
+
+    def timeout_handler():
+        time.sleep(timeout_seconds)
+        logger.warning(
+            f"Process still hanging after {timeout_seconds}s, forcing exit..."
+        )
+        log_active_threads()
+        logger.warning("Using os._exit(1) to force termination")
+        os._exit(1)
+
+    # Start timeout handler in daemon thread
+    timer_thread = threading.Thread(target=timeout_handler, daemon=True)
+    timer_thread.start()
+
+
+# Global cleanup state tracking
+_cleanup_lock = threading.Lock()
+_cleanup_performed = False
+
+
+def _reset_cleanup_state():
+    """Reset cleanup state for testing purposes."""
+    global _cleanup_performed
+    with _cleanup_lock:
+        _cleanup_performed = False
+
+
 def cleanup_resources():
-    """Cleanup resources on server shutdown."""
-    try:
-        if config.enable_hotkey:
-            VoiceTools.stop_hotkey_monitoring()
+    """Thread-safe cleanup of server resources on shutdown."""
+    global _cleanup_performed
 
-        # Cleanup STT resources
-        stt_handler = get_transcription_handler()
-        stt_handler.cleanup()
+    with _cleanup_lock:
+        if _cleanup_performed:
+            logger.debug("Cleanup already performed, skipping")
+            return
+        _cleanup_performed = True
 
-    except Exception:
-        # Silently handle cleanup errors to avoid I/O issues during shutdown
-        pass
+    logger.info("Cleaning up server resources...")
+
+    # Define cleanup operations in priority order
+    cleanup_operations = [
+        ("loading_manager", _cleanup_loading_manager),
+        ("hotkey_monitoring", _cleanup_hotkey_monitoring),
+        ("stt_resources", _cleanup_stt_resources),
+        ("module_instances", _cleanup_module_instances),
+    ]
+
+    for operation_name, operation_func in cleanup_operations:
+        try:
+            logger.debug(f"Performing {operation_name} cleanup...")
+            operation_func()
+        except Exception as e:
+            # Log but continue with other cleanup operations
+            logger.warning(f"Error during {operation_name} cleanup: {e}")
+
+    logger.info("Resource cleanup completed")
+
+
+def _cleanup_loading_manager():
+    """Cleanup loading manager resources."""
+    loading_manager = get_loading_manager()
+    loading_manager.shutdown()
+
+
+def _cleanup_hotkey_monitoring():
+    """Cleanup hotkey monitoring resources."""
+    if config.enable_hotkey:
+        result = VoiceTools.stop_hotkey_monitoring()
+        logger.debug(f"Hotkey stop result: {result}")
+
+
+def _cleanup_stt_resources():
+    """Cleanup STT handler resources."""
+    from .voice.stt import get_transcription_handler
+
+    stt_handler = get_transcription_handler()
+    stt_handler.cleanup()
+
+
+def _cleanup_module_instances():
+    """Cleanup module-level instances."""
+    from .tools import _hotkey_manager, _text_output_controller
+
+    if _hotkey_manager:
+        logger.debug("Force cleanup hotkey manager...")
+        _hotkey_manager.stop_monitoring()
+
+    if _text_output_controller:
+        logger.debug("Text output controller cleanup (no-op)")
+        # No explicit cleanup needed for text output controller
 
 
 # Register voice tools
@@ -46,7 +142,7 @@ def cleanup_resources():
 def speak(
     text: str,
     voice: str | None = None,
-    rate: int | None = None,
+    rate: float | None = None,
     volume: float | None = None,
 ) -> str:
     """
@@ -55,7 +151,7 @@ def speak(
     Args:
         text: The text to convert to speech
         voice: Optional voice to use (system-dependent)
-        rate: Optional speech rate (words per minute)
+        rate: Optional speech rate multiplier (1.0 = normal, >1.0 = faster, <1.0 = slower)
         volume: Optional volume level (0.0 to 1.0)
 
     Returns:
@@ -106,6 +202,18 @@ def get_hotkey_status() -> dict[str, Any]:
     return VoiceTools.get_hotkey_status()
 
 
+@mcp.tool()
+def get_loading_status() -> dict[str, Any]:
+    """
+    Get current background preloading status for all voice components.
+
+    Returns:
+        Dictionary containing the loading status of TTS, STT, and hotkey components,
+        including progress information and any error conditions for debugging.
+    """
+    return VoiceTools.get_loading_status()
+
+
 # Setup cleanup on exit
 atexit.register(cleanup_resources)
 
@@ -142,31 +250,57 @@ def parse_args():
     return parser.parse_args()
 
 
+def setup_signal_handlers():
+    """Set up signal handlers for graceful shutdown."""
+
+    def signal_handler(signum, _frame):
+        logger.info(f"Received signal {signum}, shutting down gracefully...")
+
+        # Start force exit timer as safety net
+        force_exit_after_timeout(6)
+
+        # Log active threads for debugging
+        logger.debug("Active threads before cleanup:")
+        log_active_threads()
+
+        # Perform cleanup
+        cleanup_resources()
+
+        # Brief wait for remaining threads
+        time.sleep(1)
+
+        logger.info("Graceful shutdown complete")
+        sys.exit(0)
+
+    # Handle termination signals
+    signal.signal(signal.SIGINT, signal_handler)  # Ctrl+C
+    signal.signal(signal.SIGTERM, signal_handler)  # Termination signal
+
+    # On Unix systems, also handle SIGHUP
+    if hasattr(signal, "SIGHUP"):
+        signal.signal(signal.SIGHUP, signal_handler)
+
+
 def main():
     """Main entry point for the MCP server."""
     args = parse_args()
 
-    # Setup logging based on arguments
-    setup_logging(args.log_level)
+    # Setup logging based on arguments - use DEBUG level when debug flag is set
+    log_level = "DEBUG" if args.debug else args.log_level
+    setup_logging(log_level)
+
+    # Setup signal handlers for graceful shutdown
+    setup_signal_handlers()
 
     logger.info("Starting Voice MCP Server...")
     logger.info(f"Transport: {args.transport}")
     logger.info(f"Debug mode: {args.debug}")
+    logger.info(f"Log level: {log_level}")
 
-    # Preload STT model if enabled
-    if config.stt_enabled:
-        logger.info("Preloading STT model on startup...")
-        stt_handler = get_transcription_handler()
-        if stt_handler.preload():
-            logger.info("STT model preloaded successfully")
-        else:
-            logger.warning("STT model preload failed, will load on first use")
-
-    # Start hotkey monitoring if enabled
-    if config.enable_hotkey:
-        logger.info("Starting hotkey monitoring on startup...")
-        result = VoiceTools.start_hotkey_monitoring()
-        logger.info(f"Hotkey startup: {result}")
+    # Start background preloading for faster subsequent calls
+    loading_manager = get_loading_manager()
+    loading_manager.start_background_loading()
+    logger.info("Background preloading initiated - server ready immediately")
 
     try:
         if args.transport == "stdio":

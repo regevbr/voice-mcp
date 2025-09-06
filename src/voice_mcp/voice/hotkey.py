@@ -12,6 +12,8 @@ import structlog
 if TYPE_CHECKING:
     pass
 
+from .hotkey_lock import HotkeyLockManager
+
 logger = structlog.get_logger(__name__)
 
 
@@ -54,6 +56,9 @@ class HotkeyManager:
 
         # Thread safety
         self._lock = threading.RLock()
+
+        # Hotkey lock manager for cross-process coordination
+        self._lock_manager: HotkeyLockManager | None = None
 
         logger.info(
             "HotkeyManager initialized",
@@ -196,7 +201,7 @@ class HotkeyManager:
         return None
 
     def _on_key_press(self, key: Any) -> None:
-        """Handle key press events."""
+        """Handle key press events with lock coordination."""
         with self._lock:
             self._pressed_keys.add(key)
 
@@ -204,10 +209,20 @@ class HotkeyManager:
             if self._hotkey_keys and self._hotkey_keys.issubset(self._pressed_keys):
                 logger.debug("Hotkey detected", keys=self._hotkey_keys)
 
+                # Try to acquire exclusive processing lock immediately
+                if (
+                    self._lock_manager
+                    and not self._lock_manager.try_acquire_for_processing()
+                ):
+                    logger.debug("Another process is handling this hotkey, forfeiting")
+                    return  # Forfeit immediately - another server will handle it
+
+                logger.info("Processing hotkey with exclusive lock")
+
                 # Call the callback in a separate thread to avoid blocking
                 if self.on_hotkey_pressed:
                     callback_thread = threading.Thread(
-                        target=self.on_hotkey_pressed, daemon=True
+                        target=self._process_hotkey_with_lock, daemon=True
                     )
                     callback_thread.start()
 
@@ -253,6 +268,28 @@ class HotkeyManager:
                 self._is_combination = parse_result["is_combination"]
                 self._pressed_keys.clear()
 
+                # Initialize lock manager for this hotkey
+                try:
+                    from ..config import config
+
+                    if (
+                        hasattr(config, "hotkey_lock_enabled")
+                        and config.hotkey_lock_enabled
+                    ):
+                        self._lock_manager = HotkeyLockManager(
+                            hotkey_name=hotkey_name,
+                            lock_directory=config.hotkey_lock_directory,
+                            fallback_semaphore=config.hotkey_lock_fallback_semaphore,
+                        )
+                        logger.debug(
+                            f"Lock manager initialized for hotkey: {hotkey_name}"
+                        )
+                    else:
+                        logger.debug("Hotkey locking disabled in configuration")
+                except Exception as e:
+                    logger.warning(f"Failed to initialize lock manager: {e}")
+                    self._lock_manager = None
+
                 # Reset stop event
                 self._stop_event.clear()
 
@@ -295,14 +332,15 @@ class HotkeyManager:
     def _run_listener(self) -> None:
         """Run the keyboard listener in a background thread."""
         try:
-            if self._listener:
+            if self._listener and self._listener is not None:
                 self._listener.start()
 
                 # Keep the listener running until stop is requested
                 while not self._stop_event.is_set():
                     time.sleep(0.1)
 
-                self._listener.stop()
+                if self._listener and self._listener is not None:
+                    self._listener.stop()
 
         except Exception as e:
             logger.error("Keyboard listener error", error=str(e))
@@ -326,19 +364,35 @@ class HotkeyManager:
                 # Signal stop
                 self._stop_event.set()
 
-                # Stop the listener
-                if self._listener:
-                    self._listener.stop()
+                # Stop the listener first
+                if self._listener and self._listener is not None:
+                    try:
+                        self._listener.stop()
+                    except Exception as e:
+                        logger.warning("Error stopping keyboard listener", error=str(e))
                     self._listener = None
 
-                # Wait for monitoring thread to finish
+                # Wait for monitoring thread to finish with extended timeout
                 if self._monitoring_thread and self._monitoring_thread.is_alive():
-                    self._monitoring_thread.join(timeout=2.0)
+                    self._monitoring_thread.join(timeout=5.0)
                     if self._monitoring_thread.is_alive():
-                        logger.warning("Monitoring thread did not stop gracefully")
+                        logger.warning(
+                            "Monitoring thread did not stop gracefully, forcing cleanup"
+                        )
+                        # For non-daemon threads that won't stop, we can't force kill them
+                        # but we can mark them as such and continue cleanup
 
                 self._is_monitoring = False
                 self._monitoring_thread = None
+
+                # Cleanup lock manager
+                if self._lock_manager:
+                    try:
+                        self._lock_manager.cleanup()
+                        logger.debug("Lock manager cleaned up")
+                    except Exception as e:
+                        logger.warning(f"Error cleaning up lock manager: {e}")
+                    self._lock_manager = None
 
                 # Clear state
                 previous_hotkey = self._hotkey_name
@@ -357,6 +411,17 @@ class HotkeyManager:
 
             except Exception as e:
                 logger.error("Failed to stop hotkey monitoring", error=str(e))
+                # Cleanup lock manager even on error
+                if self._lock_manager:
+                    try:
+                        self._lock_manager.cleanup()
+                    except Exception:
+                        pass
+                    self._lock_manager = None
+
+                # Even if there's an error, mark as stopped to prevent hanging
+                self._is_monitoring = False
+                self._monitoring_thread = None
                 return {
                     "success": False,
                     "error": f"Failed to stop monitoring: {str(e)}",
@@ -379,12 +444,35 @@ class HotkeyManager:
                     if self._monitoring_thread
                     else False
                 ),
+                "lock_enabled": self._lock_manager is not None,
+                "lock_held": (
+                    self._lock_manager.is_locked_by_me()
+                    if self._lock_manager
+                    else False
+                ),
             }
 
     def is_monitoring(self) -> bool:
         """Check if currently monitoring hotkeys."""
         with self._lock:
             return self._is_monitoring
+
+    def _process_hotkey_with_lock(self) -> None:
+        """Process hotkey while holding exclusive lock for the entire duration."""
+        try:
+            logger.debug("Starting hotkey processing with lock held")
+
+            # Process the hotkey callback
+            if self.on_hotkey_pressed:
+                self.on_hotkey_pressed()  # This will take several seconds for STT
+
+            logger.debug("Hotkey processing completed successfully")
+
+        except Exception as e:
+            logger.error(f"Error during hotkey processing: {e}", exc_info=True)
+        finally:
+            # Lock will be automatically released by the timer in HotkeyLockManager
+            logger.debug("Hotkey processing finished, lock release scheduled")
 
     def __del__(self) -> None:
         """Cleanup resources when object is destroyed."""

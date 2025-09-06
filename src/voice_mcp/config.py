@@ -6,6 +6,8 @@ import logging
 import os
 from dataclasses import dataclass
 
+import structlog
+
 
 @dataclass
 class ServerConfig:
@@ -20,7 +22,9 @@ class ServerConfig:
 
     # TTS settings
     tts_model: str = "tts_models/en/ljspeech/tacotron2-DDC"  # Coqui TTS model to use
-    tts_rate: float = 1.0  # Speed multiplier (not implemented yet)
+    tts_preload_enabled: bool = True  # Enable TTS preloading on startup
+    tts_gpu_enabled: bool = False  # Enable GPU acceleration for TTS
+    tts_rate: float = 1.0  # Speed multiplier for speech rate
     tts_volume: float = 0.9  # Volume level (not implemented yet)
 
     # STT settings
@@ -28,7 +32,7 @@ class ServerConfig:
     stt_model: str = "base"  # tiny, base, small, medium, large
     stt_device: str = "auto"  # auto, cuda, cpu
     stt_language: str = "en"  # Default language for STT
-    stt_silence_threshold: float = 4.0
+    stt_silence_threshold: float = 2.0  # Silence detection threshold in seconds (changed from 3.0s for faster response)
     enable_hotkey: bool = True  # Enable/disable hotkey monitoring
     hotkey_name: str = "menu"  # Which key to use (menu, f12, ctrl+alt+s, etc.)
     hotkey_output_mode: str = "typing"  # Default output mode when hotkey is used
@@ -37,10 +41,33 @@ class ServerConfig:
     typing_enabled: bool = True
     clipboard_enabled: bool = True
     typing_debounce_delay: float = 0.1
+    clipboard_restore_enabled: bool = (
+        True  # Enable/disable automatic clipboard restoration after STT sessions
+    )
+    clipboard_restore_delay: float = 3.0  # Delay in seconds before clipboard restoration to ensure keyboard input is complete
+
+    # Hotkey lock settings
+    hotkey_lock_enabled: bool = True  # Enable/disable cross-process hotkey locking
+    hotkey_lock_timeout: float = (
+        1.0  # Lock acquisition timeout (not used for immediate forfeit)
+    )
+    hotkey_lock_directory: str | None = (
+        None  # Custom lock directory (auto-detect if None)
+    )
+    hotkey_lock_fallback_semaphore: bool = (
+        True  # Allow semaphore fallback if file locks fail
+    )
 
     # Audio settings
     sample_rate: int = 16000
     chunk_size: int = 1024
+
+    # Audio quality settings
+    audio_quality_validation_enabled: bool = True  # Enable audio quality validation
+    audio_quality_mode: str = "balanced"  # fast, balanced, high_quality
+    audio_normalization_headroom: float = (
+        0.95  # Headroom for audio normalization (0.0-1.0)
+    )
 
     @classmethod
     def from_env(cls) -> "ServerConfig":
@@ -54,14 +81,20 @@ class ServerConfig:
             tts_model=os.getenv(
                 "VOICE_MCP_TTS_MODEL", "tts_models/en/ljspeech/tacotron2-DDC"
             ),
+            tts_preload_enabled=os.getenv(
+                "VOICE_MCP_TTS_PRELOAD_ENABLED", "true"
+            ).lower()
+            == "true",
+            tts_gpu_enabled=os.getenv("VOICE_MCP_TTS_GPU_ENABLED", "false").lower()
+            == "true",
             tts_rate=float(os.getenv("VOICE_MCP_TTS_RATE", "1.0")),
             tts_volume=float(os.getenv("VOICE_MCP_TTS_VOLUME", "0.9")),
-            stt_enabled=os.getenv("VOICE_MCP_STT_ENABLED", "false").lower() == "true",
+            stt_enabled=os.getenv("VOICE_MCP_STT_ENABLED", "true").lower() == "true",
             stt_model=os.getenv("VOICE_MCP_STT_MODEL", "base"),
             stt_device=os.getenv("VOICE_MCP_STT_DEVICE", "auto"),
             stt_language=os.getenv("VOICE_MCP_STT_LANGUAGE", "en"),
             stt_silence_threshold=float(
-                os.getenv("VOICE_MCP_STT_SILENCE_THRESHOLD", "4.0")
+                os.getenv("VOICE_MCP_STT_SILENCE_THRESHOLD", "2.0")
             ),
             enable_hotkey=os.getenv("VOICE_MCP_ENABLE_HOTKEY", "true").lower()
             == "true",
@@ -74,18 +107,67 @@ class ServerConfig:
             typing_debounce_delay=float(
                 os.getenv("VOICE_MCP_TYPING_DEBOUNCE_DELAY", "0.1")
             ),
+            clipboard_restore_enabled=os.getenv(
+                "VOICE_MCP_CLIPBOARD_RESTORE_ENABLED", "true"
+            ).lower()
+            == "true",
+            clipboard_restore_delay=float(
+                os.getenv("VOICE_MCP_CLIPBOARD_RESTORE_DELAY", "3.0")
+            ),
+            hotkey_lock_enabled=os.getenv(
+                "VOICE_MCP_HOTKEY_LOCK_ENABLED", "true"
+            ).lower()
+            == "true",
+            hotkey_lock_timeout=float(
+                os.getenv("VOICE_MCP_HOTKEY_LOCK_TIMEOUT", "1.0")
+            ),
+            hotkey_lock_directory=os.getenv("VOICE_MCP_HOTKEY_LOCK_DIRECTORY"),
+            hotkey_lock_fallback_semaphore=os.getenv(
+                "VOICE_MCP_HOTKEY_LOCK_FALLBACK_SEMAPHORE", "true"
+            ).lower()
+            == "true",
             sample_rate=int(os.getenv("VOICE_MCP_SAMPLE_RATE", "16000")),
             chunk_size=int(os.getenv("VOICE_MCP_CHUNK_SIZE", "1024")),
+            audio_quality_validation_enabled=os.getenv(
+                "VOICE_MCP_AUDIO_QUALITY_VALIDATION_ENABLED", "true"
+            ).lower()
+            == "true",
+            audio_quality_mode=os.getenv("VOICE_MCP_AUDIO_QUALITY_MODE", "balanced"),
+            audio_normalization_headroom=float(
+                os.getenv("VOICE_MCP_AUDIO_NORMALIZATION_HEADROOM", "0.95")
+            ),
         )
 
 
 def setup_logging(log_level: str = "INFO") -> None:
     """Setup logging configuration."""
+    # Configure Python's standard logging
     logging.basicConfig(
         level=getattr(logging, log_level.upper()),
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+
+    # Configure structlog to use Python's standard logging
+    structlog.configure(
+        processors=[
+            structlog.stdlib.filter_by_level,
+            structlog.stdlib.add_logger_name,
+            structlog.stdlib.add_log_level,
+            structlog.stdlib.PositionalArgumentsFormatter(),
+            structlog.processors.StackInfoRenderer(),
+            structlog.processors.format_exc_info,
+            structlog.processors.UnicodeDecoder(),
+            structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
+        ],
+        context_class=dict,
+        logger_factory=structlog.stdlib.LoggerFactory(),
+        wrapper_class=structlog.stdlib.BoundLogger,
+        cache_logger_on_first_use=True,
+    )
+
+    # Set the root logger level to ensure structlog respects it
+    logging.getLogger().setLevel(getattr(logging, log_level.upper()))
 
 
 # Global configuration instance

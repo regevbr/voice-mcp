@@ -53,6 +53,11 @@ class TextOutputController:
         self.last_update_time = 0.0
         self._keyboard_controller: Any | None = None
 
+        # Session management for clipboard restoration
+        self._session_active = False
+        self._original_clipboard_content: str | None = None
+        self._clipboard_was_modified = False
+
         logger.info(
             "TextOutputController initialized",
             debounce_delay=self.debounce_delay,
@@ -284,7 +289,7 @@ class TextOutputController:
                 for _ in range(chars_to_delete):
                     kb.press(keyboard.Key.backspace)
                     kb.release(keyboard.Key.backspace)
-                    time.sleep(0.01)  # Small delay between keystrokes
+                    time.sleep(0.1)  # Small delay between keystrokes
 
             elif diff["type"] == "delete_suffix":
                 # Delete suffix only
@@ -294,7 +299,7 @@ class TextOutputController:
                 for _ in range(chars_to_delete):
                     kb.press(keyboard.Key.backspace)
                     kb.release(keyboard.Key.backspace)
-                    time.sleep(0.01)
+                    time.sleep(0.1)
 
             elif diff["type"] in ["replace_suffix", "replace_all"]:
                 # Delete and replace
@@ -316,20 +321,19 @@ class TextOutputController:
             if new_text_to_type:
                 if self._check_clipboard_availability():
                     # Use clipboard for efficiency (cross-platform)
-                    original_clipboard = pyperclip.paste()
                     pyperclip.copy(new_text_to_type)
 
+                    # Mark that we've modified clipboard during this session
+                    if self._session_active:
+                        self._clipboard_was_modified = True
+
                     # Small delay to ensure clipboard is set
-                    time.sleep(0.02)
+                    time.sleep(0.1)
 
                     # Paste using Ctrl+V (cross-platform)
                     with kb.pressed(keyboard.Key.ctrl):
                         kb.press("v")
                         kb.release("v")
-
-                    # Restore original clipboard content
-                    time.sleep(0.05)
-                    pyperclip.copy(original_clipboard)
                 else:
                     # Fallback to direct typing (slower but always works)
                     kb.type(new_text_to_type)
@@ -385,6 +389,146 @@ class TextOutputController:
                 "text": text,
                 "error": f"Clipboard copy failed: {str(e)}",
             }
+
+    def start_session(self) -> dict[str, Any]:
+        """
+        Start a new text output session with clipboard backup.
+
+        Returns:
+            Dictionary with session start status and information
+        """
+        if self._session_active:
+            logger.warning("Session already active, ending previous session first")
+            self.end_session()
+
+        try:
+            # Backup current clipboard content if available
+            if self._check_clipboard_availability():
+                try:
+                    self._original_clipboard_content = pyperclip.paste()
+                    logger.debug(
+                        "Clipboard content backed up",
+                        length=(
+                            len(self._original_clipboard_content)
+                            if self._original_clipboard_content
+                            else 0
+                        ),
+                    )
+                except Exception as e:
+                    logger.warning("Failed to backup clipboard content", error=str(e))
+                    self._original_clipboard_content = None
+            else:
+                self._original_clipboard_content = None
+
+            # Initialize session state
+            self._session_active = True
+            self._clipboard_was_modified = False
+
+            logger.info("Text output session started")
+
+            return {
+                "success": True,
+                "message": "Session started successfully",
+                "clipboard_backed_up": self._original_clipboard_content is not None,
+            }
+
+        except Exception as e:
+            logger.error("Failed to start session", error=str(e))
+            return {
+                "success": False,
+                "error": f"Failed to start session: {str(e)}",
+            }
+
+    def end_session(self) -> dict[str, Any]:
+        """
+        End the current text output session and restore clipboard if needed.
+
+        Returns:
+            Dictionary with session end status and information
+        """
+        if not self._session_active:
+            logger.debug("No active session to end")
+            return {
+                "success": True,
+                "message": "No active session to end",
+                "clipboard_restored": False,
+            }
+
+        clipboard_restored = False
+
+        try:
+            # Restore original clipboard content if we modified it AND restoration is enabled
+            if (
+                self._clipboard_was_modified
+                and self._original_clipboard_content is not None
+                and self._check_clipboard_availability()
+                and config.clipboard_restore_enabled  # Only restore if explicitly enabled
+            ):
+                try:
+                    pyperclip.copy(self._original_clipboard_content)
+                    clipboard_restored = True
+                    logger.debug(
+                        "Clipboard content restored",
+                        length=len(self._original_clipboard_content),
+                    )
+                except Exception as e:
+                    logger.warning("Failed to restore clipboard content", error=str(e))
+            elif self._clipboard_was_modified and not config.clipboard_restore_enabled:
+                # Log that restoration was skipped due to configuration
+                logger.debug(
+                    "Clipboard restoration skipped due to configuration",
+                    clipboard_restore_enabled=config.clipboard_restore_enabled,
+                )
+
+            return {
+                "success": True,
+                "message": "Session ended successfully",
+                "clipboard_restored": clipboard_restored,
+            }
+
+        except Exception as e:
+            logger.error("Failed to end session cleanly", error=str(e))
+            return {
+                "success": False,
+                "error": f"Failed to end session: {str(e)}",
+                "clipboard_restored": clipboard_restored,
+            }
+
+        finally:
+            # Always reset session state
+            self._session_active = False
+            self._original_clipboard_content = None
+            self._clipboard_was_modified = False
+
+            # Reset typing state
+            self.reset()
+
+            logger.info("Text output session ended")
+
+    def end_session_delayed(self) -> dict[str, Any]:
+        """
+        End the current session after external processing (like audio feedback).
+
+        This method is designed to be called after audio feedback completes to ensure
+        proper timing of clipboard restoration. It adds a delay to ensure all keyboard
+        strokes and system input processing is complete before restoring clipboard.
+
+        Returns:
+            Dictionary with session end status and information
+        """
+        import time
+
+        # Add a configurable delay to ensure all keyboard strokes are fully processed
+        # This prevents clipboard restoration from interfering with any pending
+        # paste operations or user interactions
+        delay_seconds = config.clipboard_restore_delay
+
+        logger.debug(
+            "Delaying session end for keyboard processing", delay_seconds=delay_seconds
+        )
+        time.sleep(delay_seconds)
+
+        return self.end_session()
 
     def reset(self) -> None:
         """Reset typing state for new session."""

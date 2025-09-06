@@ -157,6 +157,17 @@ def mock_text_controller():
             "pynput_available": True,
             "pyperclip_available": True,
         }
+        # Session management methods
+        mock_controller.start_session.return_value = {
+            "success": True,
+            "message": "Session started successfully",
+            "clipboard_backed_up": True,
+        }
+        mock_controller.end_session.return_value = {
+            "success": True,
+            "message": "Session ended successfully",
+            "clipboard_restored": True,
+        }
         mock_get_controller.return_value = mock_controller
         yield mock_controller
 

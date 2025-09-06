@@ -42,7 +42,7 @@ jobs:
     - name: Install uv
       uses: astral-sh/setup-uv@v4
       with:
-        version: "0.5.13"
+        version: "0.8.13"
 
     - name: Set up Python 3.12
       run: uv python install 3.12
@@ -143,7 +143,7 @@ jobs:
     - name: Install uv
       uses: astral-sh/setup-uv@v4
       with:
-        version: "0.5.13"
+        version: "0.8.13"
 
     - name: Set up Python 3.12
       run: uv python install 3.12
@@ -289,7 +289,7 @@ jobs:
         \`\`\`bash
         git clone https://github.com/voice-mcp/voice-mcp.git
         cd voice-mcp
-        uv sync --dev
+        uv sync --extra audio --dev
         uv pip install -e .
         \`\`\`
 
@@ -334,7 +334,7 @@ jobs:
         |----------|---------|-------------|
         | \`VOICE_MCP_STT_MODEL\` | \`base\` | Whisper model size |
         | \`VOICE_MCP_STT_LANGUAGE\` | \`en\` | Default language |
-        | \`VOICE_MCP_STT_SILENCE_THRESHOLD\` | \`4.0\` | Silence detection threshold |
+        | \`VOICE_MCP_STT_SILENCE_THRESHOLD\` | \`2.0\` | Silence detection threshold |
         EOF
         fi
 

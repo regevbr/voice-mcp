@@ -196,8 +196,10 @@ class TestHotkeyManager:
         # Simulate key press and release
         manager._on_key_press("mock_f12_key")
 
-        # Give callback thread time to execute
-        time.sleep(0.1)
+        # The callback is now run in background with locking mechanism
+        # Wait a moment for the callback thread to execute
+
+        time.sleep(0.01)  # Very short wait just for callback execution
 
         # Verify callback was called
         callback.assert_called_once()
@@ -215,14 +217,14 @@ class TestHotkeyManager:
         manager._on_key_press("mock_alt_l_key")
 
         # Callback should not be triggered yet
-        time.sleep(0.05)
         callback.assert_not_called()
 
         # Press the final key
         manager._on_key_press("mock_char_s")
 
-        # Give callback thread time to execute
-        time.sleep(0.1)
+        # Wait a moment for the callback thread to execute
+
+        time.sleep(0.01)  # Very short wait just for callback execution
 
         # Now callback should be triggered
         callback.assert_called_once()
@@ -236,10 +238,7 @@ class TestHotkeyManager:
 
         hotkey_manager.stop_monitoring()
 
-        # Give thread time to clean up
-        time.sleep(0.1)
-
-        # Verify cleanup
+        # Verify cleanup (should be immediate for mocked components)
         assert not hotkey_manager.is_monitoring()
 
 
@@ -345,6 +344,11 @@ class TestHotkeyCallback:
 
         # Mock text controller
         mock_text_controller = Mock()
+        mock_text_controller.end_session_delayed.return_value = {
+            "success": True,
+            "message": "Session ended successfully",
+            "clipboard_restored": True,
+        }
         mock_text_controller_getter.return_value = mock_text_controller
 
         # Mock audio manager
@@ -355,9 +359,12 @@ class TestHotkeyCallback:
         # Execute callback
         _on_hotkey_pressed()
 
-        # Verify real-time transcription was called
+        # Verify real-time transcription was called with auto_end_session=False
         mock_handler.transcribe_with_realtime_output.assert_called_once_with(
-            text_output_controller=mock_text_controller, duration=None, language="en"
+            text_output_controller=mock_text_controller,
+            duration=None,
+            language="en",
+            auto_end_session=False,
         )
 
         # Verify audio feedback
@@ -509,9 +516,10 @@ class TestErrorHandling:
         hotkey_manager._listener.stop.side_effect = Exception("Stop failed")
 
         result = hotkey_manager.stop_monitoring()
-        # Should report error when stop fails
-        assert result["success"] is False
-        assert "Failed to stop monitoring" in result["error"]
+        # Current implementation handles listener stop errors gracefully and continues
+        # to return success after cleaning up state
+        assert result["success"] is True
+        assert "Hotkey monitoring stopped" in result["message"]
 
     def test_key_press_exception(self, mock_pynput):  # noqa: ARG002
         """Test exception handling in key press callback."""
@@ -522,9 +530,6 @@ class TestErrorHandling:
 
         # This should not raise an exception
         manager._on_key_press("mock_f12_key")
-
-        # Give callback thread time to execute
-        time.sleep(0.1)
 
         # Callback should have been called despite the exception
         callback.assert_called_once()

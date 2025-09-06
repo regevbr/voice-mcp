@@ -19,7 +19,6 @@ updates:
     labels:
       - "dependencies"
       - "python"
-    milestone: "Next Release"
     rebase-strategy: "auto"
 
     # Group related updates together
@@ -33,7 +32,6 @@ updates:
 
       code-quality:
         patterns:
-          - "black*"
           - "ruff*"
           - "mypy*"
           - "isort*"
