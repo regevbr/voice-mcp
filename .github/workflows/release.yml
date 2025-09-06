@@ -428,7 +428,7 @@ jobs:
     name: Publish to PyPI
     runs-on: ubuntu-latest
     needs: [validate-release, create-release, build-package]
-    if: github.repository == 'voice-mcp/voice-mcp'  # Only for official repo
+    if: github.repository == 'regevbr/voice-mcp'  # Only for official repo
     environment: release  # Requires manual approval for production
 
     steps:
