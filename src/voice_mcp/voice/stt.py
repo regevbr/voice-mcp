@@ -15,12 +15,16 @@ if TYPE_CHECKING:
 
 # Check if RealtimeSTT is available
 try:
-    from RealtimeSTT import AudioToTextRecorder  # type: ignore
+    from RealtimeSTT import AudioToTextRecorder
 
     REALTIMESTT_AVAILABLE = True
 except ImportError:
     REALTIMESTT_AVAILABLE = False
-    AudioToTextRecorder = None
+
+    # Create a placeholder type for type checking
+    class AudioToTextRecorder:  # type: ignore
+        pass
+
 
 logger = structlog.get_logger(__name__)
 
@@ -29,7 +33,7 @@ class TranscriptionHandler:
     """Simplified transcription handler with singleton pattern and preloading."""
 
     _instance: "TranscriptionHandler | None" = None
-    _recorder: Any = None  # AudioToTextRecorder when available, None when not
+    _recorder: AudioToTextRecorder | None = None
     _is_initialized = False
 
     def __new__(cls) -> "TranscriptionHandler":
@@ -203,14 +207,15 @@ class TranscriptionHandler:
             logger.info("Using preloaded STT model for transcription")
             recorder_to_use = self._recorder
 
-            # Configure callbacks for this session on the preloaded recorder
-            # Note: RealtimeSTT allows dynamic callback configuration
-            if hasattr(recorder_to_use, "set_on_recording_stop"):
-                recorder_to_use.set_on_recording_stop(on_recording_stop)  # type: ignore
-            if hasattr(recorder_to_use, "set_on_realtime_transcription_stabilized"):
-                recorder_to_use.set_on_realtime_transcription_stabilized(  # type: ignore
-                    on_transcription_update
-                )
+            if recorder_to_use is None:
+                raise RuntimeError("Recorder not initialized")
+
+            # Configure callbacks by directly setting the instance attributes
+            logger.debug("Setting recorder callbacks for single transcription")
+            recorder_to_use.on_recording_stop = on_recording_stop
+            recorder_to_use.on_realtime_transcription_stabilized = (
+                on_transcription_update
+            )
 
             logger.info("Starting transcription session", max_duration=duration)
 
@@ -288,42 +293,82 @@ class TranscriptionHandler:
         def on_realtime_transcription_update(text: str) -> None:
             nonlocal transcription_result
             transcription_result = text
-            logger.debug("Real-time transcription update", text_length=len(text))
+            logger.debug(
+                "Real-time transcription update",
+                text_length=len(text),
+                text_preview=text[:50] + "..." if len(text) > 50 else text,
+            )
 
-            # Output text in real-time using the typing mode
+            # Output text in real-time using the typing mode with force_update
             try:
-                result = text_output_controller.output_text(text, "typing")
-                if not result["success"]:
-                    logger.warning("Real-time typing failed", error=result.get("error"))
+                result = text_output_controller.output_text(
+                    text, "typing", force_update=True
+                )
+                if result["success"]:
+                    logger.debug(
+                        "Real-time typing successful",
+                        operation=result.get("operation", ""),
+                    )
+                else:
+                    logger.warning(
+                        "Real-time typing failed",
+                        error=result.get("error"),
+                        text_length=len(text),
+                    )
             except Exception as e:
-                logger.warning("Real-time typing error", error=str(e))
+                logger.error(
+                    "Real-time typing error",
+                    error=str(e),
+                    text_length=len(text),
+                    exc_info=True,
+                )
 
         def on_recording_stop(text: str) -> None:
             nonlocal transcription_result
             transcription_result = text
-            logger.info("Recording stopped with final text", final_text=text)
+            logger.info(
+                "Recording stopped with final text",
+                final_text=text[:100] + "..." if len(text) > 100 else text,
+                text_length=len(text),
+            )
 
             # Final output to ensure we have the complete text
             try:
                 result = text_output_controller.output_text(
                     text, "typing", force_update=True
                 )
-                if not result["success"]:
-                    logger.warning("Final typing failed", error=result.get("error"))
+                if result["success"]:
+                    logger.info(
+                        "Final typing successful", operation=result.get("operation", "")
+                    )
+                else:
+                    logger.error(
+                        "Final typing failed",
+                        error=result.get("error"),
+                        text_length=len(text),
+                    )
             except Exception as e:
-                logger.warning("Final typing error", error=str(e))
+                logger.error(
+                    "Final typing error",
+                    error=str(e),
+                    text_length=len(text),
+                    exc_info=True,
+                )
 
         try:
             logger.info("Using preloaded STT model for real-time transcription")
             recorder_to_use = self._recorder
 
-            # Configure callbacks for real-time output
-            if hasattr(recorder_to_use, "set_on_recording_stop"):
-                recorder_to_use.set_on_recording_stop(on_recording_stop)  # type: ignore
-            if hasattr(recorder_to_use, "set_on_realtime_transcription_stabilized"):
-                recorder_to_use.set_on_realtime_transcription_stabilized(  # type: ignore
-                    on_realtime_transcription_update
-                )
+            if recorder_to_use is None:
+                raise RuntimeError("Recorder not initialized")
+
+            # Configure callbacks by directly setting the instance attributes
+            logger.debug("Setting up recorder callbacks for real-time transcription")
+            recorder_to_use.on_recording_stop = on_recording_stop
+            recorder_to_use.on_realtime_transcription_stabilized = (
+                on_realtime_transcription_update
+            )
+            logger.debug("Real-time transcription callbacks configured")
 
             logger.info(
                 "Starting real-time transcription session", max_duration=duration
@@ -375,7 +420,7 @@ class TranscriptionHandler:
         import threading
         import time
 
-        class TimeoutError(Exception):
+        class RecordingTimeoutError(Exception):
             pass
 
         if platform.system() == "Windows":
@@ -399,7 +444,9 @@ class TranscriptionHandler:
         else:
             # Use signal-based timeout for Unix systems
             def signal_timeout_handler(_signum, _frame):
-                raise TimeoutError(f"Recording timeout after {duration} seconds")
+                raise RecordingTimeoutError(
+                    f"Recording timeout after {duration} seconds"
+                )
 
             # Set the signal handler
             old_handler = signal.signal(signal.SIGALRM, signal_timeout_handler)
@@ -407,7 +454,7 @@ class TranscriptionHandler:
 
             try:
                 yield
-            except TimeoutError:
+            except RecordingTimeoutError:
                 logger.info("Recording stopped due to timeout", duration=duration)
             finally:
                 # Restore the old signal handler

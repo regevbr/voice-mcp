@@ -56,7 +56,7 @@ class ServerConfig:
             ),
             tts_rate=float(os.getenv("VOICE_MCP_TTS_RATE", "1.0")),
             tts_volume=float(os.getenv("VOICE_MCP_TTS_VOLUME", "0.9")),
-            stt_enabled=os.getenv("VOICE_MCP_STT_ENABLED", "false").lower() == "true",
+            stt_enabled=os.getenv("VOICE_MCP_STT_ENABLED", "true").lower() == "true",
             stt_model=os.getenv("VOICE_MCP_STT_MODEL", "base"),
             stt_device=os.getenv("VOICE_MCP_STT_DEVICE", "auto"),
             stt_language=os.getenv("VOICE_MCP_STT_LANGUAGE", "en"),

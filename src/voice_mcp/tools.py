@@ -67,6 +67,9 @@ def _on_hotkey_pressed() -> None:
             stt_handler = get_transcription_handler()
             text_controller = get_text_output_controller()
 
+            # Reset text controller state for new session
+            text_controller.reset()
+
             # Play "on" sound to indicate recording start
             audio_manager = get_audio_manager()
             if audio_manager.is_available:
