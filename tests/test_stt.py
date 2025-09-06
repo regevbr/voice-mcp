@@ -867,11 +867,8 @@ class TestTranscriptionHandlerErrorConditions:
             handler._recorder.shutdown = Mock()
 
             # Capture the callback function
-            captured_callback = None
 
             def capture_callback(text):
-                nonlocal captured_callback
-                captured_callback = text
                 # Test logging of long text (>50 chars)
                 long_text = "a" * 60  # 60 characters
                 return long_text
