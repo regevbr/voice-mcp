@@ -649,3 +649,128 @@ class TestTranscriptionHandlerIntegration:
         # Should be cleaned up after context
         assert handler._recorder is None
         assert handler._is_initialized is False
+
+
+class TestTqdmPatching:
+    """Test tqdm compatibility patches in stt.py."""
+
+    def test_tqdm_patch_import_handling(self):
+        """Test that tqdm patches handle import errors gracefully."""
+        # The patches are applied at import time, so we just verify
+        # that the module can be imported without errors
+        from voice_mcp.voice import stt
+
+        # Basic check that the module loaded
+        assert hasattr(stt, "TranscriptionHandler")
+        assert hasattr(stt, "get_transcription_handler")
+
+
+class TestTranscriptionHandlerErrorConditions:
+    """Test error handling and edge cases in TranscriptionHandler."""
+
+    def test_transcribe_once_runtime_error(self):
+        """Test transcribe_once with RuntimeError when recorder is None."""
+        handler = TranscriptionHandler()
+
+        with patch("voice_mcp.voice.stt.REALTIMESTT_AVAILABLE", True):
+            handler._is_initialized = True
+            handler._recorder = None
+
+            # Enable should succeed but leave recorder as None
+            with patch.object(handler, "enable", return_value=True):
+                with patch.object(handler, "is_ready", return_value=True):
+                    result = handler.transcribe_once()
+
+                    assert result["success"] is False
+                    assert "Transcription error" in result["error"]
+                    assert "Recorder not initialized" in result["error"]
+
+    def test_transcribe_once_recorder_shutdown_exception(self):
+        """Test transcribe_once when recorder.shutdown() raises exception."""
+        handler = TranscriptionHandler()
+
+        with patch("voice_mcp.voice.stt.REALTIMESTT_AVAILABLE", True):
+            handler._is_initialized = True
+            mock_recorder = Mock()
+            mock_recorder.start = Mock()
+            mock_recorder.text = Mock(return_value="test text")
+            mock_recorder.shutdown.side_effect = Exception("Shutdown failed")
+            handler._recorder = mock_recorder
+
+            with patch("voice_mcp.voice.stt.config") as mock_config:
+                mock_config.stt_model = "base"
+                mock_config.stt_language = "en"
+
+                result = handler.transcribe_once()
+
+                assert result["success"] is False
+                assert "Transcription error" in result["error"]
+                assert "Shutdown failed" in result["error"]
+
+    def test_transcribe_with_realtime_output_recorder_none(self):
+        """Test transcribe_with_realtime_output when recorder is None."""
+        handler = TranscriptionHandler()
+        mock_text_controller = Mock()
+
+        with patch("voice_mcp.voice.stt.REALTIMESTT_AVAILABLE", True):
+            handler._is_initialized = True
+            handler._recorder = None
+
+            with patch.object(handler, "enable", return_value=True):
+                with patch.object(handler, "is_ready", return_value=True):
+                    result = handler.transcribe_with_realtime_output(
+                        mock_text_controller
+                    )
+
+                    assert result["success"] is False
+                    assert "Transcription error" in result["error"]
+
+    def test_transcribe_with_realtime_output_with_duration_error(self):
+        """Test transcribe_with_realtime_output with duration that causes error."""
+        handler = TranscriptionHandler()
+        mock_text_controller = Mock()
+
+        with patch("voice_mcp.voice.stt.REALTIMESTT_AVAILABLE", True):
+            handler._is_initialized = True
+            mock_recorder = Mock()
+            mock_recorder.set_on_recording_stop = Mock()
+            mock_recorder.set_on_realtime_transcription_stabilized = Mock()
+            mock_recorder.start.side_effect = Exception("Timeout error")
+            handler._recorder = mock_recorder
+
+            with patch.object(handler, "_timeout_context") as mock_timeout:
+                mock_timeout.side_effect = Exception("Timeout setup failed")
+
+                result = handler.transcribe_with_realtime_output(
+                    mock_text_controller, duration=5.0
+                )
+
+                assert result["success"] is False
+                assert "Transcription error" in result["error"]
+
+    def test_preload_recorder_creation_exception(self):
+        """Test preload when AudioToTextRecorder creation raises exception."""
+        # Reset singleton for this test
+        TranscriptionHandler._instance = None
+        TranscriptionHandler._is_initialized = False
+        TranscriptionHandler._recorder = None
+
+        handler = TranscriptionHandler()
+
+        with patch("voice_mcp.voice.stt.REALTIMESTT_AVAILABLE", True):
+            with patch("voice_mcp.voice.stt.config") as mock_config:
+                mock_config.stt_model = "base"
+                mock_config.stt_language = "en"
+                mock_config.stt_silence_threshold = 4.0
+
+                with patch.object(
+                    handler, "_get_optimal_device", return_value=("cpu", "int8")
+                ):
+                    with patch(
+                        "voice_mcp.voice.stt.AudioToTextRecorder",
+                        side_effect=Exception("Model load failed"),
+                    ):
+                        result = handler.preload()
+
+                        assert result is False
+                        assert handler._is_initialized is False

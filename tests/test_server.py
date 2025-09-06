@@ -580,3 +580,165 @@ class TestServerIntegration:
         assert mcp is not None
         # Basic check that it's a FastMCP instance
         assert hasattr(mcp, "run")
+
+
+class TestUtilityFunctions:
+    """Test utility functions in server.py."""
+
+    def test_log_active_threads(self):
+        """Test log_active_threads function."""
+        from voice_mcp.server import log_active_threads
+
+        with patch("threading.enumerate") as mock_enumerate:
+            mock_thread = Mock()
+            mock_thread.name = "test-thread"
+            mock_thread.daemon = True
+            mock_thread.is_alive.return_value = True
+            mock_thread.ident = 12345
+            mock_enumerate.return_value = [mock_thread]
+
+            # This should not raise any exceptions
+            log_active_threads()
+
+            mock_enumerate.assert_called_once()
+
+    @patch("threading.Thread")
+    @patch("time.sleep")
+    def test_force_exit_after_timeout(self, mock_sleep, mock_thread):
+        """Test force_exit_after_timeout function."""
+        from voice_mcp.server import force_exit_after_timeout
+
+        mock_timer_thread = Mock()
+        mock_thread.return_value = mock_timer_thread
+
+        with patch("os._exit") as mock_exit:
+            # Test timeout without actually waiting
+            mock_sleep.side_effect = lambda _: mock_exit(1)
+
+            force_exit_after_timeout(1)
+
+            # Verify thread was created and started
+            mock_thread.assert_called_once()
+            mock_timer_thread.start.assert_called_once()
+
+    @patch("signal.signal")
+    @patch("signal.SIGHUP", 1)  # Mock SIGHUP signal
+    def test_setup_signal_handlers_with_sighup(self, mock_signal):
+        """Test signal handler setup with SIGHUP support."""
+        from voice_mcp.server import setup_signal_handlers
+
+        setup_signal_handlers()
+
+        # Should register handlers for SIGINT, SIGTERM, and SIGHUP
+        assert mock_signal.call_count >= 3
+
+    @patch("signal.signal")
+    def test_setup_signal_handlers_without_sighup(self, mock_signal):
+        """Test signal handler setup without SIGHUP support."""
+        from voice_mcp.server import setup_signal_handlers
+
+        with patch("builtins.hasattr", return_value=False):  # Simulate no SIGHUP
+            setup_signal_handlers()
+
+        # Should register handlers for SIGINT and SIGTERM only
+        assert mock_signal.call_count >= 2
+
+    @patch("voice_mcp.server.cleanup_resources")
+    @patch("voice_mcp.server.log_active_threads")
+    @patch("voice_mcp.server.force_exit_after_timeout")
+    @patch("time.sleep")
+    @patch("sys.exit")
+    def test_signal_handler_execution(
+        self, mock_exit, mock_sleep, mock_force_exit, mock_log_threads, mock_cleanup
+    ):
+        """Test signal handler function execution."""
+        from voice_mcp.server import setup_signal_handlers
+
+        with patch("signal.signal") as mock_signal:
+            setup_signal_handlers()
+
+            # Get the signal handler function that was registered
+            signal_handler = mock_signal.call_args_list[0][0][
+                1
+            ]  # Second argument to signal.signal
+
+            # Execute the signal handler
+            signal_handler(2, None)  # SIGINT = 2
+
+            # Verify cleanup sequence
+            assert mock_log_threads.call_count == 2  # Before and after cleanup
+            mock_force_exit.assert_called_once_with(8)
+            mock_cleanup.assert_called_once()
+            mock_sleep.assert_called_once_with(2)
+            mock_exit.assert_called_once_with(0)
+
+    def test_cleanup_resources_with_module_instances(self):
+        """Test cleanup_resources with module-level instances."""
+        from voice_mcp.server import cleanup_resources
+
+        # This test verifies that the cleanup function can handle module-level instances
+        # The actual module import and cleanup logic is tested separately
+        with patch("voice_mcp.server.config") as mock_config:
+            mock_config.enable_hotkey = True
+
+            with patch(
+                "voice_mcp.server.VoiceTools.stop_hotkey_monitoring",
+                return_value="Stopped",
+            ):
+                with patch(
+                    "voice_mcp.server.get_transcription_handler"
+                ) as mock_get_stt:
+                    mock_stt = Mock()
+                    mock_get_stt.return_value = mock_stt
+
+                    # Test that cleanup doesn't fail when called
+                    cleanup_resources()
+
+                    # Verify the main cleanup path was followed
+                    mock_stt.cleanup.assert_called_once()
+
+
+class TestServerToolFunctions:
+    """Test the actual tool functions exposed by the server."""
+
+    def test_server_tool_functions_via_mcp(self):
+        """Test server tool functions via MCP framework."""
+        from voice_mcp.server import mcp
+
+        # Check that tools are registered and can be accessed
+        tools = mcp._tool_manager._tools
+        assert "speak" in tools
+        assert "start_hotkey_monitoring" in tools
+        assert "stop_hotkey_monitoring" in tools
+        assert "get_hotkey_status" in tools
+
+        # Test that the tools have proper functions
+        speak_tool = tools["speak"]
+        assert speak_tool.fn is not None
+
+        # Test tool function calls through VoiceTools
+        with patch(
+            "voice_mcp.server.VoiceTools.speak", return_value="Success"
+        ) as mock_speak:
+            result = speak_tool.fn("Hello", voice="default", rate=150, volume=0.8)
+            assert result == "Success"
+            mock_speak.assert_called_once_with("Hello", "default", 150, 0.8)
+
+    def test_server_prompt_functions_via_mcp(self):
+        """Test server prompt functions via MCP framework."""
+        from voice_mcp.server import mcp
+
+        # Check that prompts are registered
+        prompts = mcp._prompt_manager._prompts
+        assert "speak" in prompts
+
+        # Test prompt function call through VoicePrompts
+        speak_prompt = prompts["speak"]
+        assert speak_prompt.fn is not None
+
+        with patch(
+            "voice_mcp.server.VoicePrompts.speak_prompt", return_value="Guide"
+        ) as mock_prompt:
+            result = speak_prompt.fn()
+            assert result == "Guide"
+            mock_prompt.assert_called_once()
