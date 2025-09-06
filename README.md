@@ -2,7 +2,7 @@
 
 A comprehensive Model Context Protocol (MCP) server providing advanced text-to-speech (TTS) and speech-to-text (STT) capabilities with global hotkey monitoring for AI assistants.
 
-[![Tests](https://github.com/voice-mcp/voice-mcp/actions/workflows/test.yml/badge.svg)](https://github.com/voice-mcp/voice-mcp/actions/workflows/test.yml)
+[![Tests](https://github.com/voice-mcp/voice-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/voice-mcp/voice-mcp/actions/workflows/ci.yml)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
@@ -35,6 +35,10 @@ A comprehensive Model Context Protocol (MCP) server providing advanced text-to-s
 - **Real-time Systems**: Optimized for low-latency voice interactions
 - **Production-ready**: Comprehensive error handling, logging, and configuration management
 - **Modular Design**: Separate managers for TTS, STT, audio, hotkeys, and text output
+
+## 📚 Documentation
+
+For detailed documentation, API reference, and examples, visit our [GitHub Pages documentation](https://regevbr.github.io/voice-mcp/).
 
 ## 🚀 Quick Start
 

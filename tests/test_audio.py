@@ -94,6 +94,58 @@ class TestAudioManager:
             assert audio_manager.audio_data["on.wav"]["rate"] == 16000
 
     @patch("voice_mcp.voice.audio.pyaudio")
+    @patch("voice_mcp.voice.audio.wave")
+    def test_preload_audio_files_wave_error(self, mock_wave, mock_pyaudio, tmp_path):
+        """Test audio file preloading when wave file reading fails."""
+        mock_audio_instance = Mock()
+        mock_pyaudio.PyAudio.return_value = mock_audio_instance
+
+        # Mock wave.open to raise exception
+        mock_wave.open.side_effect = Exception("Invalid wave file")
+
+        # Create actual files
+        (tmp_path / "on.wav").touch()
+        (tmp_path / "off.wav").touch()
+
+        with patch("voice_mcp.voice.audio.PYAUDIO_AVAILABLE", True):
+            audio_manager = AudioManager(assets_path=tmp_path)
+
+            # Should have empty audio_data due to errors
+            assert len(audio_manager.audio_data) == 0
+
+    @patch("voice_mcp.voice.audio.pyaudio")
+    @patch("voice_mcp.voice.audio.wave")
+    def test_preload_audio_files_audio_none(self, mock_wave, mock_pyaudio, tmp_path):
+        """Test audio file preloading when audio is None."""
+        mock_audio_instance = Mock()
+        mock_pyaudio.PyAudio.return_value = mock_audio_instance
+
+        # Create mock wave file
+        mock_wave_file = MagicMock()
+        mock_wave_file.readframes.return_value = b"audio_data"
+        mock_wave_file.getnframes.return_value = 1000
+        mock_wave_file.getsampwidth.return_value = 2
+        mock_wave_file.getnchannels.return_value = 1
+        mock_wave_file.getframerate.return_value = 16000
+        mock_wave_file.__enter__.return_value = mock_wave_file
+        mock_wave_file.__exit__.return_value = None
+        mock_wave.open.return_value = mock_wave_file
+
+        # Create actual files
+        (tmp_path / "on.wav").touch()
+
+        with patch("voice_mcp.voice.audio.PYAUDIO_AVAILABLE", True):
+            audio_manager = AudioManager(assets_path=tmp_path)
+            # Clear existing data and manually set audio to None to test the condition
+            audio_manager.audio_data.clear()
+            audio_manager.audio = None
+            # Call preload again
+            audio_manager._preload_audio_files()
+
+            # Should skip loading due to audio being None
+            assert len(audio_manager.audio_data) == 0
+
+    @patch("voice_mcp.voice.audio.pyaudio")
     def test_preload_audio_files_missing_files(self, mock_pyaudio, tmp_path):
         """Test preloading when audio files are missing."""
         mock_audio_instance = Mock()
@@ -285,6 +337,110 @@ class TestAudioManager:
 
             # Cleanup should have been called
             mock_audio_instance.terminate.assert_called_once()
+
+
+class TestAudioManagerRawAudio:
+    """Test suite for AudioManager raw audio playback functionality."""
+
+    def test_play_audio_data_not_available(self):
+        """Test raw audio playback when system is not available."""
+        with patch("voice_mcp.voice.audio.PYAUDIO_AVAILABLE", False):
+            audio_manager = AudioManager()
+
+            result = audio_manager.play_audio_data(b"test_data")
+            assert result is False
+
+    def test_play_audio_data_empty_data(self):
+        """Test raw audio playback with empty data."""
+        with patch("voice_mcp.voice.audio.PYAUDIO_AVAILABLE", False):
+            audio_manager = AudioManager()
+
+            result = audio_manager.play_audio_data(b"")
+            assert result is False
+
+    @patch("voice_mcp.voice.audio.pyaudio")
+    @patch("voice_mcp.voice.audio.threading.Thread")
+    def test_play_audio_data_success(self, mock_thread, mock_pyaudio):
+        """Test successful raw audio data playback."""
+        mock_audio_instance = Mock()
+        mock_pyaudio.PyAudio.return_value = mock_audio_instance
+        mock_thread_instance = Mock()
+        mock_thread.return_value = mock_thread_instance
+
+        with patch("voice_mcp.voice.audio.PYAUDIO_AVAILABLE", True):
+            audio_manager = AudioManager()
+
+            result = audio_manager.play_audio_data(
+                b"test_audio_data", sample_rate=44100, channels=2, sample_width=2
+            )
+
+            assert result is True
+            mock_thread.assert_called_once()
+            mock_thread_instance.start.assert_called_once()
+
+    @patch("voice_mcp.voice.audio.pyaudio")
+    def test_play_audio_data_thread_exception(self, mock_pyaudio):
+        """Test raw audio playback thread with exception."""
+        mock_audio_instance = Mock()
+        mock_pyaudio.PyAudio.return_value = mock_audio_instance
+
+        with patch("voice_mcp.voice.audio.PYAUDIO_AVAILABLE", True):
+            with patch("voice_mcp.voice.audio.threading.Thread") as mock_thread:
+                mock_thread.side_effect = Exception("Thread creation failed")
+
+                audio_manager = AudioManager()
+                result = audio_manager.play_audio_data(b"test_data")
+
+                assert result is False
+
+    @patch("voice_mcp.voice.audio.pyaudio")
+    def test_play_audio_data_thread_internal_success(self, mock_pyaudio):
+        """Test the internal audio data playback thread method."""
+        mock_audio_instance = Mock()
+        mock_stream = Mock()
+        mock_audio_instance.open.return_value = mock_stream
+        mock_pyaudio.PyAudio.return_value = mock_audio_instance
+        mock_pyaudio.paInt8 = 1
+        mock_pyaudio.paInt16 = 2
+        mock_pyaudio.paInt24 = 3
+        mock_pyaudio.paInt32 = 4
+
+        with patch("voice_mcp.voice.audio.PYAUDIO_AVAILABLE", True):
+            audio_manager = AudioManager()
+
+            # Test different sample widths
+            test_cases = [
+                (1, 1),  # 8-bit -> paInt8
+                (2, 2),  # 16-bit -> paInt16
+                (3, 3),  # 24-bit -> paInt24
+                (4, 4),  # 32-bit -> paInt32
+                (5, 2),  # unknown -> paInt16 (default)
+            ]
+
+            for sample_width, expected_format in test_cases:
+                audio_manager._play_audio_data_thread(
+                    b"test_data", 44100, 2, sample_width
+                )
+
+                mock_audio_instance.open.assert_called_with(
+                    format=expected_format, channels=2, rate=44100, output=True
+                )
+                mock_stream.write.assert_called_with(b"test_data")
+                mock_stream.stop_stream.assert_called()
+                mock_stream.close.assert_called()
+
+    @patch("voice_mcp.voice.audio.pyaudio")
+    def test_play_audio_data_thread_internal_exception(self, mock_pyaudio):
+        """Test the internal audio data playback thread with exception."""
+        mock_audio_instance = Mock()
+        mock_audio_instance.open.side_effect = Exception("Stream creation failed")
+        mock_pyaudio.PyAudio.return_value = mock_audio_instance
+
+        with patch("voice_mcp.voice.audio.PYAUDIO_AVAILABLE", True):
+            audio_manager = AudioManager()
+
+            # Should not raise exception
+            audio_manager._play_audio_data_thread(b"test_data", 44100, 1, 2)
 
 
 class TestAudioManagerIntegration:

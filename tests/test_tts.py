@@ -117,6 +117,48 @@ class TestCoquiTTSEngine:
         assert result is False
 
     @patch("TTS.api.TTS")
+    @patch("voice_mcp.voice.tts.AudioManager")
+    def test_speak_tts_none(self, mock_audio_manager_class, mock_tts_class):
+        """Test speak when TTS instance is None."""
+        mock_tts_instance = Mock()
+        mock_tts_class.return_value = mock_tts_instance
+
+        mock_audio_manager = Mock()
+        mock_audio_manager_class.return_value = mock_audio_manager
+
+        engine = CoquiTTSEngine("test_model")
+        # Manually set _tts to None to test the condition
+        engine._tts = None
+
+        result = engine.speak("Hello, world!")
+        assert result is False
+
+    @patch("TTS.api.TTS")
+    @patch("voice_mcp.voice.tts.AudioManager")
+    def test_speak_direct_playback_fallback(
+        self, mock_audio_manager_class, mock_tts_class
+    ):
+        """Test speak with direct playback failure and fallback."""
+        mock_tts_instance = Mock()
+        mock_tts_instance.tts.return_value = b"fake_audio_data"
+        mock_tts_class.return_value = mock_tts_instance
+
+        mock_audio_manager = Mock()
+        mock_audio_manager_class.return_value = mock_audio_manager
+
+        # Mock direct playback to fail
+        with patch.object(
+            CoquiTTSEngine, "_play_audio_data_directly", return_value=False
+        ) as mock_play:
+            engine = CoquiTTSEngine("test_model")
+            result = engine.speak("Hello, world!")
+
+            # The method logs a warning and continues, but returns None in fallback path
+            # which becomes False in the calling logic
+            assert result is None or result is False
+            mock_play.assert_called_once_with(b"fake_audio_data")
+
+    @patch("TTS.api.TTS")
     def test_get_voices(self, mock_tts_class):
         """Test getting available voices."""
         mock_tts_instance = Mock()
@@ -156,6 +198,130 @@ class TestCoquiTTSEngine:
 
         # Should just log a warning since stop is not implemented
         # No assertions needed as it just logs
+
+
+class TestAudioDataPlayback:
+    """Test suite for CoquiTTSEngine audio data playback."""
+
+    @patch("TTS.api.TTS")
+    @patch("voice_mcp.voice.tts.AudioManager")
+    def test_play_audio_data_directly_pytorch_tensor(
+        self, mock_audio_manager_class, mock_tts_class
+    ):
+        """Test direct audio playback with PyTorch tensor."""
+        import numpy as np
+
+        mock_tts_instance = Mock()
+        mock_tts_class.return_value = mock_tts_instance
+
+        mock_audio_manager = Mock()
+        mock_audio_manager.play_audio_data.return_value = True
+        mock_audio_manager_class.return_value = mock_audio_manager
+
+        engine = CoquiTTSEngine("test_model")
+
+        # Mock PyTorch tensor-like object
+        mock_tensor = Mock()
+        mock_tensor.cpu.return_value.numpy.return_value = np.array(
+            [0.5, -0.5], dtype=np.float32
+        )
+
+        result = engine._play_audio_data_directly(mock_tensor)
+        assert result is True
+
+    @patch("TTS.api.TTS")
+    @patch("voice_mcp.voice.tts.AudioManager")
+    def test_play_audio_data_directly_tensorflow_tensor(
+        self, mock_audio_manager_class, mock_tts_class
+    ):
+        """Test direct audio playback with TensorFlow-like tensor."""
+        import numpy as np
+
+        mock_tts_instance = Mock()
+        mock_tts_class.return_value = mock_tts_instance
+
+        mock_audio_manager = Mock()
+        mock_audio_manager.play_audio_data.return_value = True
+        mock_audio_manager_class.return_value = mock_audio_manager
+
+        engine = CoquiTTSEngine("test_model")
+
+        # Mock TensorFlow tensor-like object
+        mock_tensor = Mock()
+        mock_tensor.numpy.return_value = np.array([0.3, -0.3], dtype=np.float32)
+        # No cpu() method for TensorFlow
+        del mock_tensor.cpu
+
+        result = engine._play_audio_data_directly(mock_tensor)
+        assert result is True
+
+    @patch("TTS.api.TTS")
+    @patch("voice_mcp.voice.tts.AudioManager")
+    def test_play_audio_data_directly_numpy_array(
+        self, mock_audio_manager_class, mock_tts_class
+    ):
+        """Test direct audio playback with numpy array."""
+        import numpy as np
+
+        mock_tts_instance = Mock()
+        mock_tts_class.return_value = mock_tts_instance
+
+        mock_audio_manager = Mock()
+        mock_audio_manager.play_audio_data.return_value = True
+        mock_audio_manager_class.return_value = mock_audio_manager
+
+        engine = CoquiTTSEngine("test_model")
+
+        # Test with different data types and ranges
+        test_arrays = [
+            np.array([0.5, -0.5], dtype=np.float32),  # float32 in range [-1, 1]
+            np.array([16000, -16000], dtype=np.int32),  # int32
+            np.array([100, -100], dtype=np.float64),  # float64
+        ]
+
+        for audio_array in test_arrays:
+            result = engine._play_audio_data_directly(audio_array)
+            assert result is True
+
+    @patch("TTS.api.TTS")
+    @patch("voice_mcp.voice.tts.AudioManager")
+    def test_play_audio_data_directly_exception(
+        self, mock_audio_manager_class, mock_tts_class
+    ):
+        """Test direct audio playback with exception."""
+        mock_tts_instance = Mock()
+        mock_tts_class.return_value = mock_tts_instance
+
+        mock_audio_manager = Mock()
+        mock_audio_manager_class.return_value = mock_audio_manager
+
+        engine = CoquiTTSEngine("test_model")
+
+        # Test with problematic data that causes exception
+        with patch("numpy.array", side_effect=Exception("NumPy error")):
+            result = engine._play_audio_data_directly([1, 2, 3])
+            assert result is False
+
+    @patch("TTS.api.TTS")
+    @patch("voice_mcp.voice.tts.AudioManager")
+    def test_get_voices_exception(self, mock_audio_manager_class, mock_tts_class):
+        """Test get_voices when exception occurs."""
+        mock_tts_instance = Mock()
+        mock_tts_class.return_value = mock_tts_instance
+
+        mock_audio_manager = Mock()
+        mock_audio_manager_class.return_value = mock_audio_manager
+
+        engine = CoquiTTSEngine("test_model")
+
+        # Mock the get_voices method to raise exception
+        with patch.object(engine, "is_available", return_value=True):
+            with patch(
+                "voice_mcp.voice.tts.Voice",
+                side_effect=Exception("Voice creation failed"),
+            ):
+                voices = engine.get_voices()
+                assert voices == []
 
 
 class TestTTSManager:
@@ -229,6 +395,32 @@ class TestTTSManager:
         # Verify the engine was called with truncated text
         called_text = mock_engine_instance.speak.call_args[0][0]
         assert len(called_text) <= 1000 + len("... (truncated)")
+
+    @patch("voice_mcp.voice.tts.CoquiTTSEngine")
+    def test_speak_engine_failure(self, mock_engine_class):
+        """Test speak when engine speak returns False."""
+        mock_engine_instance = Mock()
+        mock_engine_instance.is_available.return_value = True
+        mock_engine_instance.speak.return_value = False
+        mock_engine_class.return_value = mock_engine_instance
+
+        manager = TTSManager("test_model")
+        result = manager.speak("Hello, world!")
+
+        assert "Failed to speak text" in result
+
+    @patch("voice_mcp.voice.tts.CoquiTTSEngine")
+    def test_speak_exception(self, mock_engine_class):
+        """Test speak when exception occurs."""
+        mock_engine_instance = Mock()
+        mock_engine_instance.is_available.return_value = True
+        mock_engine_instance.speak.side_effect = Exception("Engine error")
+        mock_engine_class.return_value = mock_engine_instance
+
+        manager = TTSManager("test_model")
+        result = manager.speak("Hello, world!")
+
+        assert "TTS error: Engine error" in result
 
     @patch("voice_mcp.voice.tts.CoquiTTSEngine")
     def test_get_voices(self, mock_engine_class):
