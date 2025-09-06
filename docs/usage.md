@@ -118,11 +118,11 @@ print(result)  # ✅ Successfully spoke: 'Custom voice message'
 
 ### Hotkey Monitoring (`start_hotkey_monitoring`, `stop_hotkey_monitoring`, `get_hotkey_status`)
 
-Enable global hotkey shortcuts for voice-to-text activation.
+Enable global hotkey shortcuts for voice-to-text transcription.
 
 **In Claude Conversation:**
 ```
-Human: Start monitoring the hotkey for voice activation.
+Human: Start monitoring the hotkey for voice-to-text.
 
 Claude: I'll start the global hotkey monitoring for you.
 
@@ -135,7 +135,7 @@ Claude: I'll start the global hotkey monitoring for you.
 ```python
 from voice_mcp.tools import VoiceTools
 
-# Start monitoring for voice activation
+# Start monitoring for voice-to-text
 result = VoiceTools.start_hotkey_monitoring()
 print(result)  # ✅ Hotkey monitoring started (menu)
 

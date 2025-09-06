@@ -93,7 +93,8 @@ jobs:
       run: |
         echo "🔒 Running security checks..."
         uv run bandit -r src/ -f json -o bandit-report.json || true
-        uv run bandit -r src/ -ll
+        echo "🔍 Checking for security issues with low severity threshold..."
+        uv run bandit -r src/ --severity-level low --confidence-level medium
 
     - name: Upload security report
       uses: actions/upload-artifact@v4

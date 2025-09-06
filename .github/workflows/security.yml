@@ -43,8 +43,8 @@ jobs:
     - name: Run Bandit security scan
       run: |
         echo "🔒 Running Bandit security scan..."
-        uv run bandit -r src/ -f json -o bandit-results.json -ll || true
-        uv run bandit -r src/ -f txt -o bandit-results.txt -ll || true
+        uv run bandit -r src/ -f json -o bandit-results.json --severity-level low --confidence-level medium || true
+        uv run bandit -r src/ -f txt -o bandit-results.txt --severity-level low --confidence-level medium || true
 
         # Display results
         echo "### Bandit Security Scan Results" >> $GITHUB_STEP_SUMMARY

@@ -251,8 +251,9 @@ class CoquiTTSEngine:
                     del audio_array
                 if audio_bytes is not None:
                     del audio_bytes
-            except Exception:
-                pass  # Ignore cleanup errors
+            except Exception as e:
+                # Suppress memory cleanup errors to prevent disrupting TTS
+                logger.debug(f"Failed to cleanup audio memory: {e}")
 
     def _get_model_sample_rate(self) -> int:
         """

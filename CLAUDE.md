@@ -122,6 +122,53 @@ uv run python -m voice_mcp.server --debug
 ### Available Prompts
 - `speak` - Instructions for using TTS tools
 
+## Key Usage Patterns
+
+### Making Claude "Talkative" with Voice Feedback
+
+The `speak` prompt transforms Claude Code into a voice-enabled assistant that provides audio feedback throughout interactions. When activated, Claude will automatically use TTS to:
+
+- Announce actions before execution (*"I'm going to run the build command now"*)
+- Confirm task completion (*"Build completed successfully with no errors"*)
+- Ask questions aloud when clarification needed (*"I need your input on which approach to take"*)
+- Alert to important findings or errors
+- Signal when finished and waiting for input
+
+**Activation:** Use the speak prompt from MCP prompts menu, or ask Claude to "use the speak prompt to become talkative"
+
+### Voice-to-Text with Hotkey Activation (Menu Key Default)
+
+The primary feature enabling hands-free voice input using configurable global hotkey:
+
+**Workflow:**
+1. **Start Monitoring**: Claude starts hotkey monitoring automatically or on request
+2. **Press & Hold**: Hold the Menu key (configurable: home, end, insert, etc.)
+3. **Speak**: Talk while holding - activation sound plays
+4. **Release**: Let go when done - completion sound plays
+5. **Results**: Speech transcribed and typed in real-time at cursor position
+
+**Key Features:**
+- Real-time typing as you speak
+- Audio feedback (on/off sounds) for session boundaries
+- Smart stopping after silence (2.0s default, configurable)
+- Multiple output modes: typing (default), clipboard, return to Claude
+- Cross-platform support with multi-instance coordination
+- Prevents conflicts between multiple voice-mcp servers
+
+**Configuration:**
+```bash
+# Change hotkey
+VOICE_MCP_HOTKEY_NAME=home  # Options: menu, home, end, insert, etc.
+
+# Output modes
+VOICE_MCP_HOTKEY_OUTPUT_MODE=typing    # Real-time typing (default)
+VOICE_MCP_HOTKEY_OUTPUT_MODE=clipboard # Copy to clipboard
+VOICE_MCP_HOTKEY_OUTPUT_MODE=return    # Return text to Claude
+
+# Silence detection tuning
+VOICE_MCP_STT_SILENCE_THRESHOLD=2.0    # Seconds to wait after speech
+```
+
 ### Configuration Options
 All configurable via environment variables:
 

@@ -80,7 +80,7 @@ repos:
     rev: 1.7.10
     hooks:
       - id: bandit
-        args: [-r, src/, -f, json, -o, bandit-report.json, --severity-level, medium]
+        args: [-r, src/, -f, json, -o, bandit-report.json, --severity-level, low]
         pass_filenames: false
 
   # Note: flake8 disabled to avoid conflicts with ruff which provides equivalent coverage

@@ -388,8 +388,9 @@ class VoiceTools:
                 audio_manager = get_audio_manager()
                 if audio_manager.is_available:
                     audio_manager.play_off_sound()
-            except Exception:
-                pass
+            except Exception as e:
+                # Suppress audio errors during cleanup to prevent disrupting STT flow
+                logger.debug(f"Failed to play off sound during STT cleanup: {e}")
 
             return {
                 "transcription": "",
