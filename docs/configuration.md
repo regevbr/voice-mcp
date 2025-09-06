@@ -17,7 +17,9 @@ Voice MCP Server is configured through environment variables for maximum flexibi
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `VOICE_MCP_TTS_MODEL` | `tts_models/en/ljspeech/tacotron2-DDC` | Coqui TTS model |
-| `VOICE_MCP_TTS_RATE` | `1.0` | Speech rate multiplier |
+| `VOICE_MCP_TTS_PRELOAD_ENABLED` | `true` | Enable TTS model preloading on startup |
+| `VOICE_MCP_TTS_GPU_ENABLED` | `false` | Enable GPU acceleration for TTS (requires CUDA) |
+| `VOICE_MCP_TTS_RATE` | `1.0` | Speech rate multiplier (>1.0 = faster, <1.0 = slower) |
 | `VOICE_MCP_TTS_VOLUME` | `0.9` | Volume level (0.0 to 1.0) |
 
 ### Available TTS Models
@@ -107,6 +109,8 @@ VOICE_MCP_TRANSPORT=stdio
 
 # TTS Settings - High Quality
 VOICE_MCP_TTS_MODEL=tts_models/en/ljspeech/fast_pitch
+VOICE_MCP_TTS_PRELOAD_ENABLED=true
+VOICE_MCP_TTS_GPU_ENABLED=false
 VOICE_MCP_TTS_RATE=1.0
 VOICE_MCP_TTS_VOLUME=0.9
 
@@ -135,7 +139,9 @@ VOICE_MCP_TRANSPORT=stdio
 
 # TTS Settings - Optimized for Speed
 VOICE_MCP_TTS_MODEL=tts_models/en/ljspeech/speedy-speech
-VOICE_MCP_TTS_RATE=1.0
+VOICE_MCP_TTS_PRELOAD_ENABLED=true
+VOICE_MCP_TTS_GPU_ENABLED=true
+VOICE_MCP_TTS_RATE=1.2
 VOICE_MCP_TTS_VOLUME=0.8
 
 # STT Settings - Small Model for Speed
@@ -163,6 +169,8 @@ VOICE_MCP_STT_SILENCE_THRESHOLD=3.0
 
 # TTS Settings - Multi-speaker Model
 VOICE_MCP_TTS_MODEL=tts_models/en/vctk/vits
+VOICE_MCP_TTS_PRELOAD_ENABLED=true
+VOICE_MCP_TTS_GPU_ENABLED=true
 VOICE_MCP_TTS_RATE=0.9
 VOICE_MCP_TTS_VOLUME=0.85
 ```
@@ -190,6 +198,8 @@ For Claude Desktop integration, add environment variables to the MCP server conf
       "args": ["run", "python", "-m", "voice_mcp.server"],
       "env": {
         "VOICE_MCP_TTS_MODEL": "tts_models/en/ljspeech/tacotron2-DDC",
+        "VOICE_MCP_TTS_PRELOAD_ENABLED": "true",
+        "VOICE_MCP_TTS_GPU_ENABLED": "false",
         "VOICE_MCP_TTS_RATE": "1.0",
         "VOICE_MCP_TTS_VOLUME": "0.9",
         "VOICE_MCP_STT_ENABLED": "true",
@@ -207,20 +217,74 @@ For Claude Desktop integration, add environment variables to the MCP server conf
 
 ## Performance Tuning
 
-### For Maximum Quality
+### GPU Acceleration Setup
+
+For optimal performance with GPU acceleration:
+
+```bash
+# Enable GPU for TTS (requires CUDA)
+VOICE_MCP_TTS_GPU_ENABLED=true
+
+# Enable GPU for STT
+VOICE_MCP_STT_DEVICE=cuda
+
+# Preload models for instant first-call performance
+VOICE_MCP_TTS_PRELOAD_ENABLED=true
+VOICE_MCP_STT_ENABLED=true
+```
+
+**GPU Requirements:**
+- NVIDIA GPU with CUDA support
+- PyTorch with CUDA installation
+- 4GB+ VRAM recommended for TTS + STT
+
+### Performance Profiles
+
+### For Maximum Quality + GPU
 - STT Model: `large-v3`
+- STT Device: `cuda`
 - TTS Model: `tts_models/en/ljspeech/fast_pitch`
-- Device: `cuda`
+- TTS GPU: `true`
+- TTS Rate: `1.0`
 - Silence Threshold: `5.0`
 
-### For Maximum Speed
-- STT Model: `tiny`
+### For Maximum Speed + GPU
+- STT Model: `tiny` or `base`
+- STT Device: `cuda`
 - TTS Model: `tts_models/en/ljspeech/speedy-speech`
-- Device: `cpu` (if no CUDA)
+- TTS GPU: `true`
+- TTS Rate: `1.3` (30% faster speech)
 - Silence Threshold: `2.0`
 
-### For Balanced Performance
+### For Balanced Performance (CPU Fallback)
 - STT Model: `base` or `small`
+- STT Device: `auto`
 - TTS Model: `tts_models/en/ljspeech/tacotron2-DDC`
-- Device: `auto`
+- TTS GPU: `false`
+- TTS Rate: `1.0`
 - Silence Threshold: `3.0`
+
+### Speech Rate Control
+
+Fine-tune speech speed for different use cases:
+
+```bash
+# Presentations (clear and slow)
+VOICE_MCP_TTS_RATE=0.8
+
+# Normal conversation
+VOICE_MCP_TTS_RATE=1.0
+
+# Quick updates (faster speech)
+VOICE_MCP_TTS_RATE=1.3
+
+# Very fast notifications
+VOICE_MCP_TTS_RATE=1.5
+```
+
+**Rate Guidelines:**
+- `0.7-0.9`: Slower, clearer speech for presentations
+- `1.0`: Normal speech rate (default)
+- `1.1-1.3`: Slightly faster for efficiency
+- `1.4-1.6`: Fast speech for quick notifications
+- `>1.6`: May sound unnatural depending on model

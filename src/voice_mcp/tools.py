@@ -26,7 +26,9 @@ def get_tts_manager() -> TTSManager:
     """Get or create TTS manager instance."""
     global _tts_manager
     if _tts_manager is None:
-        _tts_manager = TTSManager(model_name=config.tts_model)
+        _tts_manager = TTSManager(
+            model_name=config.tts_model, gpu_enabled=config.tts_gpu_enabled
+        )
     return _tts_manager
 
 

@@ -133,7 +133,7 @@ def _cleanup_module_instances():
 def speak(
     text: str,
     voice: str | None = None,
-    rate: int | None = None,
+    rate: float | None = None,
     volume: float | None = None,
 ) -> str:
     """
@@ -142,7 +142,7 @@ def speak(
     Args:
         text: The text to convert to speech
         voice: Optional voice to use (system-dependent)
-        rate: Optional speech rate (words per minute)
+        rate: Optional speech rate multiplier (1.0 = normal, >1.0 = faster, <1.0 = slower)
         volume: Optional volume level (0.0 to 1.0)
 
     Returns:

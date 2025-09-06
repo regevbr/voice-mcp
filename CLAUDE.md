@@ -47,13 +47,15 @@ src/voice_mcp/
 
 1. **MCP Server**: FastMCP-based server with comprehensive voice tool set
 2. **TTS System**: Coqui TTS neural models with high-quality speech synthesis
-3. **STT System**: faster-whisper implementation with real-time transcription
-4. **Hotkey System**: Global keyboard shortcuts with voice-to-text activation
-5. **Real-time Processing**: Live typing during speech recognition with audio feedback
-6. **Text Output Modes**: Multiple output options (typing, clipboard, return)
-7. **Audio Pipeline**: Advanced processing with VAD, noise filtering, and effects
-8. **Configuration**: Rich environment-based configuration system
-9. **Testing**: Comprehensive pytest suite covering all voice functionality
+3. **GPU Acceleration**: Optional CUDA GPU support for faster TTS processing
+4. **Speech Rate Control**: User-configurable speech rate (speed) control
+5. **STT System**: faster-whisper implementation with real-time transcription
+6. **Hotkey System**: Global keyboard shortcuts with voice-to-text activation
+7. **Real-time Processing**: Live typing during speech recognition with audio feedback
+8. **Text Output Modes**: Multiple output options (typing, clipboard, return)
+9. **Audio Pipeline**: Advanced processing with VAD, noise filtering, and effects
+10. **Configuration**: Rich environment-based configuration system
+11. **Testing**: Comprehensive pytest suite covering all voice functionality
 
 ## Development Setup
 
@@ -112,7 +114,8 @@ All configurable via environment variables:
 **TTS Configuration:**
 - `VOICE_MCP_TTS_MODEL` - Coqui TTS model (default: tts_models/en/ljspeech/tacotron2-DDC)
 - `VOICE_MCP_TTS_PRELOAD_ENABLED` - Enable TTS preloading on startup (default: true)
-- `VOICE_MCP_TTS_RATE` - Speech rate multiplier (default: 1.0)
+- `VOICE_MCP_TTS_GPU_ENABLED` - Enable GPU acceleration for TTS (default: false)
+- `VOICE_MCP_TTS_RATE` - Speech rate multiplier (default: 1.0, >1.0 = faster, <1.0 = slower)
 - `VOICE_MCP_TTS_VOLUME` - Volume level (default: 0.9)
 
 **STT Configuration:**

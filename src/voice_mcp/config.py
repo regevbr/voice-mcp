@@ -23,7 +23,8 @@ class ServerConfig:
     # TTS settings
     tts_model: str = "tts_models/en/ljspeech/tacotron2-DDC"  # Coqui TTS model to use
     tts_preload_enabled: bool = True  # Enable TTS preloading on startup
-    tts_rate: float = 1.0  # Speed multiplier (not implemented yet)
+    tts_gpu_enabled: bool = False  # Enable GPU acceleration for TTS
+    tts_rate: float = 1.0  # Speed multiplier for speech rate
     tts_volume: float = 0.9  # Volume level (not implemented yet)
 
     # STT settings
@@ -62,6 +63,8 @@ class ServerConfig:
             tts_preload_enabled=os.getenv(
                 "VOICE_MCP_TTS_PRELOAD_ENABLED", "true"
             ).lower()
+            == "true",
+            tts_gpu_enabled=os.getenv("VOICE_MCP_TTS_GPU_ENABLED", "false").lower()
             == "true",
             tts_rate=float(os.getenv("VOICE_MCP_TTS_RATE", "1.0")),
             tts_volume=float(os.getenv("VOICE_MCP_TTS_VOLUME", "0.9")),

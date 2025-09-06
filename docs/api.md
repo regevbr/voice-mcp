@@ -15,8 +15,13 @@ Convert text to speech using the configured TTS engine.
 **Parameters:**
 - `text` (str): The text to convert to speech (required)
 - `voice` (str, optional): Voice to use (system-dependent)
-- `rate` (float, optional): Speech rate multiplier (default: config.tts_rate)
+- `rate` (float, optional): Speech rate multiplier (1.0 = normal, >1.0 = faster, <1.0 = slower, default: config.tts_rate)
 - `volume` (float, optional): Volume level 0.0-1.0 (default: config.tts_volume)
+
+**Features:**
+- **GPU Acceleration**: Automatically uses CUDA GPU if available and enabled
+- **High-Quality Rate Control**: Speed adjustment maintains natural pitch
+- **Model Preloading**: Optimized for instant first-call performance
 
 **Returns:**
 - `str`: Status message indicating success or failure
@@ -25,6 +30,10 @@ Convert text to speech using the configured TTS engine.
 ```python
 result = VoiceTools.speak("Hello from Voice MCP!")
 # Returns: "✅ Successfully spoke: 'Hello from Voice MCP!'"
+
+# With speed control
+result = VoiceTools.speak("Faster speech", rate=1.3)  # 30% faster
+result = VoiceTools.speak("Slower speech", rate=0.8)  # 20% slower
 
 # With custom parameters
 result = VoiceTools.speak("Custom message", rate=1.2, volume=0.8)

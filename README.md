@@ -10,6 +10,8 @@ A comprehensive Model Context Protocol (MCP) server providing advanced text-to-s
 
 ### 🔊 Text-to-Speech (TTS)
 - **Coqui TTS Engine**: High-quality neural text-to-speech with customizable models
+- **GPU Acceleration**: Optional CUDA GPU support for faster TTS processing
+- **Speech Rate Control**: User-configurable speech speed control (rate multiplier)
 - **Voice customization**: Select voices, adjust rate and volume
 - **Cross-platform**: Works on Linux, Windows, and macOS
 - **MCP Integration**: Native `speak` tool and guidance prompts
@@ -286,7 +288,8 @@ Claude: I'll start the global hotkey monitoring for you.
 | `VOICE_MCP_LOG_LEVEL` | `INFO`                                 | Logging level |
 | `VOICE_MCP_TTS_MODEL` | `tts_models/en/ljspeech/tacotron2-DDC` | Coqui TTS model |
 | `VOICE_MCP_TTS_PRELOAD_ENABLED` | `true`                                 | Enable TTS model preloading on startup |
-| `VOICE_MCP_TTS_RATE` | `1.0`                                  | Speech rate multiplier |
+| `VOICE_MCP_TTS_GPU_ENABLED` | `false`                                | Enable GPU acceleration for TTS |
+| `VOICE_MCP_TTS_RATE` | `1.0`                                  | Speech rate multiplier (>1.0 = faster, <1.0 = slower) |
 | `VOICE_MCP_TTS_VOLUME` | `0.9`                                  | Volume level (0.0 to 1.0) |
 | `VOICE_MCP_STT_ENABLED` | `true`                                 | Enable STT preloading on startup |
 | `VOICE_MCP_STT_MODEL` | `base`                                 | Whisper model (`tiny`, `base`, `small`, `medium`, `large`) |
@@ -306,6 +309,7 @@ Claude: I'll start the global hotkey monitoring for you.
 # .env file
 VOICE_MCP_TTS_MODEL=tts_models/en/ljspeech/tacotron2-DDC
 VOICE_MCP_TTS_PRELOAD_ENABLED=true
+VOICE_MCP_TTS_GPU_ENABLED=false
 VOICE_MCP_TTS_RATE=1.0
 VOICE_MCP_TTS_VOLUME=0.8
 VOICE_MCP_STT_ENABLED=true

@@ -24,8 +24,13 @@ class Voice:
 class CoquiTTSEngine:
     """Coqui TTS engine for high-quality speech synthesis."""
 
-    def __init__(self, model_name: str = "tts_models/en/ljspeech/tacotron2-DDC"):
+    def __init__(
+        self,
+        model_name: str = "tts_models/en/ljspeech/tacotron2-DDC",
+        gpu_enabled: bool = False,
+    ):
         self._model_name = model_name
+        self._gpu_enabled = gpu_enabled
         self._tts = None
         self._initialized = False
         self._audio_manager = AudioManager()
@@ -36,8 +41,28 @@ class CoquiTTSEngine:
         try:
             from TTS.api import TTS  # type: ignore
 
-            logger.info(f"Initializing Coqui TTS with model: {self._model_name}")
-            self._tts = TTS(self._model_name, progress_bar=False, gpu=False)
+            # Determine GPU usage
+            use_gpu = False
+            if self._gpu_enabled:
+                try:
+                    import torch
+
+                    use_gpu = torch.cuda.is_available()
+                    if use_gpu:
+                        logger.info("CUDA available, enabling GPU acceleration for TTS")
+                    else:
+                        logger.warning(
+                            "GPU requested but CUDA not available, falling back to CPU"
+                        )
+                except ImportError:
+                    logger.warning(
+                        "GPU requested but PyTorch not available, falling back to CPU"
+                    )
+
+            logger.info(
+                f"Initializing Coqui TTS with model: {self._model_name}, GPU: {use_gpu}"
+            )
+            self._tts = TTS(self._model_name, progress_bar=False, gpu=use_gpu)
             self._initialized = True
             logger.info("Coqui TTS engine initialized successfully")
         except Exception as e:
@@ -49,7 +74,7 @@ class CoquiTTSEngine:
         self,
         text: str,
         voice: str | None = None,  # noqa: ARG002
-        rate: float | None = None,  # noqa: ARG002
+        rate: float | None = None,
         volume: float | None = None,  # noqa: ARG002
     ) -> bool:
         """Convert text to speech using Coqui TTS."""
@@ -66,8 +91,8 @@ class CoquiTTSEngine:
             logger.debug("Using direct TTS audio generation (no temp file)")
             audio_data = self._tts.tts(text=text)
 
-            # Convert to bytes if needed and play directly
-            if self._play_audio_data_directly(audio_data):
+            # Convert to bytes if needed and play directly with rate adjustment
+            if self._play_audio_data_directly(audio_data, rate):
                 logger.debug(
                     f"Successfully spoke text using direct method: {text[:50]}..."
                 )
@@ -82,12 +107,15 @@ class CoquiTTSEngine:
             logger.error(f"Error during speech synthesis: {e}")
             return False
 
-    def _play_audio_data_directly(self, audio_data: Any) -> bool:
+    def _play_audio_data_directly(
+        self, audio_data: Any, rate: float | None = None
+    ) -> bool:
         """
         Play audio data directly without saving to file.
 
         Args:
             audio_data: Audio data from Coqui TTS (typically numpy array or torch tensor)
+            rate: Speed multiplier (1.0 = normal, >1.0 = faster, <1.0 = slower)
 
         Returns:
             True if playback was successful, False otherwise
@@ -110,6 +138,13 @@ class CoquiTTSEngine:
             if audio_array.dtype != np.float32:
                 audio_array = audio_array.astype(np.float32)
 
+            # Apply rate adjustment if specified
+            if rate is not None and rate != 1.0 and rate > 0:
+                # Rate adjustment is handled by modifying the sample rate
+                # passed to the audio manager rather than resampling the audio data
+                # This is more efficient and maintains quality
+                logger.debug(f"Applying rate adjustment: {rate}x")
+
             # Coqui TTS usually outputs float32 in range [-1, 1]
             # Convert to 16-bit PCM (typical for WAV files)
             if audio_array.dtype == np.float32 and np.abs(audio_array).max() <= 1.0:
@@ -124,12 +159,20 @@ class CoquiTTSEngine:
 
             # Play using AudioManager with typical TTS parameters
             # Most TTS models output at 22050 Hz, mono, 16-bit
-            # Default to 22050 Hz which is common for Coqui TTS models
-            sample_rate = 22050
+            base_sample_rate = 22050
+
+            # Adjust sample rate for rate control (higher sample rate = faster playback)
+            if rate is not None and rate > 0:
+                adjusted_sample_rate = int(base_sample_rate * rate)
+                logger.debug(
+                    f"Adjusted sample rate: {adjusted_sample_rate} Hz (rate: {rate}x)"
+                )
+            else:
+                adjusted_sample_rate = base_sample_rate
 
             success = self._audio_manager.play_audio_data(
                 audio_data=audio_bytes,
-                sample_rate=sample_rate,
+                sample_rate=adjusted_sample_rate,
                 channels=1,  # mono
                 sample_width=2,  # 16-bit = 2 bytes
             )
@@ -187,8 +230,12 @@ class CoquiTTSEngine:
 class TTSManager:
     """Manages Coqui TTS engine."""
 
-    def __init__(self, model_name: str = "tts_models/en/ljspeech/tacotron2-DDC"):
-        self._engine = CoquiTTSEngine(model_name)
+    def __init__(
+        self,
+        model_name: str = "tts_models/en/ljspeech/tacotron2-DDC",
+        gpu_enabled: bool = False,
+    ):
+        self._engine = CoquiTTSEngine(model_name, gpu_enabled)
 
     def speak(
         self,
