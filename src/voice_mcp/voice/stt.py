@@ -64,8 +64,9 @@ try:
     tqdm.contrib.concurrent.ensure_lock = _patched_ensure_lock
 
 except ImportError:
-    pass
-
+    logger.warning(
+        "Could not patch tqdm for compatibility with RealtimeSTT or huggingface_hub because tqdm or its internal modules could not be imported."
+    )
 if TYPE_CHECKING:
     from .text_output import TextOutputController
 
