@@ -119,7 +119,7 @@ where = ["src"]
 # Black code formatting configuration
 [tool.black]
 line-length = 88
-target-version = ['py311']
+target-version = ['py312']
 include = '\.pyi?$'
 extend-exclude = '''
 /(
@@ -145,7 +145,7 @@ known_first_party = ["voice_mcp"]
 # Ruff linting configuration
 [tool.ruff]
 line-length = 88
-target-version = "py311"
+target-version = "py312"
 
 [tool.ruff.lint]
 select = [
