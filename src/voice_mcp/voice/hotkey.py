@@ -60,6 +60,9 @@ class HotkeyManager:
         # Hotkey lock manager for cross-process coordination
         self._lock_manager: HotkeyLockManager | None = None
 
+        # Track abandoned threads for debugging
+        self._abandoned_thread: threading.Thread | None = None
+
         logger.info(
             "HotkeyManager initialized",
         )
@@ -378,10 +381,29 @@ class HotkeyManager:
                     self._monitoring_thread.join(timeout=5.0)
                     if self._monitoring_thread.is_alive():
                         logger.warning(
-                            "Monitoring thread did not stop gracefully, forcing cleanup"
+                            "Monitoring thread did not stop gracefully, implementing force cleanup strategy"
                         )
-                        # For non-daemon threads that won't stop, we can't force kill them
-                        # but we can mark them as such and continue cleanup
+
+                        # Mark thread as daemon to allow process shutdown
+                        try:
+                            self._monitoring_thread.daemon = True
+                            logger.debug(
+                                "Converted monitoring thread to daemon for force cleanup"
+                            )
+                        except Exception as e:
+                            logger.warning(f"Failed to convert thread to daemon: {e}")
+
+                        # Wait additional time with daemon thread
+                        self._monitoring_thread.join(timeout=2.0)
+
+                        if self._monitoring_thread.is_alive():
+                            logger.error(
+                                "Thread still alive after force cleanup - will be abandoned. "
+                                "This may indicate a deadlock in hotkey processing."
+                            )
+                            # Thread will be garbage collected when process exits
+                            # Store reference for potential debugging
+                            self._abandoned_thread = self._monitoring_thread
 
                 self._is_monitoring = False
                 self._monitoring_thread = None

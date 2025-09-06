@@ -325,7 +325,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        uv sync --dev --extra build
+        uv sync --dev --group build
 
     - name: Build package
       run: |

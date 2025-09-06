@@ -250,29 +250,48 @@ def parse_args():
     return parser.parse_args()
 
 
+# Global shutdown state to prevent race conditions
+_shutdown_lock = threading.Lock()
+_shutdown_in_progress = False
+
+
 def setup_signal_handlers():
     """Set up signal handlers for graceful shutdown."""
 
     def signal_handler(signum, _frame):
+        global _shutdown_in_progress
+
+        # Thread-safe check to prevent multiple shutdown attempts
+        with _shutdown_lock:
+            if _shutdown_in_progress:
+                logger.warning(f"Received signal {signum} during shutdown, ignoring")
+                return
+            _shutdown_in_progress = True
+
         logger.info(f"Received signal {signum}, shutting down gracefully...")
 
-        # Start force exit timer as safety net
-        force_exit_after_timeout(6)
+        try:
+            # Start force exit timer as safety net
+            force_exit_after_timeout(6)
 
-        # Log active threads for debugging
-        logger.debug("Active threads before cleanup:")
-        log_active_threads()
+            # Log active threads for debugging
+            logger.debug("Active threads before cleanup:")
+            log_active_threads()
 
-        # Perform cleanup
-        cleanup_resources()
+            # Perform cleanup
+            cleanup_resources()
 
-        # Brief wait for remaining threads
-        time.sleep(1)
+            # Brief wait for remaining threads
+            time.sleep(1)
 
-        logger.info("Graceful shutdown complete")
-        sys.exit(0)
+            logger.info("Graceful shutdown complete")
+        except Exception as e:
+            logger.error(f"Error during graceful shutdown: {e}")
+        finally:
+            # Always exit, even if cleanup failed
+            sys.exit(0)
 
-    # Handle termination signals
+    # Handle termination signals with thread-safe handlers
     signal.signal(signal.SIGINT, signal_handler)  # Ctrl+C
     signal.signal(signal.SIGTERM, signal_handler)  # Termination signal
 

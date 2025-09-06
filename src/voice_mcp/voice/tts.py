@@ -136,6 +136,9 @@ class CoquiTTSEngine:
         Returns:
             True if playback was successful, False otherwise
         """
+        audio_array = None
+        audio_bytes = None
+
         try:
             import numpy as np
 
@@ -147,12 +150,21 @@ class CoquiTTSEngine:
                 # TensorFlow tensor or similar
                 audio_array = audio_data.numpy()
             else:
-                # Assume it's already a numpy array
-                audio_array = np.array(audio_data)
+                # Assume it's already a numpy array - avoid creating copy if possible
+                if isinstance(audio_data, np.ndarray):
+                    audio_array = audio_data
+                else:
+                    audio_array = np.array(audio_data)
 
             # Ensure it's the right data type and range for audio playback
             if audio_array.dtype != np.float32:
-                audio_array = audio_array.astype(np.float32)
+                # In-place conversion when possible to save memory
+                if audio_array.dtype in [np.float64, np.int16, np.int32]:
+                    audio_array = audio_array.astype(np.float32)
+                else:
+                    temp_array = audio_array.astype(np.float32)
+                    del audio_array
+                    audio_array = temp_array
 
             # Validate audio quality before processing (if enabled)
             if config.audio_quality_validation_enabled:
@@ -168,7 +180,12 @@ class CoquiTTSEngine:
                     import librosa
 
                     # Use librosa for high-quality time-stretching that maintains pitch
-                    audio_array = librosa.effects.time_stretch(audio_array, rate=rate)
+                    stretched_array = librosa.effects.time_stretch(
+                        audio_array, rate=rate
+                    )
+                    # Explicitly delete old array before assigning new one
+                    del audio_array
+                    audio_array = stretched_array
                     logger.debug("Time-stretching completed successfully")
                 except ImportError:
                     logger.warning(
@@ -190,18 +207,23 @@ class CoquiTTSEngine:
                 if max_val > 0:
                     headroom = config.audio_normalization_headroom
                     if max_val > headroom:
-                        audio_array = audio_array * (headroom / max_val)
+                        # In-place normalization to save memory
+                        audio_array *= headroom / max_val
                         logger.debug(
                             f"Applied normalization: peak reduced from {max_val:.3f} to {headroom}"
                         )
 
                 # Scale to 16-bit range with configured headroom
-                audio_array = (
-                    audio_array * 32767 * config.audio_normalization_headroom
-                ).astype(np.int16)
+                audio_array *= 32767 * config.audio_normalization_headroom
+                int16_array = audio_array.astype(np.int16)
+                # Explicitly delete float32 array after conversion
+                del audio_array
+                audio_array = int16_array
             elif audio_array.dtype != np.int16:
                 # Ensure it's int16
-                audio_array = audio_array.astype(np.int16)
+                int16_array = audio_array.astype(np.int16)
+                del audio_array
+                audio_array = int16_array
 
             # Convert to bytes
             audio_bytes = audio_array.tobytes()
@@ -222,6 +244,15 @@ class CoquiTTSEngine:
         except Exception as e:
             logger.error(f"Error playing audio data directly: {e}")
             return False
+        finally:
+            # Explicit cleanup to prevent memory leaks
+            try:
+                if audio_array is not None:
+                    del audio_array
+                if audio_bytes is not None:
+                    del audio_bytes
+            except Exception:
+                pass  # Ignore cleanup errors
 
     def _get_model_sample_rate(self) -> int:
         """
