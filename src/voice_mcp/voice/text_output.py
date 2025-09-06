@@ -457,11 +457,12 @@ class TextOutputController:
         clipboard_restored = False
 
         try:
-            # Restore original clipboard content if we modified it
+            # Restore original clipboard content if we modified it AND restoration is enabled
             if (
                 self._clipboard_was_modified
                 and self._original_clipboard_content is not None
                 and self._check_clipboard_availability()
+                and config.clipboard_restore_enabled  # Only restore if explicitly enabled
             ):
                 try:
                     pyperclip.copy(self._original_clipboard_content)
@@ -472,6 +473,12 @@ class TextOutputController:
                     )
                 except Exception as e:
                     logger.warning("Failed to restore clipboard content", error=str(e))
+            elif self._clipboard_was_modified and not config.clipboard_restore_enabled:
+                # Log that restoration was skipped due to configuration
+                logger.debug(
+                    "Clipboard restoration skipped due to configuration",
+                    clipboard_restore_enabled=config.clipboard_restore_enabled,
+                )
 
             return {
                 "success": True,
@@ -503,11 +510,24 @@ class TextOutputController:
         End the current session after external processing (like audio feedback).
 
         This method is designed to be called after audio feedback completes to ensure
-        proper timing of clipboard restoration.
+        proper timing of clipboard restoration. It adds a delay to ensure all keyboard
+        strokes and system input processing is complete before restoring clipboard.
 
         Returns:
             Dictionary with session end status and information
         """
+        import time
+
+        # Add a configurable delay to ensure all keyboard strokes are fully processed
+        # This prevents clipboard restoration from interfering with any pending
+        # paste operations or user interactions
+        delay_seconds = config.clipboard_restore_delay
+
+        logger.debug(
+            "Delaying session end for keyboard processing", delay_seconds=delay_seconds
+        )
+        time.sleep(delay_seconds)
+
         return self.end_session()
 
     def reset(self) -> None:

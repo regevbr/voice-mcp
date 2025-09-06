@@ -43,6 +43,10 @@ class ServerConfig:
     typing_enabled: bool = True
     clipboard_enabled: bool = True
     typing_debounce_delay: float = 0.1
+    clipboard_restore_enabled: bool = (
+        True  # Enable/disable automatic clipboard restoration after STT sessions
+    )
+    clipboard_restore_delay: float = 3.0  # Delay in seconds before clipboard restoration to ensure keyboard input is complete
 
     # Hotkey lock settings
     hotkey_lock_enabled: bool = True  # Enable/disable cross-process hotkey locking
@@ -104,6 +108,13 @@ class ServerConfig:
             == "true",
             typing_debounce_delay=float(
                 os.getenv("VOICE_MCP_TYPING_DEBOUNCE_DELAY", "0.1")
+            ),
+            clipboard_restore_enabled=os.getenv(
+                "VOICE_MCP_CLIPBOARD_RESTORE_ENABLED", "true"
+            ).lower()
+            == "true",
+            clipboard_restore_delay=float(
+                os.getenv("VOICE_MCP_CLIPBOARD_RESTORE_DELAY", "3.0")
             ),
             hotkey_lock_enabled=os.getenv(
                 "VOICE_MCP_HOTKEY_LOCK_ENABLED", "true"
