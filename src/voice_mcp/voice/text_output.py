@@ -53,6 +53,11 @@ class TextOutputController:
         self.last_update_time = 0.0
         self._keyboard_controller: Any | None = None
 
+        # Session management for clipboard restoration
+        self._session_active = False
+        self._original_clipboard_content: str | None = None
+        self._clipboard_was_modified = False
+
         logger.info(
             "TextOutputController initialized",
             debounce_delay=self.debounce_delay,
@@ -318,6 +323,10 @@ class TextOutputController:
                     # Use clipboard for efficiency (cross-platform)
                     pyperclip.copy(new_text_to_type)
 
+                    # Mark that we've modified clipboard during this session
+                    if self._session_active:
+                        self._clipboard_was_modified = True
+
                     # Small delay to ensure clipboard is set
                     time.sleep(0.1)
 
@@ -380,6 +389,114 @@ class TextOutputController:
                 "text": text,
                 "error": f"Clipboard copy failed: {str(e)}",
             }
+
+    def start_session(self) -> dict[str, Any]:
+        """
+        Start a new text output session with clipboard backup.
+
+        Returns:
+            Dictionary with session start status and information
+        """
+        if self._session_active:
+            logger.warning("Session already active, ending previous session first")
+            self.end_session()
+
+        try:
+            # Backup current clipboard content if available
+            if self._check_clipboard_availability():
+                try:
+                    self._original_clipboard_content = pyperclip.paste()
+                    logger.debug(
+                        "Clipboard content backed up",
+                        length=(
+                            len(self._original_clipboard_content)
+                            if self._original_clipboard_content
+                            else 0
+                        ),
+                    )
+                except Exception as e:
+                    logger.warning("Failed to backup clipboard content", error=str(e))
+                    self._original_clipboard_content = None
+            else:
+                self._original_clipboard_content = None
+
+            # Initialize session state
+            self._session_active = True
+            self._clipboard_was_modified = False
+
+            logger.info("Text output session started")
+
+            return {
+                "success": True,
+                "message": "Session started successfully",
+                "clipboard_backed_up": self._original_clipboard_content is not None,
+            }
+
+        except Exception as e:
+            logger.error("Failed to start session", error=str(e))
+            return {
+                "success": False,
+                "error": f"Failed to start session: {str(e)}",
+            }
+
+    def end_session(self) -> dict[str, Any]:
+        """
+        End the current text output session and restore clipboard if needed.
+
+        Returns:
+            Dictionary with session end status and information
+        """
+        if not self._session_active:
+            logger.debug("No active session to end")
+            return {
+                "success": True,
+                "message": "No active session to end",
+                "clipboard_restored": False,
+            }
+
+        clipboard_restored = False
+
+        try:
+            # Restore original clipboard content if we modified it
+            if (
+                self._clipboard_was_modified
+                and self._original_clipboard_content is not None
+                and self._check_clipboard_availability()
+            ):
+                try:
+                    pyperclip.copy(self._original_clipboard_content)
+                    clipboard_restored = True
+                    logger.debug(
+                        "Clipboard content restored",
+                        length=len(self._original_clipboard_content),
+                    )
+                except Exception as e:
+                    logger.warning("Failed to restore clipboard content", error=str(e))
+
+            return {
+                "success": True,
+                "message": "Session ended successfully",
+                "clipboard_restored": clipboard_restored,
+            }
+
+        except Exception as e:
+            logger.error("Failed to end session cleanly", error=str(e))
+            return {
+                "success": False,
+                "error": f"Failed to end session: {str(e)}",
+                "clipboard_restored": clipboard_restored,
+            }
+
+        finally:
+            # Always reset session state
+            self._session_active = False
+            self._original_clipboard_content = None
+            self._clipboard_was_modified = False
+
+            # Reset typing state
+            self.reset()
+
+            logger.info("Text output session ended")
 
     def reset(self) -> None:
         """Reset typing state for new session."""

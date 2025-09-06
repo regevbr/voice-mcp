@@ -397,79 +397,127 @@ class TranscriptionHandler:
                 "Starting real-time transcription session", max_duration=duration
             )
 
-            text_output_controller.reset()
+            # Start session to backup clipboard
+            session_result = text_output_controller.start_session()
+            if session_result["success"]:
+                logger.debug(
+                    "Text output session started",
+                    clipboard_backed_up=session_result["clipboard_backed_up"],
+                )
+            else:
+                logger.warning(
+                    "Failed to start text output session",
+                    error=session_result.get("error"),
+                )
 
-            # Start recording
-            if duration:
-                with self._timeout_context(duration):
+            try:
+                # Start recording
+                if duration:
+                    with self._timeout_context(duration):
+                        recorder_to_use.start()  # type: ignore
+                        transcription_result = recorder_to_use.text()  # type: ignore
+                else:
                     recorder_to_use.start()  # type: ignore
                     transcription_result = recorder_to_use.text()  # type: ignore
-            else:
-                recorder_to_use.start()  # type: ignore
-                transcription_result = recorder_to_use.text()  # type: ignore
 
-            recorder_to_use.shutdown()
-            logger.info(
-                "Recording stopped with final text",
-                final_text=(
-                    transcription_result[:100] + "..."
-                    if len(transcription_result) > 100
-                    else transcription_result
-                ),
-                text_length=len(transcription_result),
-            )
-
-            # Final output to ensure we have the complete text
-            try:
-                result = text_output_controller.output_text(
-                    transcription_result, "typing", force_update=True
-                )
-                if result["success"]:
-                    logger.info(
-                        "Final typing successful", operation=result.get("operation", "")
-                    )
-                else:
-                    logger.error(
-                        "Final typing failed",
-                        error=result.get("error"),
-                        text_length=len(transcription_result),
-                    )
-            except Exception as e:
-                logger.error(
-                    "Final typing error",
-                    error=str(e),
+                recorder_to_use.shutdown()
+                logger.info(
+                    "Recording stopped with final text",
+                    final_text=(
+                        transcription_result[:100] + "..."
+                        if len(transcription_result) > 100
+                        else transcription_result
+                    ),
                     text_length=len(transcription_result),
-                    exc_info=True,
                 )
 
-            end_time = time.time()
-            actual_duration = end_time - start_time
+                # Final output to ensure we have the complete text
+                try:
+                    result = text_output_controller.output_text(
+                        transcription_result, "typing", force_update=True
+                    )
+                    if result["success"]:
+                        logger.info(
+                            "Final typing successful",
+                            operation=result.get("operation", ""),
+                        )
+                    else:
+                        logger.error(
+                            "Final typing failed",
+                            error=result.get("error"),
+                            text_length=len(transcription_result),
+                        )
+                except Exception as e:
+                    logger.error(
+                        "Final typing error",
+                        error=str(e),
+                        text_length=len(transcription_result),
+                        exc_info=True,
+                    )
 
-            logger.info(
-                "Real-time transcription completed",
-                duration=actual_duration,
-                text_length=len(transcription_result),
-            )
+                end_time = time.time()
+                actual_duration = end_time - start_time
 
-            return {
-                "success": True,
-                "transcription": transcription_result.strip(),
-                "duration": actual_duration,
-                "language": use_language,
-                "model": config.stt_model,
-            }
+                logger.info(
+                    "Real-time transcription completed",
+                    duration=actual_duration,
+                    text_length=len(transcription_result),
+                )
+
+                return {
+                    "success": True,
+                    "transcription": transcription_result.strip(),
+                    "duration": actual_duration,
+                    "language": use_language,
+                    "model": config.stt_model,
+                }
+
+            except Exception as e:
+                end_time = time.time()
+                logger.error(
+                    "Real-time transcription failed",
+                    error=str(e),
+                    duration=end_time - start_time,
+                )
+                return {
+                    "success": False,
+                    "error": f"Transcription error: {str(e)}",
+                    "transcription": transcription_result.strip(),
+                    "duration": end_time - start_time,
+                }
+
+            finally:
+                # Always end the text output session to restore clipboard
+                try:
+                    end_result = text_output_controller.end_session()
+                    if end_result["success"]:
+                        logger.debug(
+                            "Text output session ended",
+                            clipboard_restored=end_result["clipboard_restored"],
+                        )
+                    else:
+                        logger.warning(
+                            "Failed to end text output session cleanly",
+                            error=end_result.get("error"),
+                        )
+                except Exception as session_error:
+                    logger.error(
+                        "Error ending text output session",
+                        error=str(session_error),
+                        exc_info=True,
+                    )
 
         except Exception as e:
             end_time = time.time()
             logger.error(
-                "Real-time transcription failed",
+                "Real-time transcription setup failed",
                 error=str(e),
                 duration=end_time - start_time,
             )
             return {
                 "success": False,
-                "error": f"Transcription error: {str(e)}",
-                "transcription": transcription_result.strip(),
+                "error": f"Transcription setup error: {str(e)}",
+                "transcription": "",
                 "duration": end_time - start_time,
             }
 

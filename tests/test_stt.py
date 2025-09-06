@@ -2,9 +2,34 @@
 Tests for speech-to-text functionality.
 """
 
+import platform
 from unittest.mock import MagicMock, Mock, patch
 
+import pytest
+
 from voice_mcp.voice.stt import TranscriptionHandler, get_transcription_handler
+
+
+def create_mock_text_controller():
+    """Create a mock text controller with session management methods."""
+    mock_controller = Mock()
+
+    # Handle output_text with flexible parameters
+    def mock_output_text(_text, _mode="return", _force_update=False):
+        return {"success": True, "operation": "mock_operation"}
+
+    mock_controller.output_text.side_effect = mock_output_text
+    mock_controller.start_session.return_value = {
+        "success": True,
+        "message": "Session started successfully",
+        "clipboard_backed_up": True,
+    }
+    mock_controller.end_session.return_value = {
+        "success": True,
+        "message": "Session ended successfully",
+        "clipboard_restored": True,
+    }
+    return mock_controller
 
 
 class TestTranscriptionHandler:
@@ -241,7 +266,7 @@ class TestTranscriptionHandler:
     def test_transcribe_with_realtime_output_not_ready(self):
         """Test transcribe_with_realtime_output when not ready and enable fails."""
         handler = TranscriptionHandler()
-        mock_text_controller = Mock()
+        mock_text_controller = create_mock_text_controller()
 
         with patch.object(handler, "enable", return_value=False):
             result = handler.transcribe_with_realtime_output(mock_text_controller)
@@ -254,7 +279,7 @@ class TestTranscriptionHandler:
     def test_transcribe_with_realtime_output_success(self):
         """Test successful real-time transcription with text output."""
         handler = TranscriptionHandler()
-        mock_text_controller = Mock()
+        mock_text_controller = create_mock_text_controller()
         mock_text_controller.output_text.return_value = {"success": True}
 
         with patch("voice_mcp.voice.stt.REALTIMESTT_AVAILABLE", True):
@@ -283,7 +308,7 @@ class TestTranscriptionHandler:
     def test_transcribe_with_realtime_output_callback_error(self):
         """Test real-time transcription with callback errors."""
         handler = TranscriptionHandler()
-        mock_text_controller = Mock()
+        mock_text_controller = create_mock_text_controller()
         mock_text_controller.output_text.side_effect = Exception("Callback error")
 
         with patch("voice_mcp.voice.stt.REALTIMESTT_AVAILABLE", True):
@@ -320,7 +345,7 @@ class TestTranscriptionHandler:
     def test_transcribe_with_realtime_output_recorder_exception(self):
         """Test real-time transcription with recorder exception."""
         handler = TranscriptionHandler()
-        mock_text_controller = Mock()
+        mock_text_controller = create_mock_text_controller()
 
         with patch("voice_mcp.voice.stt.REALTIMESTT_AVAILABLE", True):
             handler._is_initialized = True
@@ -337,13 +362,16 @@ class TestTranscriptionHandler:
                 result = handler.transcribe_with_realtime_output(mock_text_controller)
 
                 assert result["success"] is False
-                assert "Transcription error" in result["error"]
+                assert (
+                    "Transcription error" in result["error"]
+                    or "Transcription setup error" in result["error"]
+                )
                 assert result["duration"] >= 0.0  # Just check it's a valid duration
 
     def test_transcribe_with_realtime_output_with_duration(self):
         """Test real-time transcription with specified duration."""
         handler = TranscriptionHandler()
-        mock_text_controller = Mock()
+        mock_text_controller = create_mock_text_controller()
         mock_text_controller.output_text.return_value = {"success": True}
 
         with patch("voice_mcp.voice.stt.REALTIMESTT_AVAILABLE", True):
@@ -454,6 +482,9 @@ class TestTranscriptionHandler:
                 timer_instance.start.assert_called_once()
                 timer_instance.cancel.assert_called_once()
 
+    @pytest.mark.skipif(
+        platform.system() == "Windows", reason="signal.alarm not available on Windows"
+    )
     def test_timeout_context_unix_timeout_exception(self):
         """Test Unix timeout context with RecordingTimeoutError."""
         handler = TranscriptionHandler()
@@ -762,7 +793,10 @@ class TestTranscriptionHandlerErrorConditions:
                     result = handler.transcribe_once()
 
                     assert result["success"] is False
-                    assert "Transcription error" in result["error"]
+                    assert (
+                        "Transcription error" in result["error"]
+                        or "Transcription setup error" in result["error"]
+                    )
                     assert "Recorder not initialized" in result["error"]
 
     def test_transcribe_once_recorder_shutdown_exception(self):
@@ -784,13 +818,16 @@ class TestTranscriptionHandlerErrorConditions:
                 result = handler.transcribe_once()
 
                 assert result["success"] is False
-                assert "Transcription error" in result["error"]
+                assert (
+                    "Transcription error" in result["error"]
+                    or "Transcription setup error" in result["error"]
+                )
                 assert "Shutdown failed" in result["error"]
 
     def test_transcribe_with_realtime_output_recorder_none(self):
         """Test transcribe_with_realtime_output when recorder is None."""
         handler = TranscriptionHandler()
-        mock_text_controller = Mock()
+        mock_text_controller = create_mock_text_controller()
 
         with patch("voice_mcp.voice.stt.REALTIMESTT_AVAILABLE", True):
             handler._is_initialized = True
@@ -803,12 +840,15 @@ class TestTranscriptionHandlerErrorConditions:
                     )
 
                     assert result["success"] is False
-                    assert "Transcription error" in result["error"]
+                    assert (
+                        "Transcription error" in result["error"]
+                        or "Transcription setup error" in result["error"]
+                    )
 
     def test_transcribe_with_realtime_output_with_duration_error(self):
         """Test transcribe_with_realtime_output with duration that causes error."""
         handler = TranscriptionHandler()
-        mock_text_controller = Mock()
+        mock_text_controller = create_mock_text_controller()
 
         with patch("voice_mcp.voice.stt.REALTIMESTT_AVAILABLE", True):
             handler._is_initialized = True
@@ -826,7 +866,10 @@ class TestTranscriptionHandlerErrorConditions:
                 )
 
                 assert result["success"] is False
-                assert "Transcription error" in result["error"]
+                assert (
+                    "Transcription error" in result["error"]
+                    or "Transcription setup error" in result["error"]
+                )
 
     def test_preload_recorder_creation_exception(self):
         """Test preload when AudioToTextRecorder creation raises exception."""
@@ -888,7 +931,7 @@ class TestTranscriptionHandlerErrorConditions:
     def test_transcribe_with_realtime_output_callback_success_and_failure(self):
         """Test real-time transcription callbacks with both success and failure scenarios."""
         handler = TranscriptionHandler()
-        mock_text_controller = Mock()
+        mock_text_controller = create_mock_text_controller()
 
         # Test sequence: first call succeeds, second fails, third succeeds again
         call_count = [0]
@@ -946,12 +989,13 @@ class TestTranscriptionHandlerErrorConditions:
                 result = handler.transcribe_with_realtime_output(mock_text_controller)
 
                 assert result["success"] is True
-                mock_text_controller.reset.assert_called_once()
+                mock_text_controller.start_session.assert_called_once()
+                mock_text_controller.end_session.assert_called_once()
 
     def test_transcribe_with_realtime_output_callback_exception(self):
         """Test real-time transcription when callback raises exception."""
         handler = TranscriptionHandler()
-        mock_text_controller = Mock()
+        mock_text_controller = create_mock_text_controller()
         mock_text_controller.output_text.side_effect = Exception("Callback exception")
         mock_text_controller.reset = Mock()
 
@@ -991,7 +1035,7 @@ class TestTranscriptionHandlerErrorConditions:
     def test_transcribe_with_realtime_output_final_output_failure(self):
         """Test real-time transcription when final output fails."""
         handler = TranscriptionHandler()
-        mock_text_controller = Mock()
+        mock_text_controller = create_mock_text_controller()
 
         # Mock successful real-time calls but failed final call
         call_count = [0]
@@ -1033,7 +1077,7 @@ class TestTranscriptionHandlerErrorConditions:
     def test_transcribe_with_realtime_output_final_output_exception(self):
         """Test real-time transcription when final output raises exception."""
         handler = TranscriptionHandler()
-        mock_text_controller = Mock()
+        mock_text_controller = create_mock_text_controller()
 
         # Mock successful real-time calls but exception on final call
         call_count = [0]
