@@ -119,8 +119,8 @@ class FileBasedLock(CrossPlatformLock):
                 if self.lock_file:
                     try:
                         self.lock_file.close()
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"Failed to close lock file: {e}")
                     self.lock_file = None
                 return False
 
@@ -432,8 +432,8 @@ class HotkeyLockManager:
             # Ensure lock is released even on error
             try:
                 self.release_immediate()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Failed to release lock in error handler: {e}")
 
     def release_immediate(self) -> bool:
         """Release the hotkey processing lock immediately."""
@@ -491,5 +491,10 @@ class HotkeyLockManager:
         """Ensure cleanup on object destruction."""
         try:
             self.cleanup()
-        except Exception:
-            pass  # Ignore cleanup errors during destruction
+        except Exception as e:
+            # Suppress cleanup errors during object destruction
+            import logging
+
+            logging.getLogger(__name__).debug(
+                f"Failed to cleanup lock during destruction: {e}"
+            )

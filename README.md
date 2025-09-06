@@ -25,24 +25,14 @@ A comprehensive Model Context Protocol (MCP) server providing advanced text-to-s
 - **Language Support**: Multi-language speech recognition
 - **Silence Detection**: Automatic stopping based on speech patterns
 
-### ⌨️ Hotkey Monitoring & Voice Activation
+### ⌨️ Hotkey Monitoring & Voice-to-Text
 - **Global hotkey support**: Monitor system-wide keyboard shortcuts
-- **Menu key activation**: Configurable hotkey triggers for voice-to-text
+- **Menu key activation**: Configurable hotkey triggers for voice-to-text transcription
 - **Multi-Instance Coordination**: Cross-platform hotkey locking prevents conflicts between server instances
 - **Real-time Feedback**: Audio cues (on/off sounds) and live typing
-- **Hands-free operation**: Start/stop monitoring via MCP tools
+- **Hotkey-controlled operation**: Start/stop monitoring via MCP tools
 - **Advanced Text Output**: Debounced typing, clipboard integration
 - **Exclusive Processing**: Automatic lock acquisition ensures only one server processes each keystroke
-
-### 🏗️ Architecture
-- **FastMCP framework**: Modern MCP server implementation
-- **Background Loading System**: Intelligent component preloading for fast startup and reduced latency
-- **Type-safe**: Full type hints and validation with Pydantic
-- **Advanced Audio Processing**: NumPy, LibROSA, WebRTC VAD integration with quality validation
-- **Real-time Systems**: Optimized for low-latency voice interactions
-- **Production-ready**: Comprehensive error handling, logging, and configuration management
-- **Modular Design**: Separate managers for TTS, STT, audio, hotkeys, text output, and background loading
-- **Cross-Process Coordination**: File-based and semaphore locking for multi-instance safety
 
 ## 📚 Documentation
 
@@ -59,10 +49,7 @@ For detailed documentation, API reference, and examples, visit our [GitHub repos
 **Linux (Ubuntu/Debian):**
 ```bash
 sudo apt-get update
-sudo apt-get install python3-dev portaudio19-dev libasound2-dev
-sudo apt-get install build-essential cmake
-# For audio processing
-sudo apt-get install ffmpeg libsndfile1
+sudo apt-get install python3-dev portaudio19-dev libasound2-dev build-essential cmake fmpeg libsndfile1
 ```
 
 **macOS:**
@@ -130,10 +117,6 @@ Create or update your Claude Desktop configuration:
     "voice-mcp": {
       "command": "voice-mcp",
       "env": {
-        "VOICE_MCP_TTS_MODEL": "tts_models/en/ljspeech/tacotron2-DDC",
-        "VOICE_MCP_TTS_PRELOAD_ENABLED": "true",
-        "VOICE_MCP_STT_ENABLED": "true",
-        "VOICE_MCP_ENABLE_HOTKEY": "true",
         "VOICE_MCP_LOG_LEVEL": "INFO"
       }
     }
@@ -150,9 +133,6 @@ Create or update your Claude Desktop configuration:
       "args": ["run", "python", "-m", "voice_mcp.server"],
       "env": {
         "VOICE_MCP_TTS_MODEL": "tts_models/en/ljspeech/tacotron2-DDC",
-        "VOICE_MCP_TTS_PRELOAD_ENABLED": "true",
-        "VOICE_MCP_STT_ENABLED": "true",
-        "VOICE_MCP_ENABLE_HOTKEY": "true",
         "VOICE_MCP_LOG_LEVEL": "INFO"
       }
     }
@@ -169,10 +149,6 @@ claude add-mcp voice-mcp
 
 # Or with specific configuration
 claude add-mcp voice-mcp \
-  --env VOICE_MCP_TTS_MODEL=tts_models/en/ljspeech/tacotron2-DDC \
-  --env VOICE_MCP_TTS_PRELOAD_ENABLED=true \
-  --env VOICE_MCP_STT_ENABLED=true \
-  --env VOICE_MCP_ENABLE_HOTKEY=true \
   --env VOICE_MCP_LOG_LEVEL=INFO
 ```
 
@@ -186,10 +162,6 @@ Create or update `~/.claude/claude_desktop_config.json`:
     "voice-mcp": {
       "command": "voice-mcp",
       "env": {
-        "VOICE_MCP_TTS_MODEL": "tts_models/en/ljspeech/tacotron2-DDC",
-        "VOICE_MCP_TTS_PRELOAD_ENABLED": "true",
-        "VOICE_MCP_STT_ENABLED": "true",
-        "VOICE_MCP_ENABLE_HOTKEY": "true",
         "VOICE_MCP_LOG_LEVEL": "INFO"
       }
     }
@@ -262,9 +234,78 @@ print('Loading Status:', status['summary'])
 
 ### Prompts
 
-| Prompt | Description |
-|--------|-------------|
-| `speak` | Instructions for using the speak tool |
+| Prompt | Description                                            |
+|--------|--------------------------------------------------------|
+| `speak` | Instructions for your AI to start using the speak tool |
+
+## 🎯 Key Features & Usage
+
+### 🗣️ Making Claude "Talkative" with the Speak Prompt
+
+The `speak` prompt transforms Claude into a voice-enabled assistant that provides audio feedback throughout your interactions. When you use the speak prompt, Claude will automatically use the TTS system to:
+
+- Announce what it's about to do before running tools
+- Confirm task completion with audio summaries
+- Ask questions aloud when clarification is needed
+- Alert you to important findings or errors
+- Let you know when it's finished and waiting for input
+
+**To Enable Voice Mode:**
+```
+Human: "Please use the speak prompt to become talkative"
+or
+Human: "Start using voice feedback for our conversation"
+```
+
+Once enabled, Claude will provide audio feedback like:
+- *"I'm going to run the build command now"* (before actions)
+- *"Build completed successfully with no errors"* (after completion)
+- *"I need your input on which approach to take"* (when asking questions)
+
+### 🎤 Voice-to-Text with Hotkey Activation
+
+The most powerful feature is hands-free voice-to-text input using a configurable global hotkey (Menu key by default):
+
+**How It Works:**
+1. **Start Hotkey Monitoring**: Ask Claude to start hotkey monitoring or it starts automatically
+2. **Press & Hold**: Press and hold the **Menu key** (or your configured hotkey)
+3. **Speak**: Talk while holding the key down - you'll hear an activation sound
+4. **Release**: Release the key when done - you'll hear a completion sound
+5. **See Results**: Your speech is transcribed and typed in real-time wherever your cursor is
+
+**Key Features:**
+- **Real-time Typing**: See your words appear as you speak
+- **Audio Feedback**: Clear on/off sounds for voice session boundaries
+- **Smart Stopping**: Automatically stops after 2 seconds of silence
+- **Multiple Output Modes**: Direct typing, clipboard, or return to Claude
+- **Cross-Platform**: Works on Windows, macOS, and Linux
+- **Multi-Instance Safe**: Prevents conflicts between multiple voice-mcp servers
+
+**Configuration Options:**
+```bash
+# Change the hotkey (options: menu, home, end, insert, etc.)
+VOICE_MCP_HOTKEY_NAME=home
+
+# Change output mode
+VOICE_MCP_HOTKEY_OUTPUT_MODE=typing    # Types in real-time (default)
+VOICE_MCP_HOTKEY_OUTPUT_MODE=clipboard # Copies to clipboard
+VOICE_MCP_HOTKEY_OUTPUT_MODE=return    # Returns text to Claude
+
+# Adjust silence detection (how long to wait after you stop speaking)
+VOICE_MCP_STT_SILENCE_THRESHOLD=2.0
+```
+
+**Example Workflow:**
+```
+1. Claude: "I'll start hotkey monitoring for voice input"
+2. *You press and hold Menu key*
+3. *Activation sound plays*
+4. You: "Hello, I want to create a new React component"
+5. *Text appears in real-time: "Hello, I want to create a new React component"*
+6. *You release Menu key*
+7. *Completion sound plays*
+8. Claude processes your voice input and responds
+```
 
 ### Example Usage in Claude
 
@@ -281,7 +322,7 @@ Claude: I'll use the speak tool to convert your message to speech.
 
 **Hotkey Management:**
 ```
-Human: Start monitoring the hotkey for voice activation.
+Human: Start monitoring the hotkey for voice-to-text.
 
 Claude: I'll start the global hotkey monitoring for you.
 
@@ -310,7 +351,7 @@ Claude: I'll start the global hotkey monitoring for you.
 | `VOICE_MCP_STT_DEVICE` | `auto`                                 | Processing device (`auto`, `cuda`, `cpu`) |
 | `VOICE_MCP_STT_LANGUAGE` | `en`                                   | Default STT language |
 | `VOICE_MCP_STT_SILENCE_THRESHOLD` | `2.0`                                  | Silence detection threshold (seconds, reduced from 3.0s) |
-| `VOICE_MCP_ENABLE_HOTKEY` | `true`                                 | Enable hotkey activation |
+| `VOICE_MCP_ENABLE_HOTKEY` | `true`                                 | Enable hotkey monitoring |
 | `VOICE_MCP_HOTKEY_NAME` | `menu`                                 | Hotkey to monitor |
 | `VOICE_MCP_HOTKEY_OUTPUT_MODE` | `typing`                               | Default hotkey output mode (`typing`, `clipboard`, `return`) |
 | `VOICE_MCP_TYPING_ENABLED` | `true`                                 | Enable real-time typing output |
@@ -583,8 +624,9 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 
 - [whisper-typer-tool](https://github.com/dynamiccreator/whisper-typer-tool) - Inspiration for STT integration patterns
 - [mcp-voice-hooks](https://github.com/johnmatthewtennant/mcp-voice-hooks) - Inspiration for TTS integration patterns
-- [FastMCP](https://github.com/jlowin/fastmcp) - Modern MCP server framework
 - [Coqui TTS](https://github.com/coqui-ai/TTS) - High-quality neural text-to-speech
+- [RealtimeSTT](https://github.com/KoljaB/RealtimeSTT) - Robust, efficient, low-latency speech-to-text library with advanced voice activity detection
+- [FastMCP](https://github.com/jlowin/fastmcp) - Modern MCP server framework
 
 ---
 

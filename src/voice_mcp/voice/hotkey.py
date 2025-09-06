@@ -432,14 +432,14 @@ class HotkeyManager:
                     "message": f"Hotkey monitoring stopped (was: {previous_hotkey})",
                 }
 
-            except Exception as e:
-                logger.error("Failed to stop hotkey monitoring", error=str(e))
+            except Exception as main_error:
+                logger.error("Failed to stop hotkey monitoring", error=str(main_error))
                 # Cleanup lock manager even on error
                 if self._lock_manager:
                     try:
                         self._lock_manager.cleanup()
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"Failed to cleanup lock manager: {e}")
                     self._lock_manager = None
 
                 # Even if there's an error, mark as stopped to prevent hanging
@@ -447,7 +447,7 @@ class HotkeyManager:
                 self._monitoring_thread = None
                 return {
                     "success": False,
-                    "error": f"Failed to stop monitoring: {str(e)}",
+                    "error": f"Failed to stop monitoring: {str(main_error)}",
                 }
 
     def get_status(self) -> dict[str, Any]:
@@ -501,5 +501,10 @@ class HotkeyManager:
         """Cleanup resources when object is destroyed."""
         try:
             self.stop_monitoring()
-        except Exception:
-            pass  # Ignore cleanup errors
+        except Exception as e:
+            # Suppress cleanup errors during object destruction
+            import logging
+
+            logging.getLogger(__name__).debug(
+                f"Failed to cleanup hotkey during destruction: {e}"
+            )

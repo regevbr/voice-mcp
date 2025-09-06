@@ -75,7 +75,7 @@ Common language codes:
 - `ru` - Russian
 - `pt` - Portuguese
 
-## Hotkey & Voice Activation Configuration
+## Hotkey & Voice-to-Text Configuration
 
 | Variable | Default | Description |
 |----------|---------|-------------|

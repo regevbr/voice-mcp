@@ -41,7 +41,7 @@ result = VoiceTools.speak("Custom message", rate=1.2, volume=0.8)
 
 #### start_hotkey_monitoring()
 
-Start global hotkey monitoring for voice activation.
+Start global hotkey monitoring for voice-to-text transcription.
 
 **Returns:**
 - `str`: Status message indicating success or failure
@@ -151,7 +151,7 @@ Real-time speech-to-text using faster-whisper.
 
 #### HotkeyManager
 
-Global hotkey monitoring for voice activation.
+Global hotkey monitoring for voice-to-text transcription.
 
 **Key Methods:**
 - `start_monitoring(hotkey_name)`: Start monitoring specified hotkey
