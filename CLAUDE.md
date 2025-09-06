@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Voice MCP Server is a comprehensive Python implementation of a Model Context Protocol (MCP) server providing advanced text-to-speech (TTS), speech-to-text (STT), and global hotkey monitoring for AI assistants. The project integrates full voice interaction capabilities directly into AI conversations through the standardized MCP interface.
+Voice MCP Server is a comprehensive Python implementation of a Model Context Protocol (MCP) server providing advanced text-to-speech (TTS), speech-to-text (STT), and global hotkey monitoring for AI assistants. Built with Python 3.12+ using FastMCP framework, the project integrates full voice interaction capabilities directly into AI conversations through the standardized MCP interface with production-ready reliability and performance optimizations.
 
 ## Current Status
 
@@ -88,16 +88,20 @@ uv run python -m voice_mcp.server --debug
 
 ### Code Quality
 - **Type hints**: Full typing with mypy compliance
-- **Testing**: Focused test suite with essential coverage
-- **Formatting**: Black + isort + ruff
-- **Documentation**: Comprehensive docstrings
+- **Testing**: Focused test suite with essential coverage (82% coverage achieved)
+- **Formatting**: Ruff (primary) + isort for consistent CI/CD compatibility
+- **Documentation**: Comprehensive docstrings and inline documentation
+- **Linting**: Comprehensive Ruff linting with security-focused rules
+- **Quality Scripts**: Automated quality checks via ./scripts/ directory
 
 ### Development Workflow
-1. All changes require tests
+1. All changes require tests to maintain 82%+ coverage
 2. Tests must pass before commits
 3. Follow existing patterns and architecture
-4. Use uv for dependency management
-5. Environment variables for configuration
+4. Use uv for dependency management and execution
+5. Environment variables for all configuration
+6. Use provided scripts for quality checks: ./scripts/check-all.sh
+7. Maintain thread-safe patterns for all managers and singletons
 
 ## MCP Integration
 
@@ -142,6 +146,8 @@ All configurable via environment variables:
 - `VOICE_MCP_TYPING_ENABLED` - Enable real-time typing (default: true)
 - `VOICE_MCP_CLIPBOARD_ENABLED` - Enable clipboard output (default: true)
 - `VOICE_MCP_TYPING_DEBOUNCE_DELAY` - Typing delay (default: 0.1s)
+- `VOICE_MCP_CLIPBOARD_RESTORE_ENABLED` - Restore original clipboard after STT sessions (default: true)
+- `VOICE_MCP_CLIPBOARD_RESTORE_DELAY` - Delay before clipboard restoration in seconds (default: 3.0)
 
 **Hotkey Lock Configuration:**
 - `VOICE_MCP_HOTKEY_LOCK_ENABLED` - Enable cross-process hotkey locking (default: true)
@@ -240,10 +246,29 @@ uv run mypy src/                 # Type checking
 
 ## Deployment Notes
 
-- **Claude Desktop**: Add to `claude_desktop_config.json`
+- **Claude Desktop**: Add to `claude_desktop_config.json` with voice-mcp command
+- **Claude Code**: Use `claude add-mcp voice-mcp` or manual configuration
 - **Standalone**: Run with `--transport sse` for HTTP clients
-- **Docker**: Containerization supported (Dockerfile included)
-- **CI/CD**: GitHub Actions for testing and releases
+- **Docker**: Containerization supported (basic Dockerfile available)
+- **CI/CD**: GitHub Actions for testing, linting, and releases
+- **PyPI**: Available as `voice-mcp[audio]` package for easy installation
+
+## Installation & Setup Summary
+
+```bash
+# Quick installation (recommended)
+pip install voice-mcp[audio]
+
+# Development setup
+git clone https://github.com/regevbr/voice-mcp.git
+cd voice-mcp
+uv sync --extra audio --dev --upgrade
+
+# Quality checks
+./scripts/check-all.sh
+
+# Start server
+uv run python -m voice_mcp.server --debug
+```
 
 The project follows production-ready patterns with comprehensive error handling, logging, and configuration management suitable for both development and production deployment. The full-featured voice system provides complete TTS and STT capabilities with real-time processing, making it suitable for advanced AI assistant voice interactions while maintaining high code quality and reliability.
-- always sync uv locally with uv sync --extra audio --dev --upgrade

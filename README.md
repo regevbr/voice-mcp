@@ -1,8 +1,8 @@
 # Voice MCP Server
 
-A comprehensive Model Context Protocol (MCP) server providing advanced text-to-speech (TTS) and speech-to-text (STT) capabilities with global hotkey monitoring for AI assistants.
+A comprehensive Model Context Protocol (MCP) server providing advanced text-to-speech (TTS), speech-to-text (STT), and global hotkey monitoring capabilities for AI assistants. Built with Python 3.12+ using FastMCP framework for optimal performance and reliability.
 
-[![Tests](https://github.com/voice-mcp/voice-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/voice-mcp/voice-mcp/actions/workflows/ci.yml)
+[![Tests](https://github.com/regevbr/voice-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/regevbr/voice-mcp/actions/workflows/ci.yml)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
@@ -46,7 +46,7 @@ A comprehensive Model Context Protocol (MCP) server providing advanced text-to-s
 
 ## 📚 Documentation
 
-For detailed documentation, API reference, and examples, visit our [GitHub Pages documentation](https://regevbr.github.io/voice-mcp/).
+For detailed documentation, API reference, and examples, visit our [GitHub repository](https://github.com/regevbr/voice-mcp).
 
 ## 🚀 Quick Start
 
@@ -96,7 +96,7 @@ pip install voice-mcp[audio]
 
 1. **Clone the repository:**
 ```bash
-git clone https://github.com/voice-mcp/voice-mcp.git
+git clone https://github.com/regevbr/voice-mcp.git
 cd voice-mcp
 ```
 
@@ -376,15 +376,23 @@ uv run pytest tests/test_tts.py -v  # TTS tests only
 ### Code Quality
 
 ```bash
-# Format code
-uv run black src/ tests/
-uv run isort src/ tests/
+# Format code (recommended single command)
+./scripts/format.sh
 
 # Lint code
-uv run ruff check src/ tests/
+./scripts/lint.sh
 
 # Type checking
-uv run mypy src/
+./scripts/typecheck.sh
+
+# Run all quality checks
+./scripts/check-all.sh
+
+# Alternative individual commands
+uv run ruff format src/ tests/  # Primary formatter
+uv run isort src/ tests/        # Import sorting
+uv run ruff check src/ tests/   # Linting
+uv run mypy src/               # Type checking
 ```
 
 ### Testing Core Functionality
@@ -469,11 +477,11 @@ voice-mcp/
 
 ```bash
 # Clone and setup
-git clone https://github.com/voice-mcp/voice-mcp.git
+git clone https://github.com/regevbr/voice-mcp.git
 cd voice-mcp
 uv sync --extra audio --dev
 
-# Install pre-commit hooks
+# Install pre-commit hooks (if available)
 uv run pre-commit install
 
 # Run development server
@@ -573,8 +581,10 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 
 ## 🙏 Acknowledgments
 
-- [whisper-typer-tool](https://github.com/dynamiccreator/whisper-typer-tool) - Inspiration for STT integration
-- [mcp-voice-hooks](https://github.com/johnmatthewtennant/mcp-voice-hooks) - Inspiration for TTS integration
+- [whisper-typer-tool](https://github.com/dynamiccreator/whisper-typer-tool) - Inspiration for STT integration patterns
+- [mcp-voice-hooks](https://github.com/johnmatthewtennant/mcp-voice-hooks) - Inspiration for TTS integration patterns
+- [FastMCP](https://github.com/jlowin/fastmcp) - Modern MCP server framework
+- [Coqui TTS](https://github.com/coqui-ai/TTS) - High-quality neural text-to-speech
 
 ---
 
