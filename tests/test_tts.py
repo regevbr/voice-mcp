@@ -219,6 +219,7 @@ class TestAudioDataPlayback:
         import numpy as np
 
         mock_config.audio_quality_validation_enabled = False
+        mock_config.audio_normalization_headroom = 0.95
 
         mock_tts_instance = Mock()
         mock_tts_class.return_value = mock_tts_instance
@@ -248,6 +249,7 @@ class TestAudioDataPlayback:
         import numpy as np
 
         mock_config.audio_quality_validation_enabled = False
+        mock_config.audio_normalization_headroom = 0.95
 
         mock_tts_instance = Mock()
         mock_tts_class.return_value = mock_tts_instance
@@ -277,6 +279,7 @@ class TestAudioDataPlayback:
         import numpy as np
 
         mock_config.audio_quality_validation_enabled = False
+        mock_config.audio_normalization_headroom = 0.95
 
         mock_tts_instance = Mock()
         mock_tts_class.return_value = mock_tts_instance

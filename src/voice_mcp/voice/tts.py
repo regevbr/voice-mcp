@@ -181,6 +181,11 @@ class CoquiTTSEngine:
             # Coqui TTS usually outputs float32 in range [-1, 1]
             # Convert to 16-bit PCM with proper normalization and headroom
             if audio_array.dtype == np.float32:
+                # Check if array is not empty before processing
+                if audio_array.size == 0:
+                    logger.warning("Empty audio array, nothing to play")
+                    return False
+
                 # Validate audio range and apply normalization with configurable headroom
                 max_val = np.abs(audio_array).max()
                 if max_val > 0:
@@ -305,7 +310,7 @@ class CoquiTTSEngine:
             # Check for clipping (values at or very close to digital maximum)
             if audio_array.dtype == np.float32:
                 clip_threshold = 0.99
-                clipped_samples = np.sum(np.abs(audio_array) > clip_threshold)
+                clipped_samples = int(np.sum(np.abs(audio_array) > clip_threshold))
                 if clipped_samples > len(audio_array) * 0.01:  # More than 1% clipped
                     return (
                         False,
@@ -320,8 +325,8 @@ class CoquiTTSEngine:
                 )
 
             # Calculate quality metrics
-            rms = np.sqrt(np.mean(audio_array**2))
-            peak = np.abs(audio_array).max()
+            rms = float(np.sqrt(np.mean(audio_array**2)))
+            peak = float(np.abs(audio_array).max())
             dynamic_range = 20 * np.log10(peak / (rms + 1e-10)) if rms > 0 else 0
 
             logger.debug(
