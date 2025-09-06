@@ -53,11 +53,12 @@ pip install voice-mcp[audio]
 
 ```bash
 # Clone the repository
-git clone https://github.com/voice-mcp/voice-mcp.git
+git clone https://github.com/regevbr/voice-mcp.git
 cd voice-mcp
 
 # Install with uv (recommended)
 curl -LsSf https://astral.sh/uv/install.sh | sh
+# Install project with all audio dependencies
 uv sync --extra audio --dev
 ```
 
@@ -68,7 +69,7 @@ uv sync --extra audio --dev
 pip install -e .[audio]
 
 # Direct git installation
-pip install git+https://github.com/voice-mcp/voice-mcp.git[audio]
+pip install git+https://github.com/regevbr/voice-mcp.git[audio]
 ```
 
 ### 4. Docker Installation

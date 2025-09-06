@@ -156,7 +156,7 @@ When hotkey monitoring is active, press the configured hotkey (default: `menu` k
 
 1. **Start Voice Recording**: Audio feedback plays ("on" sound)
 2. **Real-time Transcription**: Spoken words appear as you speak
-3. **Automatic Stopping**: Stops after silence threshold (default: 4 seconds)
+3. **Automatic Stopping**: Stops after silence threshold (default: 2 seconds)
 4. **Audio Feedback**: "Off" sound plays when recording stops
 
 ### Output Modes
@@ -241,13 +241,21 @@ uv run pytest -m "not voice" -v
 ### Code Quality Commands
 
 ```bash
-# Format code
-uv run ruff format src/ tests/
-uv run isort src/ tests/
+# Format code (recommended single command)
+./scripts/format.sh
 
 # Lint code
-uv run ruff check src/ tests/
+./scripts/lint.sh
 
 # Type checking
-uv run mypy src/
+./scripts/typecheck.sh
+
+# Run all quality checks
+./scripts/check-all.sh
+
+# Alternative individual commands
+uv run ruff format src/ tests/  # Primary formatter
+uv run isort src/ tests/        # Import sorting
+uv run ruff check src/ tests/   # Linting
+uv run mypy src/               # Type checking
 ```

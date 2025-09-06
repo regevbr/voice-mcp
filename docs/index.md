@@ -13,7 +13,8 @@ A comprehensive Model Context Protocol (MCP) server providing advanced text-to-s
 - **GPU Acceleration**: Optional CUDA GPU support for faster TTS processing
 - **Advanced Speech Rate Control**: High-quality time-stretching with natural pitch preservation
 - **Audio Quality Pipeline**: Comprehensive validation, normalization, and dynamic range processing
-- **Voice customization**: Select voices, adjust rate and volume with distortion-free output
+- **Multi-Model Support**: Dynamic sample rate detection for different TTS models (Tacotron2, XTTS)
+- **Voice Customization**: Select voices, adjust rate and volume with distortion-free output
 - **Cross-platform**: Works on Linux, Windows, and macOS
 - **MCP Integration**: Native `speak` tool and guidance prompts
 
@@ -24,12 +25,12 @@ A comprehensive Model Context Protocol (MCP) server providing advanced text-to-s
 - **Language Support**: Multi-language speech recognition
 - **Silence Detection**: Automatic stopping based on speech patterns
 
-### ⌨️ Hotkey Monitoring & Voice Activation
+### ⌨️ Hotkey Monitoring & Voice-to-Text
 - **Global hotkey support**: Monitor system-wide keyboard shortcuts
-- **Menu key activation**: Configurable hotkey triggers for voice-to-text
+- **Menu key activation**: Configurable hotkey triggers for voice-to-text transcription
 - **Multi-Instance Coordination**: Cross-platform hotkey locking prevents conflicts between server instances
 - **Real-time Feedback**: Audio cues (on/off sounds) and live typing
-- **Hands-free operation**: Start/stop monitoring via MCP tools
+- **Hotkey-controlled operation**: Start/stop monitoring via MCP tools
 - **Advanced Text Output**: Debounced typing, clipboard integration
 - **Exclusive Processing**: Automatic lock acquisition ensures only one server processes each keystroke
 
@@ -64,9 +65,12 @@ pip install voice-mcp[audio]
 
 **Option 2: Development Installation**
 ```bash
-# Clone and install
+# Clone the repository
 git clone https://github.com/regevbr/voice-mcp.git
 cd voice-mcp
+
+# Install with uv (recommended)
+curl -LsSf https://astral.sh/uv/install.sh | sh
 uv sync --extra audio --dev
 ```
 

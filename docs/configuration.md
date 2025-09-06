@@ -47,7 +47,7 @@ Popular Coqui TTS models:
 | `VOICE_MCP_STT_MODEL` | `base`  | Whisper model size |
 | `VOICE_MCP_STT_DEVICE` | `auto`  | Processing device (`auto`, `cuda`, `cpu`) |
 | `VOICE_MCP_STT_LANGUAGE` | `en`    | Default STT language |
-| `VOICE_MCP_STT_SILENCE_THRESHOLD` | `2.0`   | Silence detection threshold (seconds)
+| `VOICE_MCP_STT_SILENCE_THRESHOLD` | `2.0`   | Silence detection threshold (seconds, reduced from 3.0s)
 
 
 ### Available STT Models
@@ -90,11 +90,13 @@ Common language codes:
 
 Common hotkey names:
 - `menu` - Menu key (default)
+- `home` - Home key
+- `end` - End key
+- `insert` - Insert key
 - `f1`, `f2`, ..., `f12` - Function keys
 - `ctrl+shift+v` - Key combinations
 - `alt+space` - Alt + Space
 - `shift+f10` - Shift + F10
-- `insert` - Insert key
 - `pause` - Pause/Break key
 
 ### Output Modes
@@ -204,6 +206,24 @@ VOICE_MCP_ENABLE_HOTKEY=false  # Disable hotkey in CI
 VOICE_MCP_TTS_MODEL=tts_models/en/ljspeech/speedy-speech  # Fastest model
 ```
 
+## Hotkey Lock Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `VOICE_MCP_HOTKEY_LOCK_ENABLED` | `true` | Enable cross-process hotkey locking |
+| `VOICE_MCP_HOTKEY_LOCK_DIRECTORY` | `auto` | Custom lock directory (auto-detect if not set) |
+| `VOICE_MCP_HOTKEY_LOCK_FALLBACK_SEMAPHORE` | `true` | Allow semaphore fallback if file locks fail |
+
+## Audio Quality Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `VOICE_MCP_AUDIO_QUALITY_VALIDATION_ENABLED` | `true` | Enable audio quality validation |
+| `VOICE_MCP_AUDIO_QUALITY_MODE` | `balanced` | Audio quality mode (fast, balanced, high_quality) |
+| `VOICE_MCP_AUDIO_NORMALIZATION_HEADROOM` | `0.95` | Normalization headroom (0.0-1.0) |
+| `VOICE_MCP_CLIPBOARD_RESTORE_ENABLED` | `true` | Restore original clipboard after STT sessions |
+| `VOICE_MCP_CLIPBOARD_RESTORE_DELAY` | `3.0` | Delay before clipboard restoration in seconds |
+
 ## Claude Desktop Configuration
 
 For Claude Desktop integration, add environment variables to the MCP server configuration:
@@ -212,20 +232,8 @@ For Claude Desktop integration, add environment variables to the MCP server conf
 {
   "mcpServers": {
     "voice-mcp": {
-      "command": "uv",
-      "args": ["run", "python", "-m", "voice_mcp.server"],
+      "command": "voice-mcp",
       "env": {
-        "VOICE_MCP_TTS_MODEL": "tts_models/en/ljspeech/tacotron2-DDC",
-        "VOICE_MCP_TTS_PRELOAD_ENABLED": "true",
-        "VOICE_MCP_TTS_GPU_ENABLED": "false",
-        "VOICE_MCP_TTS_RATE": "1.0",
-        "VOICE_MCP_TTS_VOLUME": "0.9",
-        "VOICE_MCP_STT_ENABLED": "true",
-        "VOICE_MCP_STT_MODEL": "base",
-        "VOICE_MCP_STT_LANGUAGE": "en",
-        "VOICE_MCP_ENABLE_HOTKEY": "true",
-        "VOICE_MCP_HOTKEY_NAME": "menu",
-        "VOICE_MCP_HOTKEY_OUTPUT_MODE": "typing",
         "VOICE_MCP_LOG_LEVEL": "INFO"
       }
     }
