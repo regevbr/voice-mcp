@@ -7,53 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-- **BREAKING**: Reduced default silence threshold from 4.0s to 3.0s for faster STT response
-  - Environment variable `VOICE_MCP_STT_SILENCE_THRESHOLD` defaults to `3.0` instead of `4.0`
-  - Existing users may need to explicitly set `VOICE_MCP_STT_SILENCE_THRESHOLD=4.0` to maintain previous behavior
 
-### Improved
-- **Performance**: Enhanced tqdm patching for robust compatibility with RealtimeSTT/huggingface_hub
-  - Comprehensive fix for tqdm locking issues with disabled_tqdm classes
-  - Better performance and reduced memory overhead
-  - Eliminates "NoneType object does not support the context manager protocol" errors
-- **Resource Management**: Enhanced server cleanup and shutdown handling
-  - Thread-safe cleanup with proper state tracking to prevent race conditions
-  - Simplified signal handlers with reduced timeout complexity
-  - More reliable graceful shutdown sequence
+Looking at the commit history, I'll generate a structured changelog entry for version 0.1.1:
 
-### Fixed
-- **Compatibility**: Resolved tqdm locking issues in concurrent contexts
-- **Stability**: Eliminated race conditions during server shutdown
-- **CI/CD**: Fixed uv version inconsistencies between CI and local environments (0.5.13 → 0.8.13)
+## [0.1.1] - 2025-09-06
 
 ### Added
-- **Security**: CodeQL security scanning in CI pipeline
-- **Testing**: Comprehensive test coverage improvements (82% overall coverage achieved)
-- **Background Loading**: Intelligent component preloading system for TTS, STT, and hotkey components
-- **Cross-Platform Hotkey Locking**: File-based locking system prevents multi-instance hotkey conflicts
-- **Audio Quality Pipeline**: Comprehensive validation, normalization, and dynamic range processing for TTS
-- **High-Quality Time-Stretching**: Natural pitch preservation with librosa time-stretching (eliminates "chipmunk effect")
-- **New MCP Tool**: `get_loading_status()` - Monitor background loading progress for all components
-- **Multi-Model Support**: Dynamic sample rate detection for different TTS models (Tacotron2, XTTS)
-- **Documentation**: Enhanced configuration documentation with breaking change notes and new features
+- 📝 Comprehensive GitHub Actions CI/CD pipeline with Windows and Linux support
+- Pre-commit hooks and automated code quality tools
+- Optional audio dependencies for CI environments
+- Test coverage expansion from 56% to 81% across core modules
+- Reproducible builds with uv.lock file
 
-## Migration Guide
+### Fixed
+- Redirect print functions to stderr to prevent output capture issues
+- Clean up changelog output to prevent filename issues
+- Improve git tag fallback logic for first release
+- Security CI configuration
+- Virtual environment creation issues in CI
+- Windows CI cache and virtual environment compatibility
+- STT timeout context cross-platform compatibility
+- FastMCP, STT, and text output mocking issues in tests
+- GitHub Actions PR creation permission issues
+- Windows PowerShell parsing in CI workflows
+- Lazy pynput imports to prevent CI failures in headless environments
+- Python 3.11 compatibility with librosa and llvmlite dependencies
 
-### For users upgrading from versions with 4.0s silence threshold:
+### Changed
+- Smoother release cycle with Claude Code CLI integration
+- Updated project configuration and documentation
+- Enhanced error handling and documentation
+- Dependency updates for better compatibility
 
-If you prefer the previous longer silence detection timeout:
+### Performance
+- Make audio dependencies optional to reduce installation overhead in CI environments
 
-```bash
-# Set environment variable
-export VOICE_MCP_STT_SILENCE_THRESHOLD=4.0
-
-# Or in your configuration
-VOICE_MCP_STT_SILENCE_THRESHOLD=4.0
-```
-
-### For developers extending the codebase:
-
-- The server cleanup mechanism now uses thread-safe patterns
-- Signal handlers have been simplified - custom cleanup should use the new `cleanup_operations` pattern
-- tqdm patching is now minimal and targeted - avoid extensive monkey-patching in favor of upstream fixes
+This changelog captures the major improvements in CI/CD infrastructure, test coverage expansion, cross-platform compatibility fixes, and the transition to optional audio dependencies for better CI performance.

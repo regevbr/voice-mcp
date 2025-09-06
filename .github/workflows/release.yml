@@ -280,18 +280,79 @@ jobs:
         name: release-packages
         path: ./dist
 
-    - name: Generate release notes
+    - name: Extract version-specific changelog
+      id: extract-changelog
+      run: |
+        VERSION="${{ needs.validate-release.outputs.version }}"
+
+        # Extract the specific version section from CHANGELOG.md
+        echo "📋 Extracting changelog for version $VERSION..."
+
+        # Create changelog extraction using awk
+        awk -v version="$VERSION" '
+        BEGIN { found = 0; printing = 0 }
+        /^## \[/ {
+            if (found && printing) {
+                # Found next version section, stop printing
+                exit
+            }
+            if ($0 ~ "\\[" version "\\]") {
+                found = 1
+                printing = 1
+                # Skip the version header itself for the release notes
+                next
+            }
+        }
+        found && printing && /^[^#]/ {
+            # Print content lines (not headers)
+            if ($0 !~ /^$/ || prev_line !~ /^$/) {
+                print $0
+            }
+            prev_line = $0
+        }
+        ' CHANGELOG.md > version-changelog.txt
+
+        # Check if we found content
+        if [ ! -s version-changelog.txt ]; then
+            echo "⚠️ No changelog found for version $VERSION, using commits since last tag"
+
+            # Fallback: get commits since last tag
+            LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "HEAD~20")
+            echo "📋 Getting commits since $LAST_TAG..."
+            git log --oneline --no-merges "${LAST_TAG}..HEAD" > recent-commits.txt
+
+            if [ -s recent-commits.txt ]; then
+                echo "### Changes in this release:" > version-changelog.txt
+                echo "" >> version-changelog.txt
+                while read -r commit; do
+                    echo "- $commit" >> version-changelog.txt
+                done < recent-commits.txt
+            else
+                echo "### Changes in this release:" > version-changelog.txt
+                echo "" >> version-changelog.txt
+                echo "- Initial release of Voice MCP Server" >> version-changelog.txt
+            fi
+
+            rm -f recent-commits.txt
+        fi
+
+        echo "✅ Extracted changelog content:"
+        cat version-changelog.txt
+
+    - name: Generate enhanced release notes
       id: release-notes
       run: |
         VERSION="${{ needs.validate-release.outputs.version }}"
 
-        # Generate release notes
-        cat > release-notes.md << EOF
-        ## Voice MCP Server v${VERSION}
+        # Create the full release notes with extracted changelog
+        cat > release-notes.md << 'EOF'
+        ## 🚀 Voice MCP Server v${{ needs.validate-release.outputs.version }}
 
-        ### What's New
+        ### Installation
 
-        This release includes improvements to the Voice MCP Server, providing advanced text-to-speech (TTS), speech-to-text (STT), and global hotkey monitoring capabilities for AI assistants.
+        ```bash
+        pip install voice-mcp==${{ needs.validate-release.outputs.version }}
+        ```
 
         ### Key Features
 
@@ -302,15 +363,15 @@ jobs:
         - 📝 **Text Output**: Multiple modes (typing, clipboard, return)
         - ⚙️ **Configuration**: Rich environment-based settings
 
-        ### Installation
+        ### What's Changed
 
-        \`\`\`bash
-        pip install voice-mcp==${VERSION}
-        \`\`\`
+        EOF
 
-        ### Documentation
+        # Append the extracted changelog content
+        cat version-changelog.txt >> release-notes.md
 
-        See the [project README](https://github.com/voice-mcp/voice-mcp) for setup and usage instructions.
+        # Add footer
+        cat >> release-notes.md << EOF
 
         ### System Requirements
 
@@ -318,15 +379,13 @@ jobs:
         - Audio input/output devices
         - System dependencies for audio processing
 
-        ### Changes
+        ### Documentation
 
-        - All changes included in this release
-        - Comprehensive testing and quality assurance
-        - Production-ready deployment
+        See the [project README](https://github.com/${{ github.repository }}) for setup and usage instructions.
 
         ---
 
-        **Full Changelog**: https://github.com/voice-mcp/voice-mcp/compare/v${VERSION}
+        **Full Changelog**: https://github.com/${{ github.repository }}/compare/v${VERSION}
         EOF
 
         echo "Generated release notes:"
@@ -369,7 +428,7 @@ jobs:
     name: Publish to PyPI
     runs-on: ubuntu-latest
     needs: [validate-release, create-release, build-package]
-    if: github.repository == 'voice-mcp/voice-mcp'  # Only for official repo
+    if: github.repository == 'regevbr/voice-mcp'  # Only for official repo
     environment: release  # Requires manual approval for production
 
     steps:
