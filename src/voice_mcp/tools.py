@@ -168,15 +168,37 @@ def _on_hotkey_pressed() -> None:
                 audio_manager.play_on_sound()
 
             # Perform real-time transcription with live typing
+            # Don't auto-end session to control clipboard restore timing
             result = stt_handler.transcribe_with_realtime_output(
                 text_output_controller=text_controller,
                 duration=None,  # Use silence-based stopping
                 language=config.stt_language,
+                auto_end_session=False,  # Manual session control for proper audio timing
             )
 
             # Play "off" sound to indicate recording stop
             if audio_manager.is_available:
                 audio_manager.play_off_sound()
+
+            # Now restore clipboard after off sound has been triggered
+            try:
+                end_result = text_controller.end_session_delayed()
+                if end_result["success"]:
+                    logger.debug(
+                        "Session ended after audio feedback",
+                        clipboard_restored=end_result["clipboard_restored"],
+                    )
+                else:
+                    logger.warning(
+                        "Failed to end session after audio feedback",
+                        error=end_result.get("error"),
+                    )
+            except Exception as session_error:
+                logger.error(
+                    "Error ending session after audio feedback",
+                    error=str(session_error),
+                    exc_info=True,
+                )
 
             # Log the result
             if result.get("success"):

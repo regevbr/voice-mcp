@@ -37,7 +37,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        uv sync --dev --no-install-workspace
+        uv sync --extra audio --dev --no-install-workspace
         uv pip install -e .
 
     - name: Run Bandit security scan
@@ -89,7 +89,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        uv sync --dev --no-install-workspace
+        uv sync --extra audio --dev --no-install-workspace
 
     - name: Install safety
       run: |
@@ -176,7 +176,7 @@ jobs:
         echo "🧪 Testing updated dependencies..."
 
         # Install updated dependencies
-        uv sync --dev --no-install-workspace
+        uv sync --extra audio --dev --no-install-workspace
         uv pip install -e .
 
         # Run basic tests
@@ -264,7 +264,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        uv sync --dev --no-install-workspace
+        uv sync --extra audio --dev --no-install-workspace
         uv pip install pip-licenses
 
     - name: Check licenses

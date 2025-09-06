@@ -68,26 +68,6 @@ audio = [
     "realtimestt>=0.3.104",
 ]
 
-dev = [
-    # Testing
-    "pytest>=7.0.0",
-    "pytest-asyncio>=0.23.0",
-    "pytest-cov>=4.1.0",
-    "pytest-mock>=3.11.0",
-
-    # Code quality
-    "black>=23.0.0",
-    "isort>=5.12.0",
-    "ruff>=0.1.0",
-    "mypy>=1.5.0",
-
-    # Documentation
-    "mkdocs>=1.5.0",
-    "mkdocs-material>=9.0.0",
-
-    # Pre-commit
-    "pre-commit>=3.3.0",
-]
 
 # Complete installation with all optional dependencies
 full = [
@@ -116,24 +96,6 @@ where = ["src"]
 [tool.setuptools.package-dir]
 "" = "src"
 
-# Black code formatting configuration
-[tool.black]
-line-length = 88
-target-version = ['py312']
-include = '\.pyi?$'
-extend-exclude = '''
-/(
-  # directories
-  \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | build
-  | dist
-)/
-'''
 
 # isort import sorting configuration
 [tool.isort]
@@ -169,7 +131,7 @@ select = [
     "ARG", # flake8-unused-arguments
 ]
 ignore = [
-    "E501",  # line too long, handled by black
+    "E501",  # line too long, handled by ruff format
     "B008",  # do not perform function calls in argument defaults
     "C901",  # too complex
 ]
@@ -255,7 +217,6 @@ exclude_lines = [
 [dependency-groups]
 dev = [
     "bandit>=1.8.6",
-    "black>=25.1.0",
     "flake8>=7.3.0",
     "flake8-bugbear>=24.12.12",
     "flake8-comprehensions>=3.16.0",

@@ -65,7 +65,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        uv sync --dev --no-install-workspace
+        uv sync --extra audio --dev --no-install-workspace
         uv pip install -e .
 
     - name: Setup display and audio
@@ -313,7 +313,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        uv sync --dev --no-install-workspace
+        uv sync --extra audio --dev --no-install-workspace
         uv pip install -e .
         uv pip install mutmut
 

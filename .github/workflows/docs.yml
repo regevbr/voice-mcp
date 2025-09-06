@@ -49,7 +49,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        uv sync --dev --no-install-workspace
+        uv sync --extra audio --dev --no-install-workspace
         uv pip install -e .
 
     - name: Check README validity
@@ -150,7 +150,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        uv sync --dev --no-install-workspace
+        uv sync --extra audio --dev --no-install-workspace
         uv pip install -e .
 
     - name: Check for MkDocs configuration
@@ -289,7 +289,7 @@ jobs:
         \`\`\`bash
         git clone https://github.com/voice-mcp/voice-mcp.git
         cd voice-mcp
-        uv sync --dev
+        uv sync --extra audio --dev
         uv pip install -e .
         \`\`\`
 

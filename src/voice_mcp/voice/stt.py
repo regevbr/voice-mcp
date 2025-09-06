@@ -331,6 +331,7 @@ class TranscriptionHandler:
         text_output_controller: "TextOutputController",
         duration: float | None = None,
         language: str | None = None,
+        auto_end_session: bool = True,
     ) -> dict[str, Any]:
         """
         Perform transcription with real-time text output for hotkey usage.
@@ -339,6 +340,8 @@ class TranscriptionHandler:
             text_output_controller: TextOutputController for real-time typing
             duration: Maximum recording duration (None for silence-based stopping)
             language: Language override for this session
+            auto_end_session: Whether to automatically end the session (default: True)
+                            Set to False to manually control session ending
 
         Returns:
             Dictionary with transcription results and metadata
@@ -500,25 +503,26 @@ class TranscriptionHandler:
                 }
 
             finally:
-                # Always end the text output session to restore clipboard
-                try:
-                    end_result = text_output_controller.end_session()
-                    if end_result["success"]:
-                        logger.debug(
-                            "Text output session ended",
-                            clipboard_restored=end_result["clipboard_restored"],
+                # End the text output session if auto_end_session is True
+                if auto_end_session:
+                    try:
+                        end_result = text_output_controller.end_session()
+                        if end_result["success"]:
+                            logger.debug(
+                                "Text output session ended",
+                                clipboard_restored=end_result["clipboard_restored"],
+                            )
+                        else:
+                            logger.warning(
+                                "Failed to end text output session cleanly",
+                                error=end_result.get("error"),
+                            )
+                    except Exception as session_error:
+                        logger.error(
+                            "Error ending text output session",
+                            error=str(session_error),
+                            exc_info=True,
                         )
-                    else:
-                        logger.warning(
-                            "Failed to end text output session cleanly",
-                            error=end_result.get("error"),
-                        )
-                except Exception as session_error:
-                    logger.error(
-                        "Error ending text output session",
-                        error=str(session_error),
-                        exc_info=True,
-                    )
 
         except Exception as e:
             end_time = time.time()

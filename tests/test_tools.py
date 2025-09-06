@@ -139,6 +139,11 @@ class TestHotkeyCallback:
         mock_get_audio.return_value = mock_audio_manager
 
         mock_text_controller = Mock()
+        mock_text_controller.end_session_delayed.return_value = {
+            "success": True,
+            "message": "Session ended successfully",
+            "clipboard_restored": True,
+        }
         mock_get_text.return_value = mock_text_controller
 
         mock_stt_handler = Mock()
@@ -157,11 +162,12 @@ class TestHotkeyCallback:
                 mock_audio_manager.play_on_sound.assert_called_once()
                 mock_audio_manager.play_off_sound.assert_called_once()
 
-                # Verify STT was called
+                # Verify STT was called with auto_end_session=False
                 mock_stt_handler.transcribe_with_realtime_output.assert_called_once_with(
                     text_output_controller=mock_text_controller,
                     duration=None,
                     language="en",
+                    auto_end_session=False,
                 )
 
     @patch("voice_mcp.tools.VoiceTools.listen")

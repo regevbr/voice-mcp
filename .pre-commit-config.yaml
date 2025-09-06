@@ -19,7 +19,7 @@ repos:
         types: [python]
         args: [--fix]
 
-      # Ruff formatting (additional to black for newer features)
+      # Ruff formatting
       - id: ruff-format
         name: ruff format
         entry: uv run ruff format

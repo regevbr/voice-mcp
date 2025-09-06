@@ -345,6 +345,11 @@ class TestHotkeyCallback:
 
         # Mock text controller
         mock_text_controller = Mock()
+        mock_text_controller.end_session_delayed.return_value = {
+            "success": True,
+            "message": "Session ended successfully",
+            "clipboard_restored": True,
+        }
         mock_text_controller_getter.return_value = mock_text_controller
 
         # Mock audio manager
@@ -355,9 +360,12 @@ class TestHotkeyCallback:
         # Execute callback
         _on_hotkey_pressed()
 
-        # Verify real-time transcription was called
+        # Verify real-time transcription was called with auto_end_session=False
         mock_handler.transcribe_with_realtime_output.assert_called_once_with(
-            text_output_controller=mock_text_controller, duration=None, language="en"
+            text_output_controller=mock_text_controller,
+            duration=None,
+            language="en",
+            auto_end_session=False,
         )
 
         # Verify audio feedback

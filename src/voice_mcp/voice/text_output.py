@@ -498,6 +498,18 @@ class TextOutputController:
 
             logger.info("Text output session ended")
 
+    def end_session_delayed(self) -> dict[str, Any]:
+        """
+        End the current session after external processing (like audio feedback).
+
+        This method is designed to be called after audio feedback completes to ensure
+        proper timing of clipboard restoration.
+
+        Returns:
+            Dictionary with session end status and information
+        """
+        return self.end_session()
+
     def reset(self) -> None:
         """Reset typing state for new session."""
         self.last_typed_text = ""
