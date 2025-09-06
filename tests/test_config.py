@@ -18,7 +18,7 @@ def test_default_config():
     assert config.tts_volume == 0.9
     assert config.stt_model == "base"
     assert config.stt_language == "en"
-    assert config.stt_silence_threshold == 3.0
+    assert config.stt_silence_threshold == 2.0
     assert config.typing_enabled is True
     assert config.clipboard_enabled is True
     assert config.enable_hotkey is True  # Default is now True

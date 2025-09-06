@@ -22,7 +22,7 @@ Voice MCP Server is a comprehensive Python implementation of a Model Context Pro
 - Rich testing suite covering all voice functionality (82% coverage achieved)
 - Enhanced stability with thread-safe operations and robust cleanup
 - Security improvements with CodeQL scanning and vulnerability testing
-- Performance optimizations (STT silence threshold: 4.0s → 3.0s)
+- Performance optimizations (STT silence threshold: 4.0s → 3.0s → 2.0s)
 - Audio quality pipeline preventing distortion and "chipmunk effect"
 - Comprehensive code formatting with single formatter (Ruff) for CI/CD consistency
 
@@ -137,7 +137,7 @@ All configurable via environment variables:
 - `VOICE_MCP_STT_MODEL` - Whisper model size (default: base)
 - `VOICE_MCP_STT_DEVICE` - Processing device (default: auto)
 - `VOICE_MCP_STT_LANGUAGE` - Default language (default: en)
-- `VOICE_MCP_STT_SILENCE_THRESHOLD` - Silence detection (default: 3.0s, reduced from 4.0s for faster response)
+- `VOICE_MCP_STT_SILENCE_THRESHOLD` - Silence detection (default: 2.0s, reduced from 3.0s for faster response)
 
 **Hotkey & Output Configuration:**
 - `VOICE_MCP_ENABLE_HOTKEY` - Enable hotkey monitoring (default: true)

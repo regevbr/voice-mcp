@@ -309,7 +309,7 @@ Claude: I'll start the global hotkey monitoring for you.
 | `VOICE_MCP_STT_MODEL` | `base`                                 | Whisper model (`tiny`, `base`, `small`, `medium`, `large`) |
 | `VOICE_MCP_STT_DEVICE` | `auto`                                 | Processing device (`auto`, `cuda`, `cpu`) |
 | `VOICE_MCP_STT_LANGUAGE` | `en`                                   | Default STT language |
-| `VOICE_MCP_STT_SILENCE_THRESHOLD` | `3.0`                                  | Silence detection threshold (seconds, reduced from 4.0s) |
+| `VOICE_MCP_STT_SILENCE_THRESHOLD` | `2.0`                                  | Silence detection threshold (seconds, reduced from 3.0s) |
 | `VOICE_MCP_ENABLE_HOTKEY` | `true`                                 | Enable hotkey activation |
 | `VOICE_MCP_HOTKEY_NAME` | `menu`                                 | Hotkey to monitor |
 | `VOICE_MCP_HOTKEY_OUTPUT_MODE` | `typing`                               | Default hotkey output mode (`typing`, `clipboard`, `return`) |
@@ -340,7 +340,7 @@ VOICE_MCP_TTS_VOLUME=0.8
 VOICE_MCP_STT_ENABLED=true
 VOICE_MCP_STT_MODEL=base
 VOICE_MCP_STT_DEVICE=auto
-VOICE_MCP_STT_SILENCE_THRESHOLD=3.0
+VOICE_MCP_STT_SILENCE_THRESHOLD=2.0
 
 # Hotkey Configuration
 VOICE_MCP_ENABLE_HOTKEY=true

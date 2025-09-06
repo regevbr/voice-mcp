@@ -49,7 +49,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        uv sync --extra audio --dev --no-install-workspace
+        uv sync --dev --no-install-workspace
         uv pip install -e .
 
     - name: Check README validity
@@ -150,7 +150,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        uv sync --extra audio --dev --no-install-workspace
+        uv sync --dev --no-install-workspace
         uv pip install -e .
 
     - name: Check for MkDocs configuration
@@ -334,7 +334,7 @@ jobs:
         |----------|---------|-------------|
         | \`VOICE_MCP_STT_MODEL\` | \`base\` | Whisper model size |
         | \`VOICE_MCP_STT_LANGUAGE\` | \`en\` | Default language |
-        | \`VOICE_MCP_STT_SILENCE_THRESHOLD\` | \`3.0\` | Silence detection threshold |
+        | \`VOICE_MCP_STT_SILENCE_THRESHOLD\` | \`2.0\` | Silence detection threshold |
         EOF
         fi
 

@@ -47,7 +47,7 @@ Popular Coqui TTS models:
 | `VOICE_MCP_STT_MODEL` | `base`  | Whisper model size |
 | `VOICE_MCP_STT_DEVICE` | `auto`  | Processing device (`auto`, `cuda`, `cpu`) |
 | `VOICE_MCP_STT_LANGUAGE` | `en`    | Default STT language |
-| `VOICE_MCP_STT_SILENCE_THRESHOLD` | `3.0`   | Silence detection threshold (seconds)
+| `VOICE_MCP_STT_SILENCE_THRESHOLD` | `2.0`   | Silence detection threshold (seconds)
 
 
 ### Available STT Models
@@ -127,7 +127,7 @@ VOICE_MCP_STT_ENABLED=true
 VOICE_MCP_STT_MODEL=base
 VOICE_MCP_STT_DEVICE=auto
 VOICE_MCP_STT_LANGUAGE=en
-VOICE_MCP_STT_SILENCE_THRESHOLD=3.0
+VOICE_MCP_STT_SILENCE_THRESHOLD=2.0
 
 # Hotkey Settings - Real-time Typing
 VOICE_MCP_ENABLE_HOTKEY=true
@@ -183,7 +183,7 @@ VOICE_MCP_AUDIO_NORMALIZATION_HEADROOM=0.90
 VOICE_MCP_STT_MODEL=medium
 VOICE_MCP_STT_LANGUAGE=auto  # Auto-detect language
 VOICE_MCP_STT_DEVICE=cuda
-VOICE_MCP_STT_SILENCE_THRESHOLD=3.0
+VOICE_MCP_STT_SILENCE_THRESHOLD=2.0
 
 # TTS Settings - Multi-speaker Model
 VOICE_MCP_TTS_MODEL=tts_models/en/vctk/vits
@@ -280,7 +280,7 @@ VOICE_MCP_STT_ENABLED=true
 - TTS Model: `tts_models/en/ljspeech/tacotron2-DDC`
 - TTS GPU: `false`
 - TTS Rate: `1.0`
-- Silence Threshold: `3.0`
+- Silence Threshold: `2.0`
 
 ### Speech Rate Control
 
