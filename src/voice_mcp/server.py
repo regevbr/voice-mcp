@@ -4,6 +4,7 @@ Voice MCP Server - Simplified version with only essential tools.
 
 import argparse
 import atexit
+import signal
 import sys
 from typing import Any
 
@@ -28,16 +29,37 @@ mcp = FastMCP(
 # Cleanup function for hotkey monitoring and STT
 def cleanup_resources():
     """Cleanup resources on server shutdown."""
+    logger.info("Cleaning up server resources...")
+
     try:
+        # Stop hotkey monitoring first
         if config.enable_hotkey:
-            VoiceTools.stop_hotkey_monitoring()
+            logger.debug("Stopping hotkey monitoring...")
+            result = VoiceTools.stop_hotkey_monitoring()
+            logger.debug(f"Hotkey stop result: {result}")
 
         # Cleanup STT resources
+        logger.debug("Cleaning up STT resources...")
         stt_handler = get_transcription_handler()
         stt_handler.cleanup()
 
-    except Exception:
-        # Silently handle cleanup errors to avoid I/O issues during shutdown
+        # Additional cleanup for any module-level instances
+        from .tools import _hotkey_manager, _text_output_controller
+
+        if _hotkey_manager:
+            logger.debug("Force cleanup hotkey manager...")
+            _hotkey_manager.stop_monitoring()
+
+        if _text_output_controller:
+            logger.debug("Cleanup text output controller...")
+            # No explicit cleanup needed for text output controller
+            pass
+
+        logger.info("Resource cleanup completed")
+
+    except Exception as e:
+        # Log the error but don't raise to avoid hanging during shutdown
+        logger.warning(f"Error during resource cleanup: {e}")
         pass
 
 
@@ -142,12 +164,32 @@ def parse_args():
     return parser.parse_args()
 
 
+def setup_signal_handlers():
+    """Set up signal handlers for graceful shutdown."""
+
+    def signal_handler(signum, _frame):
+        logger.info(f"Received signal {signum}, shutting down gracefully...")
+        cleanup_resources()
+        sys.exit(0)
+
+    # Handle termination signals
+    signal.signal(signal.SIGINT, signal_handler)  # Ctrl+C
+    signal.signal(signal.SIGTERM, signal_handler)  # Termination signal
+
+    # On Unix systems, also handle SIGHUP
+    if hasattr(signal, "SIGHUP"):
+        signal.signal(signal.SIGHUP, signal_handler)
+
+
 def main():
     """Main entry point for the MCP server."""
     args = parse_args()
 
     # Setup logging based on arguments
     setup_logging(args.log_level)
+
+    # Setup signal handlers for graceful shutdown
+    setup_signal_handlers()
 
     logger.info("Starting Voice MCP Server...")
     logger.info(f"Transport: {args.transport}")

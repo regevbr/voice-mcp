@@ -542,9 +542,8 @@ class TranscriptionHandler:
         """Clean up resources."""
         if self._recorder:
             try:
-                # Clean up recorder resources if available
-                if hasattr(self._recorder, "cleanup"):
-                    self._recorder.cleanup()
+                # Force shutdown of recorder and any background threads
+                self._recorder.shutdown()
                 logger.debug("TranscriptionHandler cleaned up")
             except Exception as e:
                 logger.warning("Error during cleanup", error=str(e))

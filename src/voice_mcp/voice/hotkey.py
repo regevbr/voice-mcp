@@ -295,14 +295,15 @@ class HotkeyManager:
     def _run_listener(self) -> None:
         """Run the keyboard listener in a background thread."""
         try:
-            if self._listener:
+            if self._listener and self._listener is not None:
                 self._listener.start()
 
                 # Keep the listener running until stop is requested
                 while not self._stop_event.is_set():
                     time.sleep(0.1)
 
-                self._listener.stop()
+                if self._listener and self._listener is not None:
+                    self._listener.stop()
 
         except Exception as e:
             logger.error("Keyboard listener error", error=str(e))
@@ -326,16 +327,23 @@ class HotkeyManager:
                 # Signal stop
                 self._stop_event.set()
 
-                # Stop the listener
-                if self._listener:
-                    self._listener.stop()
+                # Stop the listener first
+                if self._listener and self._listener is not None:
+                    try:
+                        self._listener.stop()
+                    except Exception as e:
+                        logger.warning("Error stopping keyboard listener", error=str(e))
                     self._listener = None
 
-                # Wait for monitoring thread to finish
+                # Wait for monitoring thread to finish with extended timeout
                 if self._monitoring_thread and self._monitoring_thread.is_alive():
-                    self._monitoring_thread.join(timeout=2.0)
+                    self._monitoring_thread.join(timeout=5.0)
                     if self._monitoring_thread.is_alive():
-                        logger.warning("Monitoring thread did not stop gracefully")
+                        logger.warning(
+                            "Monitoring thread did not stop gracefully, forcing cleanup"
+                        )
+                        # For non-daemon threads that won't stop, we can't force kill them
+                        # but we can mark them as such and continue cleanup
 
                 self._is_monitoring = False
                 self._monitoring_thread = None
@@ -357,6 +365,9 @@ class HotkeyManager:
 
             except Exception as e:
                 logger.error("Failed to stop hotkey monitoring", error=str(e))
+                # Even if there's an error, mark as stopped to prevent hanging
+                self._is_monitoring = False
+                self._monitoring_thread = None
                 return {
                     "success": False,
                     "error": f"Failed to stop monitoring: {str(e)}",
