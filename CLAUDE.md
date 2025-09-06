@@ -11,6 +11,7 @@ Voice MCP Server is a comprehensive Python implementation of a Model Context Pro
 ✅ **Completed (Phase 1-6):**
 - Complete MCP server foundation using FastMCP framework
 - Advanced TTS implementation with Coqui TTS neural models
+- TTS model preloading for fast first-call performance
 - Full STT implementation with faster-whisper and real-time processing
 - Real-time voice activation with global hotkey monitoring
 - Advanced text output system (typing, clipboard, return modes)
@@ -110,6 +111,7 @@ All configurable via environment variables:
 
 **TTS Configuration:**
 - `VOICE_MCP_TTS_MODEL` - Coqui TTS model (default: tts_models/en/ljspeech/tacotron2-DDC)
+- `VOICE_MCP_TTS_PRELOAD_ENABLED` - Enable TTS preloading on startup (default: true)
 - `VOICE_MCP_TTS_RATE` - Speech rate multiplier (default: 1.0)
 - `VOICE_MCP_TTS_VOLUME` - Volume level (default: 0.9)
 
@@ -151,12 +153,13 @@ uv run pytest -m "not voice"
 ## Known Issues & Considerations
 
 1. **Heavy Dependencies**: Coqui TTS and faster-whisper require significant disk space and memory
-2. **Audio Hardware**: Both TTS and STT require functional audio input/output
-3. **Build Requirements**: NumPy, PyAudio, and other native dependencies need build tools
-4. **GPU Acceleration**: CUDA support available but optional for STT processing
-5. **Real-time Performance**: STT with live typing requires low-latency audio pipeline
-6. **Hotkey Conflicts**: Global hotkeys may conflict with system shortcuts
-7. **Model Downloads**: First-time TTS/STT usage downloads large model files
+2. **Startup Time**: TTS/STT preloading increases server startup time (~3-10 seconds) but eliminates first-call delays
+3. **Audio Hardware**: Both TTS and STT require functional audio input/output
+4. **Build Requirements**: NumPy, PyAudio, and other native dependencies need build tools
+5. **GPU Acceleration**: CUDA support available but optional for STT processing
+6. **Real-time Performance**: STT with live typing requires low-latency audio pipeline
+7. **Hotkey Conflicts**: Global hotkeys may conflict with system shortcuts
+8. **Model Downloads**: First-time TTS/STT usage downloads large model files
 
 ## Development Commands
 

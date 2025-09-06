@@ -22,6 +22,7 @@ class ServerConfig:
 
     # TTS settings
     tts_model: str = "tts_models/en/ljspeech/tacotron2-DDC"  # Coqui TTS model to use
+    tts_preload_enabled: bool = True  # Enable TTS preloading on startup
     tts_rate: float = 1.0  # Speed multiplier (not implemented yet)
     tts_volume: float = 0.9  # Volume level (not implemented yet)
 
@@ -58,6 +59,10 @@ class ServerConfig:
             tts_model=os.getenv(
                 "VOICE_MCP_TTS_MODEL", "tts_models/en/ljspeech/tacotron2-DDC"
             ),
+            tts_preload_enabled=os.getenv(
+                "VOICE_MCP_TTS_PRELOAD_ENABLED", "true"
+            ).lower()
+            == "true",
             tts_rate=float(os.getenv("VOICE_MCP_TTS_RATE", "1.0")),
             tts_volume=float(os.getenv("VOICE_MCP_TTS_VOLUME", "0.9")),
             stt_enabled=os.getenv("VOICE_MCP_STT_ENABLED", "true").lower() == "true",

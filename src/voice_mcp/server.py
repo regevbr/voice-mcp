@@ -283,6 +283,20 @@ def main():
         else:
             logger.warning("STT model preload failed, will load on first use")
 
+    # Preload TTS model if enabled
+    if config.tts_preload_enabled:
+        logger.info("Preloading TTS model on startup...")
+        try:
+            from .tools import get_tts_manager
+
+            tts_manager = get_tts_manager()
+            if tts_manager.is_available():
+                logger.info("TTS model preloaded successfully")
+            else:
+                logger.warning("TTS model preload failed, will load on first use")
+        except Exception as e:
+            logger.warning(f"TTS model preload failed: {e}, will load on first use")
+
     # Start hotkey monitoring if enabled
     if config.enable_hotkey:
         logger.info("Starting hotkey monitoring on startup...")

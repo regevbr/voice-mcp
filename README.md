@@ -123,6 +123,7 @@ Create or update your Claude Desktop configuration:
       "command": "voice-mcp",
       "env": {
         "VOICE_MCP_TTS_MODEL": "tts_models/en/ljspeech/tacotron2-DDC",
+        "VOICE_MCP_TTS_PRELOAD_ENABLED": "true",
         "VOICE_MCP_STT_ENABLED": "true",
         "VOICE_MCP_ENABLE_HOTKEY": "true",
         "VOICE_MCP_LOG_LEVEL": "INFO"
@@ -141,6 +142,7 @@ Create or update your Claude Desktop configuration:
       "args": ["run", "python", "-m", "voice_mcp.server"],
       "env": {
         "VOICE_MCP_TTS_MODEL": "tts_models/en/ljspeech/tacotron2-DDC",
+        "VOICE_MCP_TTS_PRELOAD_ENABLED": "true",
         "VOICE_MCP_STT_ENABLED": "true",
         "VOICE_MCP_ENABLE_HOTKEY": "true",
         "VOICE_MCP_LOG_LEVEL": "INFO"
@@ -160,6 +162,7 @@ claude add-mcp voice-mcp
 # Or with specific configuration
 claude add-mcp voice-mcp \
   --env VOICE_MCP_TTS_MODEL=tts_models/en/ljspeech/tacotron2-DDC \
+  --env VOICE_MCP_TTS_PRELOAD_ENABLED=true \
   --env VOICE_MCP_STT_ENABLED=true \
   --env VOICE_MCP_ENABLE_HOTKEY=true \
   --env VOICE_MCP_LOG_LEVEL=INFO
@@ -176,6 +179,7 @@ Create or update `~/.claude/claude_desktop_config.json`:
       "command": "voice-mcp",
       "env": {
         "VOICE_MCP_TTS_MODEL": "tts_models/en/ljspeech/tacotron2-DDC",
+        "VOICE_MCP_TTS_PRELOAD_ENABLED": "true",
         "VOICE_MCP_STT_ENABLED": "true",
         "VOICE_MCP_ENABLE_HOTKEY": "true",
         "VOICE_MCP_LOG_LEVEL": "INFO"
@@ -281,6 +285,7 @@ Claude: I'll start the global hotkey monitoring for you.
 | `VOICE_MCP_DEBUG` | `false`                                | Enable debug mode |
 | `VOICE_MCP_LOG_LEVEL` | `INFO`                                 | Logging level |
 | `VOICE_MCP_TTS_MODEL` | `tts_models/en/ljspeech/tacotron2-DDC` | Coqui TTS model |
+| `VOICE_MCP_TTS_PRELOAD_ENABLED` | `true`                                 | Enable TTS model preloading on startup |
 | `VOICE_MCP_TTS_RATE` | `1.0`                                  | Speech rate multiplier |
 | `VOICE_MCP_TTS_VOLUME` | `0.9`                                  | Volume level (0.0 to 1.0) |
 | `VOICE_MCP_STT_ENABLED` | `true`                                 | Enable STT preloading on startup |
@@ -300,6 +305,7 @@ Claude: I'll start the global hotkey monitoring for you.
 ```bash
 # .env file
 VOICE_MCP_TTS_MODEL=tts_models/en/ljspeech/tacotron2-DDC
+VOICE_MCP_TTS_PRELOAD_ENABLED=true
 VOICE_MCP_TTS_RATE=1.0
 VOICE_MCP_TTS_VOLUME=0.8
 VOICE_MCP_STT_ENABLED=true
