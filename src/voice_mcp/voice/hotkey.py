@@ -336,8 +336,9 @@ class HotkeyManager:
                 self._listener.start()
 
                 # Keep the listener running until stop is requested
-                while not self._stop_event.is_set():
-                    time.sleep(0.1)
+                # Use wait() with timeout for more responsive cleanup
+                while not self._stop_event.wait(timeout=0.1):
+                    pass  # Continue waiting until stop is requested
 
                 if self._listener and self._listener is not None:
                     self._listener.stop()

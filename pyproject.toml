@@ -181,8 +181,10 @@ ignore_missing_imports = true
 # Pytest configuration
 [tool.pytest.ini_options]
 minversion = "7.0"
-addopts = "-ra -q --strict-markers --strict-config"
+addopts = "-ra -q --strict-markers --strict-config --timeout=30"
 testpaths = ["tests"]
+timeout = 30  # Default timeout for all tests (30 seconds)
+timeout_method = "thread"  # Use thread-based timeout for better cleanup
 filterwarnings = [
     "error",
     "ignore::UserWarning",
@@ -193,6 +195,9 @@ markers = [
     "integration: marks tests as integration tests",
     "unit: marks tests as unit tests",
     "voice: marks tests that require audio hardware",
+    "timeout_5: marks tests with 5 second timeout",
+    "timeout_10: marks tests with 10 second timeout",
+    "timeout_60: marks tests with 60 second timeout",
 ]
 
 # Coverage configuration

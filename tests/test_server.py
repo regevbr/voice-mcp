@@ -705,11 +705,20 @@ class TestUtilityFunctions:
                     mock_stt = Mock()
                     mock_get_stt.return_value = mock_stt
 
-                    # Test that cleanup doesn't fail when called
-                    cleanup_resources()
+                    # Mock the loading manager to prevent real background threads
+                    with patch(
+                        "voice_mcp.server.get_loading_manager"
+                    ) as mock_get_loading:
+                        mock_loading = Mock()
+                        mock_loading.shutdown = Mock()
+                        mock_get_loading.return_value = mock_loading
 
-                    # Verify the main cleanup path was followed
-                    mock_stt.cleanup.assert_called_once()
+                        # Test that cleanup doesn't fail when called
+                        cleanup_resources()
+
+                        # Verify the main cleanup path was followed
+                        mock_stt.cleanup.assert_called_once()
+                        mock_loading.shutdown.assert_called_once()
 
 
 class TestServerToolFunctions:

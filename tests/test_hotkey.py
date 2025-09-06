@@ -2,7 +2,6 @@
 Tests for hotkey monitoring functionality.
 """
 
-import time
 from unittest.mock import Mock, patch
 
 import pytest
@@ -51,16 +50,40 @@ def mock_pynput():
     mock_keyboard.Key = mock_key
     mock_keyboard.KeyCode = mock_keycode
 
-    # Mock the lazy loading function to return our mocks
-    with patch(
-        "voice_mcp.voice.hotkey._get_keyboard_modules",
-        return_value=(mock_keyboard, mock_key, mock_keycode),
-    ):
-        # Also mock any other lazy imports in the module
+    # Mock threading components to prevent real background threads
+    with patch("voice_mcp.voice.hotkey.threading.Thread") as mock_thread:
+
+        def create_mock_thread(target=None, **_kwargs):
+            mock_thread_instance = Mock()
+
+            # Execute target immediately when start() is called to simulate synchronous execution
+            def execute_target():
+                if target:
+                    target()
+
+            mock_thread_instance.start = Mock(side_effect=execute_target)
+            mock_thread_instance.join = Mock()
+            return mock_thread_instance
+
+        mock_thread.side_effect = create_mock_thread
+
+        # Mock the lazy loading function to return our mocks
         with patch(
-            "voice_mcp.voice.text_output._get_keyboard_module", return_value=Mock()
+            "voice_mcp.voice.hotkey._get_keyboard_modules",
+            return_value=(mock_keyboard, mock_key, mock_keycode),
         ):
-            yield mock_keyboard
+            # Also mock any other lazy imports in the module
+            with patch(
+                "voice_mcp.voice.text_output._get_keyboard_module", return_value=Mock()
+            ):
+                # Mock time.sleep to prevent delays in tests
+                with patch("time.sleep"):
+                    # Mock the _run_listener method to prevent infinite loops in tests
+                    with patch("voice_mcp.voice.hotkey.HotkeyManager._run_listener"):
+                        # Disable hotkey locking in tests to avoid threading complexity
+                        with patch("voice_mcp.config.config") as mock_config:
+                            mock_config.hotkey_lock_enabled = False
+                            yield mock_keyboard
 
 
 @pytest.fixture
@@ -68,7 +91,15 @@ def hotkey_manager():
     """Create a HotkeyManager instance for testing."""
     callback = Mock()
     manager = HotkeyManager(on_hotkey_pressed=callback)
-    return manager
+
+    yield manager
+
+    # Cleanup: ensure monitoring is stopped
+    try:
+        if manager.is_monitoring():
+            manager.stop_monitoring()
+    except Exception:
+        pass  # Ignore cleanup errors in tests
 
 
 @pytest.fixture
@@ -197,9 +228,7 @@ class TestHotkeyManager:
         manager._on_key_press("mock_f12_key")
 
         # The callback is now run in background with locking mechanism
-        # Wait a moment for the callback thread to execute
-
-        time.sleep(0.01)  # Very short wait just for callback execution
+        # With mocked threading, callback execution is immediate
 
         # Verify callback was called
         callback.assert_called_once()
@@ -222,9 +251,7 @@ class TestHotkeyManager:
         # Press the final key
         manager._on_key_press("mock_char_s")
 
-        # Wait a moment for the callback thread to execute
-
-        time.sleep(0.01)  # Very short wait just for callback execution
+        # With mocked threading, callback execution is immediate
 
         # Now callback should be triggered
         callback.assert_called_once()
