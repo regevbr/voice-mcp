@@ -88,6 +88,29 @@ status = VoiceTools.get_hotkey_status()
 # }
 ```
 
+#### get_loading_status()
+
+Get current background loading status for all voice components.
+
+**Returns:**
+- `dict`: Dictionary containing loading status and progress information for TTS, STT, and hotkey components
+
+**Example:**
+```python
+status = VoiceTools.get_loading_status()
+# Returns: {
+#   "tts": {"status": "ready", "error": None, "enabled": True},
+#   "stt": {"status": "loading", "error": None, "enabled": True},
+#   "hotkey": {"status": "ready", "error": None, "enabled": True},
+#   "summary": {
+#     "ready_components": 2,
+#     "loading_components": 1,
+#     "failed_components": 0,
+#     "all_ready": False
+#   }
+# }
+```
+
 ## Core Modules
 
 ### TTS Module (voice_mcp.voice.tts)

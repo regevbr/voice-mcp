@@ -11,8 +11,10 @@ A comprehensive Model Context Protocol (MCP) server providing advanced text-to-s
 ### 🔊 Text-to-Speech (TTS)
 - **Coqui TTS Engine**: High-quality neural text-to-speech with customizable models
 - **GPU Acceleration**: Optional CUDA GPU support for faster TTS processing
-- **Speech Rate Control**: User-configurable speech speed control (rate multiplier)
-- **Voice customization**: Select voices, adjust rate and volume
+- **Advanced Speech Rate Control**: High-quality time-stretching with natural pitch preservation
+- **Audio Quality Pipeline**: Comprehensive validation, normalization, and dynamic range processing
+- **Multi-Model Support**: Dynamic sample rate detection for different TTS models (Tacotron2, XTTS)
+- **Voice Customization**: Select voices, adjust rate and volume with distortion-free output
 - **Cross-platform**: Works on Linux, Windows, and macOS
 - **MCP Integration**: Native `speak` tool and guidance prompts
 
@@ -26,17 +28,21 @@ A comprehensive Model Context Protocol (MCP) server providing advanced text-to-s
 ### ⌨️ Hotkey Monitoring & Voice Activation
 - **Global hotkey support**: Monitor system-wide keyboard shortcuts
 - **Menu key activation**: Configurable hotkey triggers for voice-to-text
+- **Multi-Instance Coordination**: Cross-platform hotkey locking prevents conflicts between server instances
 - **Real-time Feedback**: Audio cues (on/off sounds) and live typing
 - **Hands-free operation**: Start/stop monitoring via MCP tools
 - **Advanced Text Output**: Debounced typing, clipboard integration
+- **Exclusive Processing**: Automatic lock acquisition ensures only one server processes each keystroke
 
 ### 🏗️ Architecture
 - **FastMCP framework**: Modern MCP server implementation
+- **Background Loading System**: Intelligent component preloading for fast startup and reduced latency
 - **Type-safe**: Full type hints and validation with Pydantic
-- **Advanced Audio Processing**: NumPy, LibROSA, WebRTC VAD integration
+- **Advanced Audio Processing**: NumPy, LibROSA, WebRTC VAD integration with quality validation
 - **Real-time Systems**: Optimized for low-latency voice interactions
 - **Production-ready**: Comprehensive error handling, logging, and configuration management
-- **Modular Design**: Separate managers for TTS, STT, audio, hotkeys, and text output
+- **Modular Design**: Separate managers for TTS, STT, audio, hotkeys, text output, and background loading
+- **Cross-Process Coordination**: File-based and semaphore locking for multi-instance safety
 
 ## 📚 Documentation
 
@@ -233,6 +239,13 @@ from voice_mcp.tools import VoiceTools
 status = VoiceTools.get_hotkey_status()
 print('Hotkey Status:', status['active'])
 "
+
+# Test background loading status
+uv run python -c "
+from voice_mcp.tools import VoiceTools
+status = VoiceTools.get_loading_status()
+print('Loading Status:', status['summary'])
+"
 ```
 
 ## 🛠️ MCP Tools & Prompts
@@ -245,6 +258,7 @@ print('Hotkey Status:', status['active'])
 | `start_hotkey_monitoring` | Start global hotkey monitoring | None |
 | `stop_hotkey_monitoring` | Stop global hotkey monitoring | None |
 | `get_hotkey_status` | Get hotkey monitoring status | None |
+| `get_loading_status` | Get background loading status for all components | None |
 
 ### Prompts
 
@@ -295,30 +309,51 @@ Claude: I'll start the global hotkey monitoring for you.
 | `VOICE_MCP_STT_MODEL` | `base`                                 | Whisper model (`tiny`, `base`, `small`, `medium`, `large`) |
 | `VOICE_MCP_STT_DEVICE` | `auto`                                 | Processing device (`auto`, `cuda`, `cpu`) |
 | `VOICE_MCP_STT_LANGUAGE` | `en`                                   | Default STT language |
-| `VOICE_MCP_STT_SILENCE_THRESHOLD` | `3.0`                                  | Silence detection threshold (seconds) |
+| `VOICE_MCP_STT_SILENCE_THRESHOLD` | `3.0`                                  | Silence detection threshold (seconds, reduced from 4.0s) |
 | `VOICE_MCP_ENABLE_HOTKEY` | `true`                                 | Enable hotkey activation |
 | `VOICE_MCP_HOTKEY_NAME` | `menu`                                 | Hotkey to monitor |
 | `VOICE_MCP_HOTKEY_OUTPUT_MODE` | `typing`                               | Default hotkey output mode (`typing`, `clipboard`, `return`) |
 | `VOICE_MCP_TYPING_ENABLED` | `true`                                 | Enable real-time typing output |
 | `VOICE_MCP_CLIPBOARD_ENABLED` | `true`                                 | Enable clipboard output |
 | `VOICE_MCP_TYPING_DEBOUNCE_DELAY` | `0.1`                                  | Typing debounce delay (seconds) |
+| **Hotkey Lock Configuration** | | |
+| `VOICE_MCP_HOTKEY_LOCK_ENABLED` | `true` | Enable cross-process hotkey locking |
+| `VOICE_MCP_HOTKEY_LOCK_DIRECTORY` | `auto` | Custom lock directory (auto-detect if not set) |
+| `VOICE_MCP_HOTKEY_LOCK_FALLBACK_SEMAPHORE` | `true` | Allow semaphore fallback if file locks fail |
+| **Audio Quality Configuration** | | |
+| `VOICE_MCP_AUDIO_QUALITY_VALIDATION_ENABLED` | `true` | Enable audio quality validation |
+| `VOICE_MCP_AUDIO_QUALITY_MODE` | `balanced` | Audio quality mode (fast, balanced, high_quality) |
+| `VOICE_MCP_AUDIO_NORMALIZATION_HEADROOM` | `0.95` | Normalization headroom (0.0-1.0) |
 
 ### Example Configuration
 
 ```bash
 # .env file
+# TTS Configuration
 VOICE_MCP_TTS_MODEL=tts_models/en/ljspeech/tacotron2-DDC
 VOICE_MCP_TTS_PRELOAD_ENABLED=true
 VOICE_MCP_TTS_GPU_ENABLED=false
 VOICE_MCP_TTS_RATE=1.0
 VOICE_MCP_TTS_VOLUME=0.8
+
+# STT Configuration
 VOICE_MCP_STT_ENABLED=true
 VOICE_MCP_STT_MODEL=base
 VOICE_MCP_STT_DEVICE=auto
 VOICE_MCP_STT_SILENCE_THRESHOLD=3.0
+
+# Hotkey Configuration
 VOICE_MCP_ENABLE_HOTKEY=true
 VOICE_MCP_HOTKEY_NAME=menu
 VOICE_MCP_HOTKEY_OUTPUT_MODE=typing
+VOICE_MCP_HOTKEY_LOCK_ENABLED=true
+
+# Audio Quality Configuration
+VOICE_MCP_AUDIO_QUALITY_VALIDATION_ENABLED=true
+VOICE_MCP_AUDIO_QUALITY_MODE=balanced
+VOICE_MCP_AUDIO_NORMALIZATION_HEADROOM=0.95
+
+# General Configuration
 VOICE_MCP_LOG_LEVEL=DEBUG
 ```
 
@@ -368,6 +403,14 @@ from voice_mcp.tools import VoiceTools
 status = VoiceTools.get_hotkey_status()
 print('Hotkey Status:', status)
 "
+
+# Test background loading coordination
+uv run python -c "
+from voice_mcp.tools import VoiceTools
+status = VoiceTools.get_loading_status()
+print('All components ready:', status['summary']['all_ready'])
+print('Loading details:', status)
+"
 ```
 
 ## 📂 Project Structure
@@ -380,24 +423,35 @@ voice-mcp/
 │   ├── config.py          # Configuration management
 │   ├── tools.py           # MCP tools implementation
 │   ├── prompts.py         # MCP prompts
+│   ├── loading.py         # Background loading state management
 │   ├── cli.py             # Command-line interface (partial)
 │   └── voice/
 │       ├── __init__.py
 │       ├── audio.py       # Audio I/O and effects management
 │       ├── hotkey.py      # Global hotkey monitoring
+│       ├── hotkey_lock.py # Cross-platform hotkey locking system
 │       ├── stt.py         # Speech-to-text with faster-whisper
 │       ├── stt_server.py  # STT server implementation
 │       ├── text_output.py # Real-time typing and clipboard
-│       └── tts.py         # Coqui TTS engine
+│       └── tts.py         # Coqui TTS engine with audio quality pipeline
 ├── tests/
 │   ├── conftest.py        # Test configuration
-│   ├── test_*.py          # Comprehensive test suite
+│   ├── test_*.py          # Comprehensive test suite (82% coverage)
+│   ├── test_hotkey_lock.py # Cross-platform locking tests
+│   ├── test_audio_quality.py # Audio quality validation tests
 │   ├── integration/       # Integration tests
 │   └── unit/              # Unit tests
 ├── examples/
 │   ├── hotkey_demo.py     # Hotkey usage examples
 │   └── stt_server_demo.py # STT server examples
+├── scripts/
+│   ├── format.sh          # Code formatting with Ruff
+│   ├── lint.sh            # Linting with Ruff
+│   ├── typecheck.sh       # Type checking with mypy
+│   ├── test.sh            # Test execution
+│   └── check-all.sh       # All quality checks
 ├── pyproject.toml         # Project configuration
+├── CHANGELOG.md           # Version history
 └── README.md
 ```
 

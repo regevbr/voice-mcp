@@ -334,7 +334,7 @@ class HotkeyLockManager:
                 if runtime_dir:
                     temp_dir = Path(runtime_dir) / "voice-mcp-locks"
                 else:
-                    temp_dir = Path("/tmp/voice-mcp-locks")
+                    temp_dir = Path(tempfile.gettempdir()) / "voice-mcp-locks"
 
             # Ensure directory exists
             temp_dir.mkdir(parents=True, exist_ok=True)

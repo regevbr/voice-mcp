@@ -29,8 +29,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Security**: CodeQL security scanning in CI pipeline
-- **Testing**: Comprehensive test coverage improvements (92% overall coverage achieved)
-- **Documentation**: Enhanced configuration documentation with breaking change notes
+- **Testing**: Comprehensive test coverage improvements (82% overall coverage achieved)
+- **Background Loading**: Intelligent component preloading system for TTS, STT, and hotkey components
+- **Cross-Platform Hotkey Locking**: File-based locking system prevents multi-instance hotkey conflicts
+- **Audio Quality Pipeline**: Comprehensive validation, normalization, and dynamic range processing for TTS
+- **High-Quality Time-Stretching**: Natural pitch preservation with librosa time-stretching (eliminates "chipmunk effect")
+- **New MCP Tool**: `get_loading_status()` - Monitor background loading progress for all components
+- **Multi-Model Support**: Dynamic sample rate detection for different TTS models (Tacotron2, XTTS)
+- **Documentation**: Enhanced configuration documentation with breaking change notes and new features
 
 ## Migration Guide
 

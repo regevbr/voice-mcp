@@ -91,12 +91,17 @@ class TranscriptionHandler:
     _instance: "TranscriptionHandler | None" = None
     _recorder: AudioToTextRecorder | None = None
     _is_initialized = False
+    _instance_lock = threading.RLock()  # Thread safety for singleton creation
     _preload_lock = threading.RLock()  # Thread safety for preloading
 
     def __new__(cls) -> "TranscriptionHandler":
-        """Ensure singleton instance."""
+        """Ensure singleton instance with double-checked locking pattern."""
+        # First check without lock for performance
         if cls._instance is None:
-            cls._instance = super().__new__(cls)
+            with cls._instance_lock:
+                # Double-check after acquiring lock
+                if cls._instance is None:
+                    cls._instance = super().__new__(cls)
         return cls._instance
 
     def __init__(self):

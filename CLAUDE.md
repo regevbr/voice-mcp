@@ -8,20 +8,23 @@ Voice MCP Server is a comprehensive Python implementation of a Model Context Pro
 
 ## Current Status
 
-✅ **Completed (Phase 1-6):**
+✅ **Completed (Phase 1-7):**
 - Complete MCP server foundation using FastMCP framework
-- Advanced TTS implementation with Coqui TTS neural models
+- Advanced TTS implementation with Coqui TTS neural models and high-quality time-stretching
 - TTS model preloading for fast first-call performance
 - Full STT implementation with faster-whisper and real-time processing
 - Real-time voice activation with global hotkey monitoring
+- Cross-platform hotkey locking system preventing multi-instance conflicts
+- Background loading system for intelligent component preloading
 - Advanced text output system (typing, clipboard, return modes)
-- Comprehensive audio processing pipeline (NumPy, LibROSA, WebRTC VAD)
+- Comprehensive audio processing pipeline with quality validation and normalization
 - Production-ready configuration management with environment variables
-- Rich testing suite covering all voice functionality (92% coverage achieved)
+- Rich testing suite covering all voice functionality (82% coverage achieved)
 - Enhanced stability with thread-safe operations and robust cleanup
 - Security improvements with CodeQL scanning and vulnerability testing
 - Performance optimizations (STT silence threshold: 4.0s → 3.0s)
-- Updated documentation reflecting latest improvements
+- Audio quality pipeline preventing distortion and "chipmunk effect"
+- Comprehensive code formatting with single formatter (Ruff) for CI/CD consistency
 
 ## Architecture
 
@@ -31,14 +34,16 @@ Voice MCP Server is a comprehensive Python implementation of a Model Context Pro
 src/voice_mcp/
 ├── server.py          # FastMCP server with comprehensive voice tools
 ├── config.py          # Environment-based configuration with rich settings
-├── tools.py           # Complete MCP tool implementations (TTS + STT + Hotkey)
+├── tools.py           # Complete MCP tool implementations (TTS + STT + Hotkey + Loading)
 ├── prompts.py         # MCP prompt definitions
+├── loading.py         # Background loading state management system
 ├── cli.py             # Command-line interface (basic implementation)
 └── voice/
-    ├── tts.py          # Coqui TTS neural text-to-speech
+    ├── tts.py          # Coqui TTS with audio quality pipeline and time-stretching
     ├── stt.py          # faster-whisper STT with real-time processing
     ├── stt_server.py   # STT server implementation
     ├── hotkey.py       # Global hotkey monitoring with voice activation
+    ├── hotkey_lock.py  # Cross-platform hotkey locking system
     ├── audio.py        # Advanced audio I/O with effects and processing
     └── text_output.py  # Real-time typing, clipboard, and output modes
 ```
@@ -48,15 +53,18 @@ src/voice_mcp/
 1. **MCP Server**: FastMCP-based server with comprehensive voice tool set
 2. **TTS System**: Coqui TTS neural models with high-quality speech synthesis
 3. **GPU Acceleration**: Optional CUDA GPU support for faster TTS processing
-4. **Speech Rate Control**: High-quality time-stretching for natural speech rate adjustment (maintains pitch)
-5. **STT System**: faster-whisper implementation with real-time transcription
-6. **Hotkey System**: Global keyboard shortcuts with voice-to-text activation
-7. **Multi-Instance Coordination**: Cross-process locking prevents hotkey conflicts between server instances  
-8. **Real-time Processing**: Live typing during speech recognition with audio feedback
-9. **Text Output Modes**: Multiple output options (typing, clipboard, return)
-10. **Audio Pipeline**: Advanced processing with VAD, noise filtering, and effects
-11. **Configuration**: Rich environment-based configuration system
-12. **Testing**: Comprehensive pytest suite covering all voice functionality
+4. **Advanced Speech Rate Control**: High-quality time-stretching with natural pitch preservation (eliminates "chipmunk effect")
+5. **Audio Quality Pipeline**: Comprehensive validation, normalization, and dynamic range processing
+6. **STT System**: faster-whisper implementation with real-time transcription
+7. **Hotkey System**: Global keyboard shortcuts with voice-to-text activation
+8. **Multi-Instance Coordination**: Cross-process locking prevents hotkey conflicts between server instances
+9. **Background Loading System**: Intelligent component preloading for fast startup and reduced latency
+10. **Real-time Processing**: Live typing during speech recognition with audio feedback
+11. **Text Output Modes**: Multiple output options (typing, clipboard, return)
+12. **Audio Pipeline**: Advanced processing with VAD, noise filtering, quality validation, and effects
+13. **Configuration**: Rich environment-based configuration system with comprehensive audio settings
+14. **Testing**: Comprehensive pytest suite covering all voice functionality (82% coverage)
+15. **Cross-Platform Compatibility**: Full support for Windows, macOS, and Linux with platform-specific optimizations
 
 ## Development Setup
 
@@ -94,10 +102,11 @@ uv run python -m voice_mcp.server --debug
 ## MCP Integration
 
 ### Available Tools
-- `speak(text, voice?, rate?, volume?)` - Neural text-to-speech with Coqui TTS
+- `speak(text, voice?, rate?, volume?)` - Neural text-to-speech with Coqui TTS and audio quality pipeline
 - `start_hotkey_monitoring()` - Start global hotkey monitoring for voice activation
 - `stop_hotkey_monitoring()` - Stop global hotkey monitoring
-- `get_hotkey_status()` - Get comprehensive hotkey and STT status
+- `get_hotkey_status()` - Get comprehensive hotkey and STT status with lock coordination info
+- `get_loading_status()` - Get background loading status for all voice components
 
 ### Internal STT Functionality (Hotkey-activated)
 - Real-time speech-to-text transcription
@@ -116,7 +125,7 @@ All configurable via environment variables:
 - `VOICE_MCP_TTS_MODEL` - Coqui TTS model (default: tts_models/en/ljspeech/tacotron2-DDC)
 - `VOICE_MCP_TTS_PRELOAD_ENABLED` - Enable TTS preloading on startup (default: true)
 - `VOICE_MCP_TTS_GPU_ENABLED` - Enable GPU acceleration for TTS (default: false)
-- `VOICE_MCP_TTS_RATE` - Speech rate multiplier (default: 1.0, >1.0 = faster, <1.0 = slower)
+- `VOICE_MCP_TTS_RATE` - Speech rate multiplier with time-stretching (default: 1.0, >1.0 = faster, <1.0 = slower)
 - `VOICE_MCP_TTS_VOLUME` - Volume level (default: 0.9)
 
 **STT Configuration:**
@@ -124,7 +133,7 @@ All configurable via environment variables:
 - `VOICE_MCP_STT_MODEL` - Whisper model size (default: base)
 - `VOICE_MCP_STT_DEVICE` - Processing device (default: auto)
 - `VOICE_MCP_STT_LANGUAGE` - Default language (default: en)
-- `VOICE_MCP_STT_SILENCE_THRESHOLD` - Silence detection (default: 3.0s, previously 4.0s)
+- `VOICE_MCP_STT_SILENCE_THRESHOLD` - Silence detection (default: 3.0s, reduced from 4.0s for faster response)
 
 **Hotkey & Output Configuration:**
 - `VOICE_MCP_ENABLE_HOTKEY` - Enable hotkey monitoring (default: true)
@@ -139,6 +148,11 @@ All configurable via environment variables:
 - `VOICE_MCP_HOTKEY_LOCK_TIMEOUT` - Lock timeout (default: 1.0s, not used for immediate forfeit)
 - `VOICE_MCP_HOTKEY_LOCK_DIRECTORY` - Custom lock directory (default: auto-detect)
 - `VOICE_MCP_HOTKEY_LOCK_FALLBACK_SEMAPHORE` - Allow semaphore fallback (default: true)
+
+**Audio Quality Configuration:**
+- `VOICE_MCP_AUDIO_QUALITY_VALIDATION_ENABLED` - Enable audio quality validation (default: true)
+- `VOICE_MCP_AUDIO_QUALITY_MODE` - Audio processing mode (default: balanced, options: fast/balanced/high_quality)
+- `VOICE_MCP_AUDIO_NORMALIZATION_HEADROOM` - Normalization headroom to prevent clipping (default: 0.95)
 
 **General Configuration:**
 - `VOICE_MCP_LOG_LEVEL` - Logging verbosity (default: INFO)
@@ -163,14 +177,16 @@ uv run pytest -m "not voice"
 ## Known Issues & Considerations
 
 1. **Heavy Dependencies**: Coqui TTS and faster-whisper require significant disk space and memory
-2. **Startup Time**: TTS/STT preloading increases server startup time (~3-10 seconds) but eliminates first-call delays
+2. **Startup Time**: TTS/STT preloading increases server startup time (~3-10 seconds) but eliminates first-call delays via background loading
 3. **Audio Hardware**: Both TTS and STT require functional audio input/output
 4. **Build Requirements**: NumPy, PyAudio, and other native dependencies need build tools
-5. **GPU Acceleration**: CUDA support available but optional for STT processing
+5. **GPU Acceleration**: CUDA support available but optional for TTS processing
 6. **Real-time Performance**: STT with live typing requires low-latency audio pipeline
-7. **Hotkey Conflicts**: Global hotkeys may conflict with system shortcuts (now resolved with cross-process locking)
-8. **Model Downloads**: First-time TTS/STT usage downloads large model files
-9. **Multi-Instance Coordination**: Hotkey locking prevents conflicts between multiple server instances
+7. **Hotkey Conflicts**: Resolved with cross-platform hotkey locking system (file-based with semaphore fallback)
+8. **Model Downloads**: First-time TTS/STT usage downloads large model files (managed by background loading)
+9. **Multi-Instance Coordination**: Complete solution with cross-process locking prevents conflicts between multiple server instances
+10. **Audio Quality**: Comprehensive validation and normalization prevents distortion, clipping, and "chipmunk effect"
+11. **CI/CD Formatting**: Single formatter (Ruff) ensures consistent code style across development and CI environments
 
 ## Development Commands
 
@@ -194,6 +210,14 @@ print('Hotkey Active:', status['active'])
 print('Configuration:', status['configuration'])
 "
 
+# Test background loading status
+uv run python -c "
+from voice_mcp.tools import VoiceTools
+status = VoiceTools.get_loading_status()
+print('All components ready:', status['summary']['all_ready'])
+print('Component details:', status)
+"
+
 # Test STT system (internal - used by hotkey)
 uv run python -c "
 from voice_mcp.voice.stt import get_transcription_handler
@@ -201,10 +225,17 @@ stt = get_transcription_handler()
 print('STT Handler Ready:', stt.preload())
 "
 
-# Code quality
-uv run black src/ tests/
-uv run ruff check src/ tests/
-uv run mypy src/
+# Code quality (using single formatter for consistency)
+uv run ruff format src/ tests/  # Primary formatter
+uv run isort src/ tests/        # Import sorting
+uv run ruff check src/ tests/    # Linting
+uv run mypy src/                 # Type checking
+
+# Or use scripts
+./scripts/format.sh     # Format with Ruff + isort
+./scripts/lint.sh       # Lint with Ruff
+./scripts/typecheck.sh  # Type check with mypy
+./scripts/check-all.sh  # All quality checks
 ```
 
 ## Deployment Notes

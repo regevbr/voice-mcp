@@ -43,11 +43,14 @@ class LoadingStateManager:
     _lock = threading.RLock()
 
     def __new__(cls) -> "LoadingStateManager":
-        """Ensure singleton instance."""
-        with cls._lock:
-            if cls._instance is None:
-                cls._instance = super().__new__(cls)
-            return cls._instance
+        """Ensure singleton instance with double-checked locking pattern."""
+        # First check without lock for performance
+        if cls._instance is None:
+            with cls._lock:
+                # Double-check after acquiring lock
+                if cls._instance is None:
+                    cls._instance = super().__new__(cls)
+        return cls._instance
 
     def __init__(self):
         """Initialize the loading state manager (called only once due to singleton)."""
