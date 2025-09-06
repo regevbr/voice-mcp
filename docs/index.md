@@ -46,17 +46,41 @@ A comprehensive Model Context Protocol (MCP) server providing advanced text-to-s
 
 ### Installation
 
+**Option 1: Install from PyPI (Recommended)**
 ```bash
 # Install with uv (recommended)
-curl -LsSf https://astral.sh/uv/install.sh | sh
-uv sync --extra audio --dev
+uv add voice-mcp[audio]
 
 # Or with pip
-pip install -e .[audio]
+pip install voice-mcp[audio]
 ```
+
+**Option 2: Development Installation**
+```bash
+# Clone and install
+git clone https://github.com/voice-mcp/voice-mcp.git
+cd voice-mcp
+uv sync --extra audio --dev
+```
+
+> **⚠️ Important**: Use `[audio]` extras for full audio hardware support
 
 ### Usage
 
+**For PyPI Installation:**
+```bash
+# Start MCP server
+voice-mcp
+
+# Test TTS functionality
+python -c "
+from voice_mcp.tools import VoiceTools
+result = VoiceTools.speak('Hello from Voice MCP!')
+print('TTS Result:', result)
+"
+```
+
+**For Development Installation:**
 ```bash
 # Start MCP server
 uv run python -m voice_mcp.server
@@ -67,6 +91,24 @@ from voice_mcp.tools import VoiceTools
 result = VoiceTools.speak('Hello from Voice MCP!')
 print('TTS Result:', result)
 "
+```
+
+### Claude Integration
+
+**Claude Code CLI:**
+```bash
+claude add-mcp voice-mcp
+```
+
+**Claude Desktop JSON:**
+```json
+{
+  "mcpServers": {
+    "voice-mcp": {
+      "command": "voice-mcp"
+    }
+  }
+}
 ```
 
 ## 🛠️ MCP Tools

@@ -30,7 +30,26 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 ## Installation Methods
 
-### 1. Development Installation (Recommended)
+### 1. PyPI Installation (Recommended)
+
+```bash
+# Install with uv (recommended)
+uv add voice-mcp[audio]
+
+# Alternative with pip
+pip install voice-mcp[audio]
+```
+
+> **⚠️ Important**: Use `[audio]` extras to get full audio hardware support (PyAudio, RealtimeSTT). Without it, you'll get TTS functionality but may encounter audio I/O issues.
+
+**Audio Extras vs Base Installation**
+
+| Installation | TTS | STT | Audio I/O | Hotkeys | Use Case |
+|--------------|-----|-----|-----------|---------|----------|
+| `voice-mcp` | ✅ | ✅ | ⚠️ Limited | ✅ | Basic TTS, may have audio issues |
+| `voice-mcp[audio]` | ✅ | ✅ | ✅ Full | ✅ | Complete functionality (recommended) |
+
+### 2. Development Installation
 
 ```bash
 # Clone the repository
@@ -42,17 +61,17 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 uv sync --extra audio --dev
 ```
 
-### 2. Package Installation
+### 3. Alternative Package Installation
 
 ```bash
-# Full installation with audio dependencies
+# Full installation with audio dependencies (development mode)
 pip install -e .[audio]
 
-# Basic installation (limited functionality)
-pip install voice-mcp
+# Direct git installation
+pip install git+https://github.com/voice-mcp/voice-mcp.git[audio]
 ```
 
-### 3. Docker Installation
+### 4. Docker Installation
 
 ```bash
 # Build and run with Docker
@@ -69,6 +88,24 @@ Create or update your Claude Desktop configuration:
 **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
 **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
 
+**For PyPI Installation (Recommended):**
+```json
+{
+  "mcpServers": {
+    "voice-mcp": {
+      "command": "voice-mcp",
+      "env": {
+        "VOICE_MCP_TTS_MODEL": "tts_models/en/ljspeech/tacotron2-DDC",
+        "VOICE_MCP_STT_ENABLED": "true",
+        "VOICE_MCP_ENABLE_HOTKEY": "true",
+        "VOICE_MCP_LOG_LEVEL": "INFO"
+      }
+    }
+  }
+}
+```
+
+**For Development Installation:**
 ```json
 {
   "mcpServers": {
@@ -86,8 +123,56 @@ Create or update your Claude Desktop configuration:
 }
 ```
 
+### Claude Code Integration
+
+**Option A: Using Claude Code CLI (Recommended):**
+```bash
+# Add MCP server using Claude Code CLI
+claude add-mcp voice-mcp
+
+# Or with specific configuration
+claude add-mcp voice-mcp \
+  --env VOICE_MCP_TTS_MODEL=tts_models/en/ljspeech/tacotron2-DDC \
+  --env VOICE_MCP_STT_ENABLED=true \
+  --env VOICE_MCP_ENABLE_HOTKEY=true \
+  --env VOICE_MCP_LOG_LEVEL=INFO
+```
+
+**Option B: Manual Configuration File:**
+
+Create or update `~/.claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "voice-mcp": {
+      "command": "voice-mcp",
+      "env": {
+        "VOICE_MCP_TTS_MODEL": "tts_models/en/ljspeech/tacotron2-DDC",
+        "VOICE_MCP_STT_ENABLED": "true",
+        "VOICE_MCP_ENABLE_HOTKEY": "true",
+        "VOICE_MCP_LOG_LEVEL": "INFO"
+      }
+    }
+  }
+}
+```
+
 ### Standalone Server
 
+**For PyPI Installation:**
+```bash
+# Start with stdio transport (default for MCP clients)
+voice-mcp
+
+# Start with SSE transport (HTTP-based)
+voice-mcp --transport sse --port 8000
+
+# Debug mode
+voice-mcp --debug --log-level DEBUG
+```
+
+**For Development Installation:**
 ```bash
 # Start with stdio transport (default for MCP clients)
 uv run python -m voice_mcp.server
@@ -148,9 +233,25 @@ p.terminate()
 
 ### Common Issues
 
+**PyPI Installation Issues**
+
+If you get limited functionality or audio errors after `pip install voice-mcp`:
+```bash
+# Reinstall with audio extras (recommended)
+pip uninstall voice-mcp
+pip install voice-mcp[audio]
+
+# Or with uv
+uv remove voice-mcp
+uv add voice-mcp[audio]
+```
+
 **Import Error: No module named 'TTS', 'faster_whisper', or 'pyaudio'**
 ```bash
-# Reinstall dependencies with proper build tools and audio support
+# For PyPI installation
+pip install voice-mcp[audio]
+
+# For development installation
 uv sync --extra audio --reinstall
 
 # On Linux, ensure build dependencies
@@ -169,7 +270,7 @@ sudo apt-get install alsa-utils pulseaudio
 **TTS engine initialization failed**
 ```bash
 # Check Coqui TTS installation and models
-uv run python -c "
+python -c "
 from TTS.api import TTS
 print('Available models:')
 for model in TTS.list_models():
@@ -179,9 +280,20 @@ for model in TTS.list_models():
 
 **FastMCP errors**
 - Ensure you're using Python 3.12+
-- Check MCP package version: `uv list | grep mcp`
+- Check MCP package version: `pip list | grep mcp`
 
 **Build failures on Windows**
 - Install Microsoft Visual C++ Build Tools
 - Install Rust toolchain
 - Use Python 3.12 from python.org (not Microsoft Store)
+
+### Installation Comparison
+
+| Method | TTS | STT | Audio I/O | Hotkeys | Installation Command |
+|--------|-----|-----|-----------|---------|---------------------|
+| **PyPI (Recommended)** | ✅ | ✅ | ✅ Full | ✅ | `pip install voice-mcp[audio]` |
+| **PyPI Basic** | ✅ | ✅ | ⚠️ Limited | ✅ | `pip install voice-mcp` |
+| **Development** | ✅ | ✅ | ✅ Full | ✅ | `git clone` + `uv sync --extra audio` |
+| **Git Direct** | ✅ | ✅ | ✅ Full | ✅ | `pip install git+https://...` |
+
+> **Recommendation**: Always use `voice-mcp[audio]` for complete functionality.

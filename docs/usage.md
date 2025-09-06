@@ -4,8 +4,19 @@
 
 ### Standalone Mode
 
-Start the MCP server:
+**For PyPI Installation:**
+```bash
+# Start with stdio transport (default for MCP clients)
+voice-mcp
 
+# Start with SSE transport (HTTP-based)
+voice-mcp --transport sse --port 8000
+
+# Debug mode with verbose logging
+voice-mcp --debug --log-level DEBUG
+```
+
+**For Development Installation:**
 ```bash
 # Start with stdio transport (default for MCP clients)
 uv run python -m voice_mcp.server
@@ -19,8 +30,25 @@ uv run python -m voice_mcp.server --debug --log-level DEBUG
 
 ### Claude Desktop Integration
 
-Add to your `claude_desktop_config.json`:
+**For PyPI Installation (Recommended):**
+```json
+{
+  "mcpServers": {
+    "voice-mcp": {
+      "command": "voice-mcp",
+      "env": {
+        "VOICE_MCP_TTS_MODEL": "tts_models/en/ljspeech/tacotron2-DDC",
+        "VOICE_MCP_STT_ENABLED": "true",
+        "VOICE_MCP_ENABLE_HOTKEY": "true",
+        "VOICE_MCP_HOTKEY_NAME": "menu",
+        "VOICE_MCP_LOG_LEVEL": "INFO"
+      }
+    }
+  }
+}
+```
 
+**For Development Installation:**
 ```json
 {
   "mcpServers": {
@@ -37,6 +65,21 @@ Add to your `claude_desktop_config.json`:
     }
   }
 }
+```
+
+### Claude Code Integration
+
+**Using Claude Code CLI:**
+```bash
+# Add MCP server using Claude Code CLI
+claude add-mcp voice-mcp
+
+# Or with specific configuration
+claude add-mcp voice-mcp \
+  --env VOICE_MCP_TTS_MODEL=tts_models/en/ljspeech/tacotron2-DDC \
+  --env VOICE_MCP_STT_ENABLED=true \
+  --env VOICE_MCP_ENABLE_HOTKEY=true \
+  --env VOICE_MCP_LOG_LEVEL=INFO
 ```
 
 ## MCP Tools Usage

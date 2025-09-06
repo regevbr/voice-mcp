@@ -72,13 +72,27 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 ### Installation
 
+#### Option 1: Install from PyPI (Recommended)
+
+```bash
+# Install with uv (recommended)
+uv add voice-mcp[audio]
+
+# Alternative with pip
+pip install voice-mcp[audio]
+```
+
+> **⚠️ Important**: Use `[audio]` extras to get full audio hardware support (PyAudio, RealtimeSTT). Without it, you'll get TTS functionality but may encounter audio I/O issues.
+
+#### Option 2: Development Installation
+
 1. **Clone the repository:**
 ```bash
 git clone https://github.com/voice-mcp/voice-mcp.git
 cd voice-mcp
 ```
 
-2. **Install with uv (recommended):**
+2. **Install with uv:**
 ```bash
 # Install uv if you don't have it
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -94,13 +108,31 @@ pip install -e .[audio]
 
 ### Usage
 
-#### 1. MCP Server Mode (Claude Desktop Integration)
+#### 1. Claude Desktop Integration
 
 Create or update your Claude Desktop configuration:
 
 **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
 **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
 
+**For PyPI Installation (Recommended):**
+```json
+{
+  "mcpServers": {
+    "voice-mcp": {
+      "command": "voice-mcp",
+      "env": {
+        "VOICE_MCP_TTS_MODEL": "tts_models/en/ljspeech/tacotron2-DDC",
+        "VOICE_MCP_STT_ENABLED": "true",
+        "VOICE_MCP_ENABLE_HOTKEY": "true",
+        "VOICE_MCP_LOG_LEVEL": "INFO"
+      }
+    }
+  }
+}
+```
+
+**For Development Installation:**
 ```json
 {
   "mcpServers": {
@@ -118,8 +150,56 @@ Create or update your Claude Desktop configuration:
 }
 ```
 
-#### 2. Standalone Server
+#### 2. Claude Code Integration
 
+**Option A: Using Claude Code CLI (Recommended):**
+```bash
+# Add MCP server using Claude Code CLI
+claude add-mcp voice-mcp
+
+# Or with specific configuration
+claude add-mcp voice-mcp \
+  --env VOICE_MCP_TTS_MODEL=tts_models/en/ljspeech/tacotron2-DDC \
+  --env VOICE_MCP_STT_ENABLED=true \
+  --env VOICE_MCP_ENABLE_HOTKEY=true \
+  --env VOICE_MCP_LOG_LEVEL=INFO
+```
+
+**Option B: Manual Configuration File:**
+
+Create or update `~/.claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "voice-mcp": {
+      "command": "voice-mcp",
+      "env": {
+        "VOICE_MCP_TTS_MODEL": "tts_models/en/ljspeech/tacotron2-DDC",
+        "VOICE_MCP_STT_ENABLED": "true",
+        "VOICE_MCP_ENABLE_HOTKEY": "true",
+        "VOICE_MCP_LOG_LEVEL": "INFO"
+      }
+    }
+  }
+}
+```
+
+#### 3. Standalone Server
+
+**For PyPI Installation:**
+```bash
+# Start with stdio transport (default for MCP clients)
+voice-mcp
+
+# Start with SSE transport (HTTP-based)
+voice-mcp --transport sse --port 8000
+
+# Debug mode
+voice-mcp --debug --log-level DEBUG
+```
+
+**For Development Installation:**
 ```bash
 # Start with stdio transport (default for MCP clients)
 uv run python -m voice_mcp.server
@@ -339,14 +419,39 @@ uv run python -m voice_mcp.server --debug
 
 ### Common Issues
 
+**PyPI Installation Issues**
+
+If you get limited functionality or audio errors after `pip install voice-mcp`:
+```bash
+# Reinstall with audio extras (recommended)
+pip uninstall voice-mcp
+pip install voice-mcp[audio]
+
+# Or with uv
+uv remove voice-mcp
+uv add voice-mcp[audio]
+```
+
 **Import Error: No module named 'TTS', 'faster_whisper', or 'pyaudio'**
 ```bash
-# Reinstall dependencies with proper build tools and audio support
+# For PyPI installation
+pip install voice-mcp[audio]
+
+# For development installation
 uv sync --extra audio --reinstall
 
 # On Linux, ensure build dependencies
 sudo apt-get install build-essential cmake
 ```
+
+**Audio Extras vs Base Installation**
+
+| Installation | TTS | STT | Audio I/O | Hotkeys | Use Case |
+|--------------|-----|-----|-----------|---------|----------|
+| `voice-mcp` | ✅ | ✅ | ⚠️ Limited | ✅ | Basic TTS, may have audio issues |
+| `voice-mcp[audio]` | ✅ | ✅ | ✅ Full | ✅ | Complete functionality (recommended) |
+
+> **Recommendation**: Always use `voice-mcp[audio]` for full functionality
 
 **Audio playback not working**
 ```bash
