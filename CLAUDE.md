@@ -115,7 +115,7 @@ All configurable via environment variables:
 - `VOICE_MCP_STT_MODEL` - Whisper model size (default: base)
 - `VOICE_MCP_STT_DEVICE` - Processing device (default: auto)
 - `VOICE_MCP_STT_LANGUAGE` - Default language (default: en)
-- `VOICE_MCP_STT_SILENCE_THRESHOLD` - Silence detection (default: 3.0s)
+- `VOICE_MCP_STT_SILENCE_THRESHOLD` - Silence detection (default: 3.0s, previously 4.0s)
 
 **Hotkey & Output Configuration:**
 - `VOICE_MCP_ENABLE_HOTKEY` - Enable hotkey monitoring (default: true)

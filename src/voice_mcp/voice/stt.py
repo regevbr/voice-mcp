@@ -10,74 +10,58 @@ import torch
 
 from ..config import config
 
-# Fix for tqdm compatibility issue with huggingface_hub
+# Fix for tqdm compatibility issue with RealtimeSTT/huggingface_hub
+# This addresses tqdm locking issues when used with disabled_tqdm classes
 try:
+    import threading
     from contextlib import nullcontext
 
     import tqdm  # type: ignore
     import tqdm.contrib.concurrent  # type: ignore
     import tqdm.std  # type: ignore
 
-    # Patch the tqdm class to handle disabled_tqdm properly
-    original_tqdm_new = tqdm.std.tqdm.__new__
+    # Patch get_lock to always return a valid lock
+    _original_get_lock = tqdm.std.tqdm.get_lock
 
-    def patched_tqdm_new(cls, *args, **kwargs):
-        """Patched __new__ that handles get_lock properly."""
+    def _patched_get_lock(cls):
+        """Ensure get_lock always returns a valid lock object."""
         try:
-            # Get the lock with proper error handling
-            lock = cls.get_lock()
+            lock = _original_get_lock()
             if lock is None:
-                # If get_lock returns None, create a proper lock
-                import threading
-
-                cls._lock = threading.RLock()
+                # Create a lock if none exists
+                if not hasattr(cls, "_lock"):
+                    cls._lock = threading.RLock()
+                return cls._lock
+            return lock
         except (AttributeError, TypeError):
-            # If there's any issue with locking, create a proper lock
-            import threading
+            # Fallback: create a new lock
+            if not hasattr(cls, "_lock"):
+                cls._lock = threading.RLock()
+            return cls._lock
 
-            cls._lock = threading.RLock()
+    tqdm.std.tqdm.get_lock = classmethod(_patched_get_lock)
 
-        return original_tqdm_new(cls, *args, **kwargs)
+    # Patch ensure_lock to handle disabled_tqdm classes
+    _original_ensure_lock = tqdm.contrib.concurrent.ensure_lock
 
-    # Apply the tqdm patch
-    tqdm.std.tqdm.__new__ = staticmethod(patched_tqdm_new)
-
-    # Patch the ensure_lock function to handle disabled_tqdm properly
-    original_ensure_lock = tqdm.contrib.concurrent.ensure_lock
-
-    def patched_ensure_lock(tqdm_class, lock_name=""):
-        """Patched ensure_lock that handles disabled_tqdm properly."""
+    def _patched_ensure_lock(tqdm_class, lock_name=""):
+        """Enhanced patch for tqdm locking compatibility."""
         try:
-            # Check if the class has the _lock attribute before trying to access it
-            if not hasattr(tqdm_class, "_lock"):
-                # For disabled_tqdm or other classes without _lock, return nullcontext
+            # Check if this is a disabled_tqdm or similar class without proper locking
+            if not hasattr(tqdm_class, "_lock") and not hasattr(tqdm_class, "get_lock"):
                 return nullcontext()
-            return original_ensure_lock(tqdm_class, lock_name)
-        except AttributeError as e:
-            if "_lock" in str(e) or "disabled_tqdm" in str(e):
-                # Create a no-op context manager for disabled_tqdm
-                return nullcontext()
-            raise
 
-    # Apply the patch globally before any imports that might use huggingface_hub
-    tqdm.contrib.concurrent.ensure_lock = patched_ensure_lock
+            # Try to get a lock from the class
+            if hasattr(tqdm_class, "get_lock"):
+                lock = tqdm_class.get_lock()
+                if lock is None:
+                    return nullcontext()
 
-    # Also patch directly in tqdm.contrib.concurrent module for safety
-    if hasattr(tqdm.contrib.concurrent, "_executor_map"):
-        original_executor_map = tqdm.contrib.concurrent._executor_map
+            return _original_ensure_lock(tqdm_class, lock_name)
+        except (AttributeError, TypeError):
+            return nullcontext()
 
-        def patched_executor_map(executor_class, fn, *iterables, **kwargs):
-            """Patched _executor_map that handles disabled_tqdm properly."""
-            try:
-                return original_executor_map(executor_class, fn, *iterables, **kwargs)
-            except (AttributeError, TypeError) as e:
-                if "_lock" in str(e) or "context manager" in str(e):
-                    # If we encounter lock/context manager issues, fall back to simpler execution
-                    with executor_class() as executor:
-                        return list(executor.map(fn, *iterables))
-                raise
-
-        tqdm.contrib.concurrent._executor_map = patched_executor_map
+    tqdm.contrib.concurrent.ensure_lock = _patched_ensure_lock
 
 except ImportError:
     pass

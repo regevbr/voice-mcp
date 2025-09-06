@@ -868,7 +868,6 @@ class TestTranscriptionHandlerErrorConditions:
 
             # Capture the callback function
 
-
             with patch("voice_mcp.voice.stt.config") as mock_config:
                 mock_config.stt_model = "base"
                 mock_config.stt_language = "en"

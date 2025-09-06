@@ -60,40 +60,72 @@ def force_exit_after_timeout(timeout_seconds: int = 5):
     timer_thread.start()
 
 
-# Cleanup function for hotkey monitoring and STT
+# Global cleanup state tracking
+_cleanup_lock = threading.Lock()
+_cleanup_performed = False
+
+
+def _reset_cleanup_state():
+    """Reset cleanup state for testing purposes."""
+    global _cleanup_performed
+    with _cleanup_lock:
+        _cleanup_performed = False
+
+
 def cleanup_resources():
-    """Cleanup resources on server shutdown."""
+    """Thread-safe cleanup of server resources on shutdown."""
+    global _cleanup_performed
+
+    with _cleanup_lock:
+        if _cleanup_performed:
+            logger.debug("Cleanup already performed, skipping")
+            return
+        _cleanup_performed = True
+
     logger.info("Cleaning up server resources...")
 
-    try:
-        # Stop hotkey monitoring first
-        if config.enable_hotkey:
-            logger.debug("Stopping hotkey monitoring...")
-            result = VoiceTools.stop_hotkey_monitoring()
-            logger.debug(f"Hotkey stop result: {result}")
+    # Define cleanup operations in priority order
+    cleanup_operations = [
+        ("hotkey_monitoring", _cleanup_hotkey_monitoring),
+        ("stt_resources", _cleanup_stt_resources),
+        ("module_instances", _cleanup_module_instances),
+    ]
 
-        # Cleanup STT resources
-        logger.debug("Cleaning up STT resources...")
-        stt_handler = get_transcription_handler()
-        stt_handler.cleanup()
+    for operation_name, operation_func in cleanup_operations:
+        try:
+            logger.debug(f"Performing {operation_name} cleanup...")
+            operation_func()
+        except Exception as e:
+            # Log but continue with other cleanup operations
+            logger.warning(f"Error during {operation_name} cleanup: {e}")
 
-        # Additional cleanup for any module-level instances
-        from .tools import _hotkey_manager, _text_output_controller
+    logger.info("Resource cleanup completed")
 
-        if _hotkey_manager:
-            logger.debug("Force cleanup hotkey manager...")
-            _hotkey_manager.stop_monitoring()
 
-        if _text_output_controller:
-            logger.debug("Cleanup text output controller...")
-            # No explicit cleanup needed for text output controller
+def _cleanup_hotkey_monitoring():
+    """Cleanup hotkey monitoring resources."""
+    if config.enable_hotkey:
+        result = VoiceTools.stop_hotkey_monitoring()
+        logger.debug(f"Hotkey stop result: {result}")
 
-        logger.info("Resource cleanup completed")
 
-    except Exception as e:
-        # Log the error but don't raise to avoid hanging during shutdown
-        logger.warning(f"Error during resource cleanup: {e}")
-        pass
+def _cleanup_stt_resources():
+    """Cleanup STT handler resources."""
+    stt_handler = get_transcription_handler()
+    stt_handler.cleanup()
+
+
+def _cleanup_module_instances():
+    """Cleanup module-level instances."""
+    from .tools import _hotkey_manager, _text_output_controller
+
+    if _hotkey_manager:
+        logger.debug("Force cleanup hotkey manager...")
+        _hotkey_manager.stop_monitoring()
+
+    if _text_output_controller:
+        logger.debug("Text output controller cleanup (no-op)")
+        # No explicit cleanup needed for text output controller
 
 
 # Register voice tools
@@ -203,23 +235,18 @@ def setup_signal_handlers():
     def signal_handler(signum, _frame):
         logger.info(f"Received signal {signum}, shutting down gracefully...")
 
-        # Log threads before cleanup
-        logger.debug("Threads before cleanup:")
-        log_active_threads()
+        # Start force exit timer as safety net
+        force_exit_after_timeout(6)
 
-        # Start force exit timer
-        force_exit_after_timeout(8)
+        # Log active threads for debugging
+        logger.debug("Active threads before cleanup:")
+        log_active_threads()
 
         # Perform cleanup
         cleanup_resources()
 
-        # Log threads after cleanup
-        logger.debug("Threads after cleanup:")
-        log_active_threads()
-
-        # Give threads a moment to finish naturally
-        logger.info("Allowing 2 seconds for remaining threads to finish...")
-        time.sleep(2)
+        # Brief wait for remaining threads
+        time.sleep(1)
 
         logger.info("Graceful shutdown complete")
         sys.exit(0)

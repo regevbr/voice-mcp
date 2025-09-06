@@ -168,6 +168,10 @@ class TestCleanupResources:
         self, _mock_get_stt, _mock_voice_tools, mock_config
     ):
         """Test cleanup with hotkey enabled."""
+        from voice_mcp.server import _reset_cleanup_state
+
+        _reset_cleanup_state()
+
         mock_config.enable_hotkey = True
         _mock_voice_tools.stop_hotkey_monitoring.return_value = "Stopped"
         mock_stt_handler = Mock()
@@ -185,6 +189,10 @@ class TestCleanupResources:
         self, _mock_get_stt, _mock_voice_tools, mock_config
     ):
         """Test cleanup with hotkey disabled."""
+        from voice_mcp.server import _reset_cleanup_state
+
+        _reset_cleanup_state()
+
         mock_config.enable_hotkey = False
         mock_stt_handler = Mock()
         _mock_get_stt.return_value = mock_stt_handler
@@ -201,6 +209,10 @@ class TestCleanupResources:
         self, _mock_get_stt, _mock_voice_tools, mock_config
     ):
         """Test cleanup with exception handling."""
+        from voice_mcp.server import _reset_cleanup_state
+
+        _reset_cleanup_state()
+
         mock_config.enable_hotkey = False  # Test STT cleanup exception instead
         mock_stt_handler = Mock()
         mock_stt_handler.cleanup.side_effect = Exception("STT cleanup error")
@@ -673,10 +685,10 @@ class TestUtilityFunctions:
             signal_handler(2, None)  # SIGINT = 2
 
             # Verify cleanup sequence
-            assert mock_log_threads.call_count == 2  # Before and after cleanup
-            mock_force_exit.assert_called_once_with(8)
+            assert mock_log_threads.call_count == 1  # Only before cleanup (simplified)
+            mock_force_exit.assert_called_once_with(6)  # Reduced timeout
             mock_cleanup.assert_called_once()
-            mock_sleep.assert_called_once_with(2)
+            mock_sleep.assert_called_once_with(1)  # Reduced sleep
             mock_exit.assert_called_once_with(0)
 
     def test_cleanup_resources_with_module_instances(self):

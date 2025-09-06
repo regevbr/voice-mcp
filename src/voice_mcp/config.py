@@ -30,7 +30,9 @@ class ServerConfig:
     stt_model: str = "base"  # tiny, base, small, medium, large
     stt_device: str = "auto"  # auto, cuda, cpu
     stt_language: str = "en"  # Default language for STT
-    stt_silence_threshold: float = 3.0
+    stt_silence_threshold: float = (
+        3.0  # Silence detection threshold in seconds (changed from 4.0s in v1.0.0)
+    )
     enable_hotkey: bool = True  # Enable/disable hotkey monitoring
     hotkey_name: str = "menu"  # Which key to use (menu, f12, ctrl+alt+s, etc.)
     hotkey_output_mode: str = "typing"  # Default output mode when hotkey is used
