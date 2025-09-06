@@ -512,3 +512,179 @@ class TestTTSManager:
 
         mock_engine_instance.is_available.return_value = False
         assert manager.is_available() is False
+
+
+class TestAdditionalTTSCoverage:
+    """Additional tests to improve TTS coverage."""
+
+    @patch("voice_mcp.voice.tts.AudioManager")
+    def test_engine_already_initialized_double_check(self, mock_audio_manager_class):
+        """Test double-checked locking when engine is already initialized."""
+        mock_audio_manager = Mock()
+        mock_audio_manager_class.return_value = mock_audio_manager
+
+        # Mock TTS initialization
+        with patch("TTS.api.TTS") as mock_tts_class:
+            mock_tts_instance = Mock()
+            mock_tts_class.return_value = mock_tts_instance
+
+            engine = CoquiTTSEngine("test_model", False)
+            # First initialization happens in constructor
+
+            # Now test the double-check scenario - calling _init_engine again
+            # should return early
+            initial_call_count = mock_tts_class.call_count
+            engine._init_engine()  # This should return early
+
+            # TTS should not be initialized again
+            assert mock_tts_class.call_count == initial_call_count
+
+    @patch("voice_mcp.voice.tts.AudioManager")
+    def test_engine_gpu_enablement_paths(self, mock_audio_manager_class):
+        """Test GPU enablement code paths."""
+        mock_audio_manager = Mock()
+        mock_audio_manager_class.return_value = mock_audio_manager
+
+        # Test the case where GPU is enabled and torch/CUDA check occurs
+        with patch("TTS.api.TTS") as mock_tts_class:
+            mock_tts_instance = Mock()
+            mock_tts_class.return_value = mock_tts_instance
+
+            # This will exercise the GPU enablement code paths even if torch isn't available
+            engine = CoquiTTSEngine("test_model", gpu_enabled=True)
+            assert engine.is_available() is True
+
+    @patch("voice_mcp.voice.tts.AudioManager")
+    def test_engine_init_failure(self, mock_audio_manager_class):
+        """Test TTS engine initialization failure."""
+        mock_audio_manager = Mock()
+        mock_audio_manager_class.return_value = mock_audio_manager
+
+        # Mock TTS to raise exception during initialization
+        with patch("TTS.api.TTS", side_effect=Exception("TTS init failed")):
+            engine = CoquiTTSEngine("test_model", False)
+
+            # Should not be available after failed initialization
+            assert engine.is_available() is False
+            assert engine._tts is None
+
+    @patch("voice_mcp.voice.tts.AudioManager")
+    def test_speak_engine_not_available(self, mock_audio_manager_class):
+        """Test speak when engine is not available."""
+        mock_audio_manager = Mock()
+        mock_audio_manager_class.return_value = mock_audio_manager
+
+        # Create engine with failed initialization
+        with patch("TTS.api.TTS", side_effect=Exception("TTS init failed")):
+            engine = CoquiTTSEngine("test_model", False)
+
+            result = engine.speak("Hello world")
+            assert result is None
+
+    @patch("voice_mcp.voice.tts.AudioManager")
+    def test_speak_tts_to_file_failure(self, mock_audio_manager_class):
+        """Test speak when TTS tts_to_file fails."""
+        mock_audio_manager = Mock()
+        mock_audio_manager_class.return_value = mock_audio_manager
+
+        with patch("TTS.api.TTS") as mock_tts_class:
+            mock_tts_instance = Mock()
+            mock_tts_instance.tts_to_file.side_effect = Exception("TTS synthesis failed")
+            mock_tts_class.return_value = mock_tts_instance
+
+            engine = CoquiTTSEngine("test_model", False)
+
+            result = engine.speak("Hello world")
+            assert result is None
+
+    @patch("voice_mcp.voice.tts.AudioManager")
+    def test_speak_audio_processing_failure(self, mock_audio_manager_class):
+        """Test speak when audio processing fails."""
+        mock_audio_manager = Mock()
+        mock_audio_manager_class.return_value = mock_audio_manager
+
+        # Mock audio manager to fail during processing
+        mock_audio_manager.apply_time_stretch_effects.side_effect = Exception("Audio processing failed")
+
+        with patch("TTS.api.TTS") as mock_tts_class, \
+             patch("tempfile.NamedTemporaryFile") as mock_temp_file, \
+             patch("os.path.exists", return_value=True):
+
+            mock_tts_instance = Mock()
+            mock_tts_class.return_value = mock_tts_instance
+
+            # Mock temp file
+            mock_file = Mock()
+            mock_file.name = "/tmp/test_audio.wav"
+            mock_temp_file.return_value.__enter__.return_value = mock_file
+
+            engine = CoquiTTSEngine("test_model", False)
+
+            result = engine.speak("Hello world", rate=1.2)
+            assert result is None
+
+    @patch("voice_mcp.voice.tts.AudioManager")
+    def test_speak_file_cleanup_failure(self, mock_audio_manager_class):
+        """Test speak when temporary file cleanup fails."""
+        mock_audio_manager = Mock()
+        mock_audio_manager_class.return_value = mock_audio_manager
+
+        with patch("TTS.api.TTS") as mock_tts_class, \
+             patch("tempfile.NamedTemporaryFile") as mock_temp_file, \
+             patch("os.path.exists", return_value=True), \
+             patch("os.unlink", side_effect=OSError("Permission denied")):
+
+            mock_tts_instance = Mock()
+            mock_tts_class.return_value = mock_tts_instance
+
+            # Mock temp file
+            mock_file = Mock()
+            mock_file.name = "/tmp/test_audio.wav"
+            mock_temp_file.return_value.__enter__.return_value = mock_file
+
+            engine = CoquiTTSEngine("test_model", False)
+
+            # Should still return audio data despite cleanup failure
+            result = engine.speak("Hello world")
+            assert result is not None
+
+    @patch("voice_mcp.voice.tts.AudioManager")
+    def test_stop_engine_unavailable(self, mock_audio_manager_class):
+        """Test stop when engine is not available."""
+        mock_audio_manager = Mock()
+        mock_audio_manager_class.return_value = mock_audio_manager
+
+        # Create engine with failed initialization
+        with patch("TTS.api.TTS", side_effect=Exception("TTS init failed")):
+            engine = CoquiTTSEngine("test_model", False)
+
+            # Should not raise exception
+            engine.stop()
+
+    @patch("voice_mcp.voice.tts.CoquiTTSEngine")
+    def test_tts_manager_speak_exception(self, mock_engine_class):
+        """Test TTSManager when engine speak raises exception."""
+        mock_engine_instance = Mock()
+        mock_engine_instance.is_available.return_value = True
+        mock_engine_instance.speak.side_effect = Exception("Synthesis error")
+        mock_engine_class.return_value = mock_engine_instance
+
+        manager = TTSManager("test_model")
+        result = manager.speak("Hello world")
+
+        assert result is None
+
+    @patch("voice_mcp.voice.tts.CoquiTTSEngine")
+    def test_tts_manager_stop_exception_handled(self, mock_engine_class):
+        """Test TTSManager when engine stop raises exception."""
+        mock_engine_instance = Mock()
+        mock_engine_instance.stop.side_effect = Exception("Stop error")
+        mock_engine_class.return_value = mock_engine_instance
+
+        manager = TTSManager("test_model")
+        # Should handle exception gracefully and not re-raise
+        try:
+            manager.stop()
+        except Exception as err:
+            # If it raises, that means it's not handling the exception properly
+            raise AssertionError("TTSManager.stop() should handle engine stop exceptions") from err

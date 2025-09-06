@@ -600,3 +600,4 @@ class TestHotkeyIntegration:
             assert sample_config.hotkey_name == "f12"
             assert sample_config.hotkey_output_mode == "typing"
             assert sample_config.stt_language == "en"
+
