@@ -187,4 +187,4 @@ class TestTTSAudioQuality:
 
         # Test rate adjustment doesn't cause distortion
         # This test would validate actual TTS output quality at different rates
-        pass
+
