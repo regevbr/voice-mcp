@@ -87,7 +87,6 @@ def cleanup_resources():
         if _text_output_controller:
             logger.debug("Cleanup text output controller...")
             # No explicit cleanup needed for text output controller
-            pass
 
         logger.info("Resource cleanup completed")
 
