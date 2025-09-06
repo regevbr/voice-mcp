@@ -334,7 +334,7 @@ jobs:
         |----------|---------|-------------|
         | \`VOICE_MCP_STT_MODEL\` | \`base\` | Whisper model size |
         | \`VOICE_MCP_STT_LANGUAGE\` | \`en\` | Default language |
-        | \`VOICE_MCP_STT_SILENCE_THRESHOLD\` | \`4.0\` | Silence detection threshold |
+        | \`VOICE_MCP_STT_SILENCE_THRESHOLD\` | \`3.0\` | Silence detection threshold |
         EOF
         fi
 

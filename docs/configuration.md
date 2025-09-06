@@ -33,11 +33,11 @@ Popular Coqui TTS models:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `VOICE_MCP_STT_ENABLED` | `true` | Enable STT preloading on startup |
-| `VOICE_MCP_STT_MODEL` | `base` | Whisper model size |
-| `VOICE_MCP_STT_DEVICE` | `auto` | Processing device (`auto`, `cuda`, `cpu`) |
-| `VOICE_MCP_STT_LANGUAGE` | `en` | Default STT language |
-| `VOICE_MCP_STT_SILENCE_THRESHOLD` | `4.0` | Silence detection threshold (seconds) |
+| `VOICE_MCP_STT_ENABLED` | `true`  | Enable STT preloading on startup |
+| `VOICE_MCP_STT_MODEL` | `base`  | Whisper model size |
+| `VOICE_MCP_STT_DEVICE` | `auto`  | Processing device (`auto`, `cuda`, `cpu`) |
+| `VOICE_MCP_STT_LANGUAGE` | `en`    | Default STT language |
+| `VOICE_MCP_STT_SILENCE_THRESHOLD` | `3.0`   | Silence detection threshold (seconds) |
 
 ### Available STT Models
 
@@ -158,7 +158,7 @@ VOICE_MCP_TYPING_ENABLED=false
 VOICE_MCP_STT_MODEL=medium
 VOICE_MCP_STT_LANGUAGE=auto  # Auto-detect language
 VOICE_MCP_STT_DEVICE=cuda
-VOICE_MCP_STT_SILENCE_THRESHOLD=4.0
+VOICE_MCP_STT_SILENCE_THRESHOLD=3.0
 
 # TTS Settings - Multi-speaker Model
 VOICE_MCP_TTS_MODEL=tts_models/en/vctk/vits

@@ -61,7 +61,7 @@ class ServerConfig:
             stt_device=os.getenv("VOICE_MCP_STT_DEVICE", "auto"),
             stt_language=os.getenv("VOICE_MCP_STT_LANGUAGE", "en"),
             stt_silence_threshold=float(
-                os.getenv("VOICE_MCP_STT_SILENCE_THRESHOLD", "4.0")
+                os.getenv("VOICE_MCP_STT_SILENCE_THRESHOLD", "3.0")
             ),
             enable_hotkey=os.getenv("VOICE_MCP_ENABLE_HOTKEY", "true").lower()
             == "true",
