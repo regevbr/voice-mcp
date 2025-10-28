@@ -144,7 +144,7 @@ jobs:
       run: ./scripts/analyze-coverage.sh
 
     - name: Upload coverage reports
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: coverage-reports
         path: |
@@ -246,7 +246,7 @@ jobs:
         fetch-depth: 0
 
     - name: Download coverage reports
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v6
       with:
         name: coverage-reports
         path: ./coverage
@@ -271,7 +271,7 @@ jobs:
         fi
 
     - name: Upload coverage history
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: coverage-history
         path: coverage-history/
@@ -338,7 +338,7 @@ jobs:
         uv run mutmut junitxml > mutation-junit.xml || true
 
     - name: Upload mutation testing results
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: mutation-testing-results
         path: |
