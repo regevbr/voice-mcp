@@ -25,7 +25,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Install uv
       uses: astral-sh/setup-uv@v6
@@ -53,7 +53,7 @@ jobs:
         echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
     - name: Upload Bandit results
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: bandit-security-scan
         path: |
@@ -77,7 +77,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Install uv
       uses: astral-sh/setup-uv@v6
@@ -107,7 +107,7 @@ jobs:
         echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
     - name: Upload Safety results
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: safety-vulnerability-scan
         path: |
@@ -132,7 +132,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -252,7 +252,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Install uv
       uses: astral-sh/setup-uv@v6
@@ -308,7 +308,7 @@ jobs:
         fi
 
     - name: Upload license report
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: license-compliance-report
         path: |
