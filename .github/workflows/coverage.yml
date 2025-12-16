@@ -22,7 +22,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
       with:
         fetch-depth: 0  # Full history for better coverage analysis
 
@@ -54,7 +54,7 @@ jobs:
           xvfb
 
     - name: Cache uv dependencies
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: |
           ~/.cache/uv
@@ -144,7 +144,7 @@ jobs:
       run: ./scripts/analyze-coverage.sh
 
     - name: Upload coverage reports
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: coverage-reports
         path: |
@@ -241,12 +241,12 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
       with:
         fetch-depth: 0
 
     - name: Download coverage reports
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v7
       with:
         name: coverage-reports
         path: ./coverage
@@ -271,7 +271,7 @@ jobs:
         fi
 
     - name: Upload coverage history
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: coverage-history
         path: coverage-history/
@@ -284,7 +284,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Install uv
       uses: astral-sh/setup-uv@v6
@@ -338,7 +338,7 @@ jobs:
         uv run mutmut junitxml > mutation-junit.xml || true
 
     - name: Upload mutation testing results
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: mutation-testing-results
         path: |
